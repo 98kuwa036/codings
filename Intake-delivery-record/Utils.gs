@@ -63,36 +63,38 @@ function getUserInfo_(uid) {
 /**
  * (内部) 管理者ページへの認証済みURLを生成する
  * (Api_Client.gs -> getInitialData から呼び出される)
+ * ★ 修正: loginform/Code.gs の createSignedToken と同じ形式に統一
  */
 function generateAdminPageUrl_(uid) {
   if (!CONFIG || !CONFIG.ADMIN_PAGE_URL) {
     loadConfig_(); // (Config.gs)
   }
-  
+
   const ADMIN_PAGE_URL = CONFIG.ADMIN_PAGE_URL;
-  
+
   if (!ADMIN_PAGE_URL || !TOKEN_SECRET_KEY) {
     Logger.log("generateAdminPageUrl: ADMIN_PAGE_URL または TOKEN_SECRET_KEY が未設定です。");
-    return "#"; 
+    return "#";
   }
 
-  // ( ... JWT生成ロジック ... 変更なし)
+  // ★ 修正: loginform/Code.gs の createSignedToken と同じ形式でトークン生成
   const now = Math.floor(Date.now() / 1000);
-  const payload = { uid: uid, iat: now, exp: now + 300 };
-  const token = createJwt_(payload, TOKEN_SECRET_KEY);
-  const nonce = Utilities.getUuid();
-  return `${ADMIN_PAGE_URL}?p=${token.p}&s=${token.s}&uid=${uid}&n_adm=${nonce}&n_rec=N/A`;
-}
+  const exp = now + 14400; // 4時間有効 (loginformと同じ)
 
-/**
- * (内部) JWTトークンを生成する
- */
-function createJwt_(payload, secretKey) {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const p = Utilities.base64EncodeWebSafe(JSON.stringify(header)) + '.' + Utilities.base64EncodeWebSafe(JSON.stringify(payload));
-  const signature = Utilities.computeHmacSha256Signature(p, secretKey);
-  const s = Utilities.base64EncodeWebSafe(signature);
-  return { p: p, s: s };
+  const payloadObj = { uid: uid, iat: now, exp: exp };
+
+  // ★ payload のみを Base64 エンコード (header は含めない)
+  const payloadBase64 = Utilities.base64EncodeWebSafe(JSON.stringify(payloadObj)).replace(/=+$/, '');
+
+  // ★ 署名を生成 (末尾の = を削除)
+  const signatureBytes = Utilities.computeHmacSha256Signature(payloadBase64, TOKEN_SECRET_KEY);
+  const signatureBase64 = Utilities.base64EncodeWebSafe(signatureBytes).replace(/=+$/, '');
+
+  // ★ Nonce を生成
+  const nonceAdmin = Utilities.getUuid();
+
+  // ★ URLを構築 (loginformと同じパラメータ形式)
+  return `${ADMIN_PAGE_URL}?p=${encodeURIComponent(payloadBase64)}&s=${encodeURIComponent(signatureBase64)}&uid=${encodeURIComponent(uid)}&n_adm=${encodeURIComponent(nonceAdmin)}`;
 }
 
 /**
