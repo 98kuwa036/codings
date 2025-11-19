@@ -184,10 +184,22 @@ function renderFatalError(msg, err, code, url) {
 
 function createErrorOutput(msg, code, url, title) {
   const template = HtmlService.createTemplateFromFile('ErrorPage');
-  
-  // URLの調整 (再ログイン用)
-  let loginUrl = url || "https://example.com";
-  if (!loginUrl.includes('redirect=')) {
+
+  // URLの調整 (再ログイン用) - ログインページのURLを使用
+  let loginUrl = "";
+  if (typeof CONFIG !== 'undefined' && CONFIG.LOGIN_APP_URL) {
+    loginUrl = CONFIG.LOGIN_APP_URL;
+  } else {
+    // CONFIGが読み込まれていない場合は読み込む
+    try {
+      if (typeof loadConfig_ === 'function') loadConfig_();
+      loginUrl = CONFIG.LOGIN_APP_URL || url || "";
+    } catch (e) {
+      loginUrl = url || "";
+    }
+  }
+
+  if (loginUrl && !loginUrl.includes('redirect=')) {
     loginUrl += loginUrl.includes('?') ? '&redirect=record' : '?redirect=record';
   }
 
