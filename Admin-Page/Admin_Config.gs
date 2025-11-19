@@ -1,8 +1,12 @@
-// ★★★ グローバル変数を「ここだけ」で宣言 ★★★
+// ===============================================================
+// [ Admin_Config.gs ]
+// 設定管理 (グローバル変数, SETUP_PROPERTIES_ADMIN, loadAdminConfig_)
+// ===============================================================
+
+// グローバル変数
 let ADMIN_CONFIG = {};
 let SS_ID_ = null; // ログ書き込み用
 let LOG_SHEET_NAME_ = '実行ログ';
-// ★★★ 宣言ここまで ★★★
 
 /**
  * ★★★ 管理者ページ用の設定を実行する関数 ★★★
@@ -75,12 +79,13 @@ function loadAdminConfig_() {
   
   const SHEETS_CONFIG = JSON.parse(configJson);
   
-  // ★ すべての設定をグローバル変数 ADMIN_CONFIG に格納
+  // すべての設定をグローバル変数 ADMIN_CONFIG に格納
   ADMIN_CONFIG = {
+    SYSTEM_NAME: props.getProperty('SYSTEM_NAME') || '管理者ダッシュボード',
     SPREADSHEET_ID: props.getProperty('SPREADSHEET_ID'),
     TOKEN_SECRET_KEY: props.getProperty('TOKEN_SECRET_KEY'),
-    LOGIN_PAGE_URL: props.getProperty('LOGIN_PAGE_URL'), 
-    ADMIN_PAGE_URL: props.getProperty('ADMIN_PAGE_URL'), 
+    LOGIN_PAGE_URL: props.getProperty('LOGIN_PAGE_URL'),
+    ADMIN_PAGE_URL: props.getProperty('ADMIN_PAGE_URL'),
     WEBHOOK_SECRET: props.getProperty('WEBHOOK_SECRET'),
     RECORD_APP_WEBHOOK_URL: props.getProperty('RECORD_APP_WEBHOOK_URL'),
     SHEETS: SHEETS_CONFIG,
