@@ -154,6 +154,7 @@ function setupEventListeners() {
   dom.addItemBtn.addEventListener('click', addItem);
   dom.itemName.addEventListener('input', validateItemAdd);
   dom.quantity.addEventListener('input', validateItemAdd);
+  dom.itemSearch.addEventListener('input', filterItems);
   dom.selectFileBtn.addEventListener('click', () => dom.voucherFileInput.click());
   dom.launchCameraBtn.addEventListener('click', () => dom.voucherCameraInput.click());
   dom.voucherFileInput.addEventListener('change', handleFileSelect);
@@ -243,19 +244,58 @@ function onGetInitialDataSuccess(data) {
 function applyDropdownUpdates(newData) {
   if (newData.users) {
      const currentName = dom.registrantNameHidden.value || state.currentUser; // 現在選択中の名前を維持
-     dom.registrantSelect.innerHTML = ''; 
+     dom.registrantSelect.innerHTML = '';
      newData.users.forEach(user => {
        const option = new Option(user.name, user.name);
-       if (user.name === currentName) option.selected = true; 
+       if (user.name === currentName) option.selected = true;
        dom.registrantSelect.appendChild(option);
      });
   }
   if (newData.items) {
-    dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>'; 
+    // 全品目を保存（フィルタリング用）
+    state.allItems = newData.items;
+    dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>';
     newData.items.forEach(item => {
       dom.itemName.appendChild(new Option(item, item));
     });
+    // 検索フィールドをクリア
+    if (dom.itemSearch) {
+      dom.itemSearch.value = '';
+    }
   }
+}
+
+/**
+ * 品名検索フィルター
+ * 検索文字列に基づいてitem-nameのオプションをフィルタリングする
+ */
+function filterItems() {
+  const searchTerm = dom.itemSearch.value.toLowerCase().trim();
+  const items = state.allItems || [];
+
+  // 現在の選択値を保存
+  const currentValue = dom.itemName.value;
+
+  // オプションを再構築
+  dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>';
+
+  let matchCount = 0;
+  items.forEach(item => {
+    // 検索語が空、または品名に検索語が含まれる場合に表示
+    if (!searchTerm || item.toLowerCase().includes(searchTerm)) {
+      const option = new Option(item, item);
+      if (item === currentValue) option.selected = true;
+      dom.itemName.appendChild(option);
+      matchCount++;
+    }
+  });
+
+  // 検索結果がない場合のメッセージ
+  if (matchCount === 0 && searchTerm) {
+    dom.itemName.innerHTML = '<option value="" disabled selected>-- 該当なし --</option>';
+  }
+
+  validateItemAdd();
 }
 
 // ===============================================================
@@ -285,9 +325,17 @@ function resetForNewEntry() {
   dom.voucherNumber.placeholder = "ファイル名になります";
   dom.voucherFileInput.value = null; dom.voucherCameraInput.value = null;
   dom.itemName.value = ''; dom.quantity.value = '';
+  dom.itemSearch.value = ''; // 検索フィールドをクリア
+  // 品名リストを全件表示に戻す
+  if (state.allItems) {
+    dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>';
+    state.allItems.forEach(item => {
+      dom.itemName.appendChild(new Option(item, item));
+    });
+  }
   dom.addItemBtn.disabled = true;
   renderAddedItems();
-  validatePage2(); 
+  validatePage2();
   dom.successScreen.style.display = 'none';
   dom.mainContent.style.display = 'block';
   navigateTo(1);

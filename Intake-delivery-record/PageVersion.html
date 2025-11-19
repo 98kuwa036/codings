@@ -365,6 +365,7 @@
                   <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
                       <div>
                           <label for="item-name" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">品名</label>
+                          <input type="text" id="item-search" placeholder="品名を検索..." style="width: 100%; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                           <select id="item-name" style="width: 100%;">
                               <option value="" disabled selected>-- 品名を選択 --</option>
                           </select>
@@ -492,7 +493,7 @@
             voucherFileInput: $('voucher-photo-file'), voucherCameraInput: $('voucher-photo-camera'),
             voucherNumberInputGroup: $('voucher-number-input-group'), voucherNumber: $('voucher-number'),
             itemAddSection: $('item-add-section'), itemSectionLegend: $('item-section-legend'),
-            itemName: $('item-name'), quantity: $('quantity'), addItemBtn: $('add-item-button'),
+            itemSearch: $('item-search'), itemName: $('item-name'), quantity: $('quantity'), addItemBtn: $('add-item-button'),
             addedItemsContainer: $('added-items-container'), addedItemsList: $('added-items-list'),
             confirmBtn: $('confirm-button'), backToPage1Btn: $('back-to-page1-btn'),
             confirmRegistrant: $('confirm-registrant'), confirmDate: $('confirm-date'),
