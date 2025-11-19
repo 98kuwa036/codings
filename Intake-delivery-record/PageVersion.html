@@ -456,8 +456,8 @@
         "use strict";
         // --- ★ 認証データ（サーバーから埋め込み・安全化） ★ ---
         // サーバー側で文字列化されている場合も、オブジェクトの場合も対応できるように処理
-        const rawAuth = <?= JSON.stringify(initialAuthData) ?>;
-        const AUTH_DATA = (typeof rawAuth === 'string') ? JSON.parse(rawAuth) : rawAuth;
+        const rawAuth = <?= typeof initialAuthData !== 'undefined' ? JSON.stringify(initialAuthData) : 'null' ?>;
+        const AUTH_DATA = rawAuth ? ((typeof rawAuth === 'string') ? JSON.parse(rawAuth) : rawAuth) : null;
 
         // --- ★ グローバル変数 (状態管理) ★ ---
         const state = {

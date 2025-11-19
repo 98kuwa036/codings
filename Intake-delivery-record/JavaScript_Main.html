@@ -16,6 +16,11 @@ async function initialize() {
         console.log("Initialization started...");
         updateLoadingStatus('アプリを起動しています...');
 
+        // 認証データを確認
+        if (!AUTH_DATA) {
+            throw new Error("認証データが見つかりません。ログインページからアクセスしてください。");
+        }
+
         // 認証データを取得
         const { uid, n_adm, n_rec, originalUrl } = AUTH_DATA;
         state.originalUrl = originalUrl;
