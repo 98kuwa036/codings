@@ -27,20 +27,48 @@ body {
   100% { opacity:.4; }
 }
 
+/* --- フォーム要素（ログインフォームと統一） --- */
+input, select, textarea {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1.125rem;
+  line-height: 1.25;
+  color: #374151;
+  box-sizing: border-box;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  border-color: #3b82f6;
+}
+
+/* --- ボタンスタイル（ログインフォームと統一） --- */
 .btn {
-  width:100%;
-  padding:12px;
-  border-radius:8px;
-  text-align:center;
-  font-weight:600;
-  cursor:pointer;
-  border:none;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.3s;
+  white-space: nowrap;
 }
 .btn-primary {
-  background:#2563eb;
-  color:white;
+  background: #3b82f6;
+  color: white;
 }
-.btn-primary:hover { background:#1d4ed8; }
+.btn-primary:hover { background: #2563eb; }
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
   </body>
 </html>
