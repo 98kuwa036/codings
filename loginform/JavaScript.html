@@ -1,0 +1,321 @@
+<script>
+    // ===============================================================
+    // グローバル変数
+    // ===============================================================
+    const GAS_WEB_APP_URL = '<?= (typeof scriptUrl !== "undefined") ? scriptUrl : "" ?>';
+
+    // ===============================================================
+    // DOM要素のキャッシュ
+    // ===============================================================
+    const dom = {
+        // セクション
+        loginSection: document.getElementById('login-section'),
+        registerSection: document.getElementById('register-section'),
+
+        // ログインフォーム
+        loginForm: document.getElementById('login-form'),
+        loginIdInput: document.getElementById('login-id'),
+        loginPasswordInput: document.getElementById('login-password'),
+        loginIdError: document.getElementById('login-id-error'),
+        loginPasswordError: document.getElementById('login-password-error'),
+        loginBtn: document.getElementById('login-btn'),
+        loginBtnText: document.getElementById('login-button-text'),
+        loginLoader: document.getElementById('login-loader'),
+        loginErrorMessage: document.getElementById('login-error-message'),
+        redirectBtn: document.getElementById('redirect-btn'),
+        redirectFlagInput: document.getElementById('redirect-flag'),
+        showRegisterBtn: document.getElementById('show-register-btn'),
+
+        // 登録フォーム
+        registerForm: document.getElementById('register-form'),
+        actionSelect: document.getElementById('action'),
+        nameSelectContainer: document.getElementById('name-select-container'),
+        registerNameSelect: document.getElementById('register-name-select'),
+        registerIdInput: document.getElementById('register-id'),
+        registerPasswordInput: document.getElementById('register-password'),
+        passwordContainer: document.getElementById('password-container'),
+        changePasswordOption: document.getElementById('change-password-option'),
+        registerIdError: document.getElementById('register-id-error'),
+        registerPasswordError: document.getElementById('register-password-error'),
+        registerSubmitBtn: document.getElementById('register-submit-button'),
+        registerBtnText: document.getElementById('register-button-text'),
+        registerLoader: document.getElementById('register-loader'),
+        registerResultMessage: document.getElementById('register-result-message'),
+        backToLoginBtn: document.getElementById('back-to-login-btn')
+    };
+
+    // ===============================================================
+    // バリデーション関数
+    // ===============================================================
+    const nonAsciiPattern = /[^\x00-\x7F]/;
+
+    function autoConvertToHalfWidth(inputElement) {
+        const value = inputElement.value;
+        const convertedValue = value.replace(/[\uff01-\uff5e]/g, char =>
+            String.fromCharCode(char.charCodeAt(0) - 0xFEE0)
+        ).replace(/\u3000/g, ' ');
+        if (convertedValue !== value) {
+            inputElement.value = convertedValue;
+        }
+    }
+
+    function validateInput(inputElement, errorElement, isRequired = true) {
+        const value = inputElement.value.trim();
+        if (isRequired && value === '') {
+            errorElement.textContent = 'この項目は必須です。';
+            inputElement.classList.add('border-red-500');
+            return false;
+        }
+        if (value !== '' && nonAsciiPattern.test(value)) {
+            errorElement.textContent = '日本語（全角文字）は使用できません。';
+            inputElement.classList.add('border-red-500');
+            return false;
+        }
+        errorElement.textContent = '';
+        inputElement.classList.remove('border-red-500');
+        return true;
+    }
+
+    function setupRealtimeValidation(input, error, isRequired = true) {
+        input.addEventListener('input', () => {
+            autoConvertToHalfWidth(input);
+            validateInput(input, error, isRequired);
+        });
+        input.addEventListener('blur', () => {
+            validateInput(input, error, isRequired);
+        });
+    }
+
+    // ===============================================================
+    // イベントリスナー設定
+    // ===============================================================
+    function initializeEventListeners() {
+        // リアルタイムバリデーション
+        setupRealtimeValidation(dom.loginIdInput, dom.loginIdError);
+        setupRealtimeValidation(dom.loginPasswordInput, dom.loginPasswordError);
+        setupRealtimeValidation(dom.registerIdInput, dom.registerIdError);
+        setupRealtimeValidation(dom.registerPasswordInput, dom.registerPasswordError, false);
+
+        // 利用者情報編集画面を表示
+        dom.showRegisterBtn.addEventListener('click', handleShowRegister);
+
+        // ログイン画面に戻る
+        dom.backToLoginBtn.addEventListener('click', handleBackToLogin);
+
+        // ID入力でパスワード変更オプションを有効化
+        dom.registerIdInput.addEventListener('input', function() {
+            dom.changePasswordOption.disabled = this.value.trim() === '';
+        });
+
+        // 操作種別の変更
+        dom.actionSelect.addEventListener('change', handleActionChange);
+
+        // ログインフォーム送信
+        dom.loginForm.addEventListener('submit', handleLoginSubmit);
+
+        // 登録フォーム送信
+        dom.registerForm.addEventListener('submit', handleRegisterSubmit);
+    }
+
+    // ===============================================================
+    // イベントハンドラー
+    // ===============================================================
+
+    // 利用者情報編集画面を表示
+    function handleShowRegister() {
+        dom.showRegisterBtn.disabled = true;
+        dom.loginSection.classList.add('hidden');
+        dom.registerSection.classList.remove('hidden');
+        dom.registerNameSelect.disabled = true;
+        dom.registerNameSelect.innerHTML = '<option value="">読込中...</option>';
+
+        google.script.run
+            .withSuccessHandler(names => {
+                dom.registerNameSelect.innerHTML = '';
+                if (names && names.length > 0) {
+                    dom.registerNameSelect.innerHTML = '<option value="">-- IDを紐付ける担当者を選択 --</option>';
+                    names.forEach(name => {
+                        dom.registerNameSelect.innerHTML += `<option value="${name}">${name}</option>`;
+                    });
+                } else {
+                    dom.registerNameSelect.innerHTML = '<option value="">紐付け可能な担当者がいません</option>';
+                }
+                dom.registerNameSelect.disabled = false;
+                dom.showRegisterBtn.disabled = false;
+            })
+            .withFailureHandler(err => {
+                dom.registerNameSelect.innerHTML = `<option value="">読込エラー: ${err.message}</option>`;
+                dom.registerNameSelect.disabled = true;
+                dom.showRegisterBtn.disabled = false;
+            })
+            .getUnlinkedNames();
+    }
+
+    // ログイン画面に戻る
+    function handleBackToLogin() {
+        dom.backToLoginBtn.disabled = true;
+        dom.registerSection.classList.add('hidden');
+        dom.loginSection.classList.remove('hidden');
+        dom.registerForm.reset();
+        dom.registerIdError.textContent = '';
+        dom.registerPasswordError.textContent = '';
+        dom.registerResultMessage.textContent = '';
+        dom.registerIdInput.classList.remove('border-red-500');
+        dom.registerPasswordInput.classList.remove('border-red-500');
+        dom.actionSelect.dispatchEvent(new Event('change'));
+
+        setTimeout(() => {
+            dom.backToLoginBtn.disabled = false;
+        }, 500);
+    }
+
+    // 操作種別変更時の処理
+    function handleActionChange() {
+        const selectedAction = dom.actionSelect.value;
+        dom.nameSelectContainer.classList.toggle('hidden', selectedAction !== '登録');
+        dom.passwordContainer.classList.toggle('hidden', selectedAction === '削除');
+        dom.registerPasswordInput.required = (selectedAction !== '削除');
+        dom.registerNameSelect.required = (selectedAction === '登録');
+    }
+
+    // ログインフォーム送信
+    function handleLoginSubmit(e) {
+        e.preventDefault();
+
+        const isIdValid = validateInput(dom.loginIdInput, dom.loginIdError);
+        const isPasswordValid = validateInput(dom.loginPasswordInput, dom.loginPasswordError);
+
+        if (!isIdValid || !isPasswordValid) {
+            dom.loginErrorMessage.textContent = '入力内容を確認してください。';
+            dom.loginErrorMessage.classList.add('text-red-500');
+            return;
+        }
+
+        const redirectFlag = dom.redirectFlagInput.value;
+
+        // UI更新
+        dom.loginBtn.disabled = true;
+        dom.loginBtnText.textContent = '認証中...';
+        dom.loginLoader.classList.remove('hidden');
+        dom.loginErrorMessage.textContent = '';
+
+        google.script.run
+            .withSuccessHandler(handleLoginSuccess)
+            .withFailureHandler(handleLoginFailure)
+            .checkLogin(dom.loginIdInput.value, dom.loginPasswordInput.value, redirectFlag);
+    }
+
+    // ログイン成功時
+    function handleLoginSuccess(result) {
+        if (result.success) {
+            // リダイレクトボタンを有効化
+            dom.redirectBtn.href = result.redirectUrl;
+            dom.redirectBtn.classList.remove('bg-gray-400', 'pointer-events-none');
+            dom.redirectBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+
+            const redirectFlag = dom.redirectFlagInput.value;
+            dom.redirectBtn.textContent = (redirectFlag === 'admin') ? '管理者ツールへ' : '入出庫登録へ';
+
+            // ダブルクリック防止
+            dom.redirectBtn.addEventListener('click', function() {
+                dom.redirectBtn.style.pointerEvents = 'none';
+                dom.redirectBtn.classList.add('opacity-75');
+                dom.redirectBtn.innerHTML = `
+                    <span style="display: flex; align-items: center; justify-content: center;">
+                        <div class="loader" style="border-top-color: white; border-left-color: white; border-right-color: white; margin-right: 0.5rem;"></div>
+                        <span>画面を読み込んでいます...</span>
+                    </span>`;
+            }, { once: true });
+
+            // ログインボタンを無効化
+            dom.loginBtn.disabled = true;
+            dom.loginBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            dom.loginBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            dom.loginErrorMessage.textContent = '認証成功！上のボタンから進んでください。';
+            dom.loginErrorMessage.classList.remove('text-red-500');
+            dom.loginErrorMessage.classList.add('text-green-600');
+        } else {
+            dom.loginErrorMessage.textContent = result.message;
+            dom.loginErrorMessage.classList.add('text-red-500');
+            dom.loginErrorMessage.classList.remove('text-green-600');
+            dom.loginBtn.disabled = false;
+        }
+
+        dom.loginBtnText.textContent = 'ログイン';
+        dom.loginLoader.classList.add('hidden');
+    }
+
+    // ログイン失敗時
+    function handleLoginFailure(err) {
+        dom.loginErrorMessage.textContent = '通信エラー: ' + err.message;
+        dom.loginErrorMessage.classList.add('text-red-500');
+        dom.loginErrorMessage.classList.remove('text-green-600');
+        dom.loginBtn.disabled = false;
+        dom.loginBtnText.textContent = 'ログイン';
+        dom.loginLoader.classList.add('hidden');
+    }
+
+    // 登録フォーム送信
+    async function handleRegisterSubmit(e) {
+        e.preventDefault();
+
+        const actionType = dom.actionSelect.value;
+        const isIdValid = validateInput(dom.registerIdInput, dom.registerIdError);
+        const isPasswordRequired = (actionType !== '削除');
+        const isPasswordValid = validateInput(dom.registerPasswordInput, dom.registerPasswordError, isPasswordRequired);
+        const isNameRequired = (actionType === '登録');
+        const isNameValid = !isNameRequired || (dom.registerNameSelect.value !== '');
+
+        if (!isIdValid || !isPasswordValid || !isNameValid) {
+            dom.registerResultMessage.textContent = '入力内容を確認してください。';
+            dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
+            if (!isNameValid && isNameRequired) {
+                dom.registerNameSelect.classList.add('border-red-500');
+            } else {
+                dom.registerNameSelect.classList.remove('border-red-500');
+            }
+            return;
+        }
+
+        dom.registerNameSelect.classList.remove('border-red-500');
+
+        // UI更新
+        dom.registerSubmitBtn.disabled = true;
+        dom.registerBtnText.textContent = '処理中...';
+        dom.registerLoader.classList.remove('hidden');
+        dom.registerResultMessage.textContent = '';
+
+        try {
+            const formData = new FormData(dom.registerForm);
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                dom.registerResultMessage.textContent = result.message;
+                dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-green-600';
+                dom.registerForm.reset();
+                dom.backToLoginBtn.click();
+                dom.backToLoginBtn.blur();
+            } else {
+                dom.registerResultMessage.textContent = 'エラー: ' + result.message;
+                dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
+            }
+        } catch (error) {
+            dom.registerResultMessage.textContent = 'エラー: サーバーとの通信に失敗しました。';
+            dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
+        } finally {
+            dom.registerSubmitBtn.disabled = false;
+            dom.registerBtnText.textContent = '実行';
+            dom.registerLoader.classList.add('hidden');
+        }
+    }
+
+    // ===============================================================
+    // 初期化
+    // ===============================================================
+    document.addEventListener('DOMContentLoaded', initializeEventListeners);
+</script>
