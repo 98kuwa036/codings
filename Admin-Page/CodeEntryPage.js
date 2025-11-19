@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title>確認コード入力</title>
+  
+  <style>
+    /* --- 変数定義 (Tailwindの色味を再現) --- */
+    :root {
+      --bg-gray-100: #f3f4f6;
+      --bg-white: #ffffff;
+      --text-gray-800: #1f2937;
+      --text-gray-600: #4b5563;
+      --text-gray-500: #6b7280;
+      --bg-blue-600: #2563eb;
+      --bg-blue-700: #1d4ed8;
+      --bg-gray-400: #9ca3af;
+      --border-gray-300: #d1d5db;
+      --focus-ring-blue: rgba(59, 130, 246, 0.5);
+    }
+
+    /* --- 基本リセット --- */
+    body {
+      margin: 0;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-gray-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: var(--text-gray-800);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* --- コンテナ (カード) --- */
+    .card {
+      background-color: var(--bg-white);
+      padding: 2rem; /* p-8 */
+      border-radius: 0.5rem; /* rounded-lg */
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+      width: 100%;
+      max-width: 24rem; /* max-w-sm */
+    }
+
+    /* --- テキストスタイル --- */
+    h1 {
+      font-size: 1.25rem; /* text-xl */
+      font-weight: 600; /* font-semibold */
+      text-align: center;
+      margin: 0 0 0.5rem 0; /* mb-2 */
+      color: var(--text-gray-800);
+    }
+    p.welcome {
+      color: var(--text-gray-600);
+      text-align: center;
+      margin: 0 0 1rem 0; /* mb-4 */
+    }
+    p.instruction {
+      font-size: 0.875rem; /* text-sm */
+      color: var(--text-gray-500);
+      text-align: center;
+      margin: 0 0 1.5rem 0; /* mb-6 */
+    }
+
+    /* --- フォーム要素 --- */
+    .space-y-4 > * + * {
+      margin-top: 1rem;
+    }
+
+    input[type="tel"] {
+      width: 100%;
+      padding: 0.5rem 1rem; /* px-4 py-2 */
+      border: 1px solid var(--border-gray-300);
+      border-radius: 0.375rem; /* rounded-md */
+      font-size: 1.125rem; /* text-lg */
+      text-align: center;
+      letter-spacing: 0.1em; /* tracking-widest */
+      outline: none;
+      appearance: none;
+    }
+    input[type="tel"]:focus {
+      border-color: var(--bg-blue-600);
+      box-shadow: 0 0 0 3px var(--focus-ring-blue); /* focus:ring-2 */
+    }
+
+    /* --- メッセージエリア --- */
+    #message-area {
+      text-align: center;
+      font-size: 0.875rem;
+      min-height: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* --- ボタンエリア --- */
+    .flex-gap {
+      display: flex;
+      gap: 0.5rem; /* gap-2 */
+    }
+
+    /* --- 共通ボタンスタイル --- */
+    .btn {
+      width: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem; /* py-3 px-4 */
+      font-weight: 600;
+      border-radius: 0.375rem; /* rounded-md */
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.3s, color 0.3s;
+      font-size: 1rem;
+      color: white;
+    }
+
+    /* 認証ボタン */
+    .btn-primary {
+      background-color: var(--bg-blue-600);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--bg-blue-700);
+    }
+    .btn-primary:disabled {
+      background-color: var(--bg-gray-400);
+      cursor: not-allowed;
+    }
+
+    /* 管理者ボタン（無効状態） */
+    .button-disabled {
+      background-color: var(--bg-gray-400);
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    /* --- ローディングスピナー --- */
+    .spinner {
+      width: 1.25rem; /* w-5 */
+      height: 1.25rem; /* h-5 */
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="data-container" class="card">
+
+    <h1>二段階認証</h1>
+    
+    <p class="welcome">
+      ようこそ、<strong><?= (typeof userName !== 'undefined' && userName) ? userName : '管理者' ?></strong> さん
+    </p>
+    
+    <p class="instruction">
+      デプロイ主（管理者）に送信された6桁の確認コードを入力してください。
+    </p>
+
+    <div class="space-y-4">
+      <input type="tel" id="code-input" maxlength="6" 
+             placeholder="123456"
+             oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+      
+      <div id="message-area"></div>
+
+      <div class="flex-gap">
+        <button id="verify-button" 
+                onclick="handleVerifyClick()"
+                class="btn btn-primary"
+                disabled>
+          <span id="button-spinner" class="spinner hidden"></span>
+          <span id="button-text">認証する ></span>
+        </button>
+
+        <a href="#" id="admin-link-button" 
+           target="_top" 
+           class="btn button-disabled">
+          管理者ページ >
+        </a>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const AUTH_DATA = {
+      // (A) 2FAコード検証用
+      userId: "<?= (typeof userId !== 'undefined') ? userId : '' ?>",
+      adminBaseUrl: "<?= (typeof adminBaseUrl !== 'undefined') ? adminBaseUrl : '' ?>",
+      p_post_2fa: "<?= (typeof p_post_2fa !== 'undefined') ? p_post_2fa : '' ?>",
+      s_post_2fa: "<?= (typeof s_post_2fa !== 'undefined') ? s_post_2fa : '' ?>",
+      n_post_2fa: "<?= (typeof n_post_2fa !== 'undefined') ? n_post_2fa : '' ?>",
+
+      // (B) 認証成功後のリダイレクト用
+      p_original: "<?= (typeof p_original !== 'undefined') ? p_original : '' ?>",
+      s_original: "<?= (typeof s_original !== 'undefined') ? s_original : '' ?>",
+      uid_original: "<?= (typeof uid_original !== 'undefined') ? uid_original : '' ?>",
+      n_rec_original: "<?= (typeof n_rec_original !== 'undefined') ? n_rec_original : '' ?>",
+      n_adm_original: "<?= (typeof n_adm_original !== 'undefined') ? n_adm_original : '' ?>"
+    };
+  </script>
+  
+  <?!= HtmlService.createHtmlOutputFromFile('CodeEntryJavaScript.html').getContent(); ?>
+
+</body>
+</html>
