@@ -339,91 +339,95 @@
       </div>
       
       <div id="page2" style="display: none;">
-          <div class="space-y-4 mt-8">
-              <fieldset id="inbound-fields" class="hidden border border-blue-300 bg-blue-50 p-4 rounded-md">
-                  <legend class="text-lg font-semibold px-2 text-blue-700">入庫情報</legend>
-                  <div class="space-y-4">
+          <div style="margin-top: 2rem;">
+              <fieldset id="inbound-fields" style="display: none; border: 1px solid #93c5fd; background-color: #eff6ff; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+                  <legend style="font-size: 1.125rem; font-weight: 600; padding: 0 0.5rem; color: #1d4ed8;">入庫情報</legend>
+                  <div>
                       <div id="photo-upload-section">
-                          <label class="block text-sm font-medium text-gray-700 mb-1">伝票写真 (任意)</label>
-                          <div class="flex gap-x-2">
-                              <button type="button" id="select-file-btn" class="flex-1 py-2 px-4 bg-white border border-gray-300 rounded-md text-sm font-semibold text-gray-700 hover:bg-gray-50">ファイルを選択</button>
-                              <button type="button" id="launch-camera-btn" class="hidden flex-1 py-2 px-4 bg-blue-500 text-white rounded-md text-sm font-semibold hover:bg-blue-600">カメラを起動</button>
+                          <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">伝票写真 (任意)</label>
+                          <div style="display: flex; gap: 0.5rem;">
+                              <button type="button" id="select-file-btn" style="flex: 1; padding: 0.5rem 1rem; background-color: white; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600; color: #374151; cursor: pointer;">ファイルを選択</button>
+                              <button type="button" id="launch-camera-btn" style="display: none; flex: 1; padding: 0.5rem 1rem; background-color: #3b82f6; color: white; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer;">カメラを起動</button>
                           </div>
-                          <p id="file-name-display" class="text-sm text-gray-600 mt-2 truncate"></p>
-                          <input type="file" id="voucher-photo-file" class="hidden" accept="image/*">
-                          <input type="file" id="voucher-photo-camera" class="hidden" accept="image/*" capture="environment">
+                          <p id="file-name-display" style="font-size: 0.875rem; color: #4b5563; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
+                          <input type="file" id="voucher-photo-file" style="display: none;" accept="image/*">
+                          <input type="file" id="voucher-photo-camera" style="display: none;" accept="image/*" capture="environment">
                       </div>
-                      <div id="voucher-number-input-group">
-                          <label for="voucher-number" class="block text-sm font-medium text-gray-700 mb-1">伝票番号 (写真選択後に有効化)</label>
-                          <input type="text" id="voucher-number" placeholder="ファイル名になります" class="w-full" disabled>
+                      <div id="voucher-number-input-group" style="margin-top: 1rem;">
+                          <label for="voucher-number" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">伝票番号 (写真選択後に有効化)</label>
+                          <input type="text" id="voucher-number" placeholder="ファイル名になります" style="width: 100%;" disabled>
                       </div>
                   </div>
               </fieldset>
-              <fieldset id="item-add-section" class="border border-gray-300 p-4 rounded-md">
-                  <legend id="item-section-legend" class="text-lg font-semibold px-2 text-gray-700">出庫品目</legend>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div class="md:col-span-2"><label for="item-name" class="block text-sm font-medium text-gray-700 mb-1">品名</label><select id="item-name" class="w-full">
+              <fieldset id="item-add-section" style="border: 1px solid #d1d5db; padding: 1rem; border-radius: 0.375rem;">
+                  <legend id="item-section-legend" style="font-size: 1.125rem; font-weight: 600; padding: 0 0.5rem; color: #374151;">出庫品目</legend>
+                  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                      <div>
+                          <label for="item-name" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">品名</label>
+                          <select id="item-name" style="width: 100%;">
                               <option value="" disabled selected>-- 品名を選択 --</option>
-                          </select></div>
-                      <div><label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">個数</label><input type="number" id="quantity" placeholder="個数" class="w-full"></div>
+                          </select>
+                      </div>
+                      <div>
+                          <label for="quantity" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">個数</label>
+                          <input type="number" id="quantity" placeholder="個数" style="width: 100%;">
+                      </div>
                   </div>
-                  <button id="add-item-button" type="button" class="w-full mt-4 py-3 px-4 bg-green-500 text-white font-bold rounded-md text-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>品目を追加</button>
+                  <button id="add-item-button" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: #22c55e; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;" disabled>品目を追加</button>
               </fieldset>
-              <div id="added-items-container" class="mt-4">
-                  <h3 class="text-md font-semibold text-gray-700">追加済みリスト</h3>
-                  <div id="added-items-list" class="mt-2 space-y-2 p-3 bg-gray-50 rounded-md border min-h-[50px]"></div>
+              <div id="added-items-container" style="margin-top: 1rem;">
+                  <h3 style="font-size: 1rem; font-weight: 600; color: #374151;">追加済みリスト</h3>
+                  <div id="added-items-list" style="margin-top: 0.5rem; padding: 0.75rem; background-color: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb; min-height: 50px;"></div>
               </div>
           </div>
-          <button id="confirm-button" type="button" class="w-full mt-6 py-3 px-4 bg-blue-600 text-white font-bold rounded-md text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>内容を確認する</button>
-          <button id="back-to-page1-btn" type="button" class="w-full mt-4 py-3 px-4 bg-white text-gray-700 font-bold border border-gray-300 rounded-md text-lg hover:bg-gray-50">戻る</button>
+          <button id="confirm-button" type="button" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;" disabled>内容を確認する</button>
+          <button id="back-to-page1-btn" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: white; color: #374151; font-weight: 700; font-size: 1.125rem; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer;">戻る</button>
       </div>
       
       <div id="page3" style="display: none;">
-          <div class="space-y-4 mt-8">
-              <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">確認画面</h2>
-              <div class="space-y-3">
-                  <div>
-                      <p class="text-sm font-medium text-gray-500">登録者名</p>
-                      <p id="confirm-registrant" class="text-lg text-gray-800"></p>
+          <div style="margin-top: 2rem;">
+              <h2 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; margin: 0 0 1rem 0;">確認画面</h2>
+              <div>
+                  <div style="margin-bottom: 0.75rem;">
+                      <p style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin: 0;">登録者名</p>
+                      <p id="confirm-registrant" style="font-size: 1.125rem; color: #1f2937; margin: 0.25rem 0 0 0;"></p>
+                  </div>
+                  <div style="margin-bottom: 0.75rem;">
+                      <p style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin: 0;">日付</p>
+                      <p id="confirm-date" style="font-size: 1.125rem; color: #1f2937; margin: 0.25rem 0 0 0;"></p>
                   </div>
                   <div>
-                      <p class="text-sm font-medium text-gray-500">日付</p>
-                      <p id="confirm-date" class="text-lg text-gray-800"></p>
-                  </div>
-                  <div>
-                      <p id="confirm-mode-label" class="text-sm font-medium text-gray-500"></p>
-                      <div id="confirm-items-list" class="mt-1 p-3 bg-gray-50 rounded-md border"></div>
+                      <p id="confirm-mode-label" style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin: 0;"></p>
+                      <div id="confirm-items-list" style="margin-top: 0.25rem; padding: 0.75rem; background-color: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb;"></div>
                   </div>
               </div>
           </div>
-          <button id="register-btn" class="w-full mt-8 py-3 px-4 bg-green-600 text-white font-bold rounded-md text-lg hover:bg-green-700">この内容で登録する</button>
-          <button id="back-to-page2-btn" type="button" class="w-full mt-4 py-3 px-4 bg-white text-gray-700 font-bold border border-gray-300 rounded-md text-lg hover:bg-gray-50">修正する</button>
+          <button id="register-btn" style="width: 100%; margin-top: 2rem; padding: 0.75rem 1rem; background-color: #16a34a; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">この内容で登録する</button>
+          <button id="back-to-page2-btn" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: white; color: #374151; font-weight: 700; font-size: 1.125rem; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer;">修正する</button>
       </div>
       
       <div id="pageRegister" style="display: none;">
-          <fieldset id="pageRegister-fieldset">
-              <div class="space-y-5 mt-8">
-                  <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">新規物品 仮登録</h2>
-                  <p class="text-sm text-gray-600"> ここで登録された物品は、管理者がPCの「管理者ページ」で承認するまでマスターには反映されません。 </p>
-                  
-                  <div>
-                    <button type="button" id="launch-ocr-btn" class="w-full flex items-center justify-center gap-x-2 py-3 px-4 bg-blue-600 text-white font-bold rounded-md text-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:bg-blue-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          <fieldset id="pageRegister-fieldset" style="border: none; padding: 0; margin: 0;">
+              <div style="margin-top: 2rem;">
+                  <h2 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; margin: 0 0 1.25rem 0;">新規物品 仮登録</h2>
+                  <p style="font-size: 0.875rem; color: #4b5563; margin: 0 0 1.25rem 0;">ここで登録された物品は、管理者がPCの「管理者ページ」で承認するまでマスターには反映されません。</p>
+
+                  <div style="margin-bottom: 1.25rem;">
+                    <button type="button" id="launch-ocr-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.5rem; height: 1.5rem;">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574v9.548c0 1.067.75 1.994 1.802 2.169a47.865 47.865 0 001.134.175 2.31 2.31 0 011.64 1.055l.822 1.594a2.083 2.083 0 003.487 0l.822-1.594a2.31 2.31 0 011.64-1.055 47.865 47.865 0 001.134-.175 2.31 2.31 0 011.802-2.17V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.594a2.083 2.083 0 00-3.487 0l-.822 1.594A2.31 2.31 0 016.827 6.175zM12 12.75a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
                       </svg>
                       <span>ラベルを撮影 (OCR)</span>
                     </button>
                   </div>
 
-                  <div>
-                      <label for="reg-name" class="block text-sm font-medium text-gray-700 mb-1">品名</label>
-                      <textarea id="reg-name" placeholder="品名（OCRで読み取った後、編集してください）" rows="3" class="w-full"></textarea>
+                  <div style="margin-bottom: 1.25rem;">
+                      <label for="reg-name" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">品名</label>
+                      <textarea id="reg-name" placeholder="品名（OCRで読み取った後、編集してください）" rows="3" style="width: 100%;"></textarea>
                   </div>
                   <div>
-                    <label for="reg-category" class="block text-sm font-medium text-gray-700 mb-1">
-                      カテゴリ (必須)
-                    </label>
-                    <select id="reg-category" class="w-full">
+                    <label for="reg-category" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">カテゴリ (必須)</label>
+                    <select id="reg-category" style="width: 100%;">
                         <option value="" disabled selected>-- 分類を選択してください --</option>
                         <option value="劇薬薬品">A: 劇薬薬品</option>
                         <option value="普通薬品">B: 普通薬品</option>
@@ -435,22 +439,22 @@
                     </select>
                   </div>
               </div>
-              <button id="register-temp-btn" class="w-full mt-8 py-3 px-4 bg-green-600 text-white font-bold rounded-md text-lg hover:bg-green-700">この内容で仮登録する</button>
-              <button id="back-to-page1-from-reg" type="button" class="w-full mt-4 py-3 px-4 bg-white text-gray-700 font-bold border border-gray-300 rounded-md text-lg hover:bg-gray-50">戻る</button>
+              <button id="register-temp-btn" style="width: 100%; margin-top: 2rem; padding: 0.75rem 1rem; background-color: #16a34a; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">この内容で仮登録する</button>
+              <button id="back-to-page1-from-reg" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: white; color: #374151; font-weight: 700; font-size: 1.125rem; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer;">戻る</button>
           </fieldset>
       </div>
       
-      <div id="success-screen" style="display: none;" class="text-center py-10">
-          <svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <div id="success-screen" style="display: none; text-align: center; padding: 2.5rem 0;">
+          <svg style="width: 4rem; height: 4rem; color: #22c55e; margin: 0 auto 1rem auto;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">登録完了</h2>
-          <p id="success-message" class="text-gray-600 mb-6">データの登録が正常に完了しました。</p>
-          <button id="new-entry-btn" class="w-full max-w-xs mx-auto py-3 px-4 bg-blue-600 text-white font-bold rounded-md text-lg hover:bg-blue-700">新しい記録を追加する</button>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0;">登録完了</h2>
+          <p id="success-message" style="color: #4b5563; margin: 0 0 1.5rem 0;">データの登録が正常に完了しました。</p>
+          <button id="new-entry-btn" style="width: 100%; max-width: 20rem; margin: 0 auto; display: block; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">新しい記録を追加する</button>
       </div>
     </div>
     
-    <input type="file" id="ocr-camera-input" class="hidden" accept="image/*" capture="environment">
+    <input type="file" id="ocr-camera-input" style="display: none;" accept="image/*" capture="environment">
 
     <script>
         "use strict";
