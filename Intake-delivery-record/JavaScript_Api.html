@@ -1,0 +1,76 @@
+<script>
+// ===============================================================
+// [ JavaScript_Api.html ]
+// APIラッパー (Promiseベース)
+// ===============================================================
+console.log("[Loaded] JavaScript_Api");
+
+/**
+ * google.script.run を Promise でラップする
+ * @param {string} funcName - 呼び出すGAS側の関数名
+ * @param {...any} args - 関数に渡す引数
+ * @returns {Promise<any>} 実行結果
+ */
+function runAsync(funcName, ...args) {
+    return new Promise((resolve, reject) => {
+        google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            [funcName](...args);
+    });
+}
+
+/**
+ * API呼び出しをオブジェクトにまとめる
+ */
+const api = {
+    /**
+     * 初期データを取得する
+     * @param {string} uid - ユーザーID
+     * @param {string} n_adm - 管理者用Nonce
+     * @param {string} n_rec - 記録用Nonce
+     * @returns {Promise<Object>} 初期データ
+     */
+    getInitialData: (uid, n_adm, n_rec) => {
+        return runAsync('getInitialData', uid, n_adm, n_rec);
+    },
+
+    /**
+     * アップロードURLを取得する
+     * @param {string} fileName - ファイル名
+     * @param {string} mimeType - MIMEタイプ
+     * @returns {Promise<Object>} {uploadUrl, fileId}
+     */
+    getResumableUploadUrl: (fileName, mimeType) => {
+        return runAsync('getResumableUploadUrl', fileName, mimeType);
+    },
+
+    /**
+     * 登録データを送信する
+     * @param {Object} formData - フォームデータ
+     * @param {string} fileId - ファイルID（任意）
+     * @returns {Promise<Object>} 結果
+     */
+    acceptRegistrationData: (formData, fileId) => {
+        return runAsync('acceptRegistrationData', formData, fileId);
+    },
+
+    /**
+     * 仮物品を登録する
+     * @param {Object} itemData - 物品データ
+     * @returns {Promise<Object>} 結果
+     */
+    saveTemporaryItem: (itemData) => {
+        return runAsync('saveTemporaryItem', itemData);
+    },
+
+    /**
+     * OCRを実行する
+     * @param {string} imageBase64 - Base64エンコードされた画像
+     * @returns {Promise<string>} 検出されたテキスト
+     */
+    runOCR: (imageBase64) => {
+        return runAsync('runOCR', imageBase64);
+    }
+};
+</script>
