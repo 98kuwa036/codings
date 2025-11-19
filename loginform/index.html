@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン - 入出庫登録ツール</title>
+  
+  <style>
+    /* --- 基本変数 --- */
+    :root {
+        --bg-gray-100: #f3f4f6;
+        --bg-white: #ffffff;
+        --bg-blue-500: #3b82f6;
+        --bg-blue-600: #2563eb;
+        --bg-gray-300: #d1d5db;
+        --bg-gray-400: #9ca3af;
+        --bg-gray-500: #6b7280;
+        --bg-gray-600: #4b5563;
+        --bg-green-500: #22c55e;
+        --bg-green-600: #16a34a;
+        
+        --text-gray-500: #6b7280;
+        --text-gray-700: #374151;
+        --text-gray-800: #1f2937;
+        --text-white: #ffffff;
+        --text-red-500: #ef4444;
+        --text-red-600: #dc2626;
+        --text-green-600: #16a34a;
+        --text-blue-600: #2563eb;
+
+        --border-gray-300: #d1d5db;
+        --border-red-500: #ef4444;
+        --focus-ring-blue: rgba(59, 130, 246, 0.5);
+    }
+
+    /* --- リセット & ベース --- */
+    body {
+        margin: 0;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        background-color: var(--bg-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        color: var(--text-gray-800);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    a { text-decoration: none; color: inherit; }
+    hr { border: 0; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+
+    /* --- レイアウト --- */
+    .w-full { width: 100%; }
+    .max-w-md { max-width: 28rem; }
+    .w-1\/2 { width: 50%; }
+    .h-3 { height: 0.75rem; }
+    .h-5 { height: 1.25rem; }
+    
+    .p-8 { padding: 2rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-5 { margin-bottom: 1.25rem; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-4 { margin-top: 1rem; }
+    .mt-6 { margin-top: 1.5rem; }
+    .ml-2 { margin-left: 0.5rem; }
+    .my-6 { margin-top: 1.5rem; margin-bottom: 1.5rem; }
+
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+    .top-4 { top: 1rem; }
+    .right-4 { right: 1rem; }
+    
+    .block { display: block; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .gap-4 { gap: 1rem; }
+    .flex-1 { flex: 1 1 0%; }
+    .hidden { display: none !important; }
+
+    /* --- 装飾 --- */
+    .bg-white { background-color: var(--bg-white); }
+    .rounded-xl { border-radius: 0.75rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+
+    /* --- タイポグラフィ --- */
+    .text-center { text-align: center; }
+    .font-bold { font-weight: 700; }
+    .font-medium { font-weight: 500; }
+    .text-xs { font-size: 0.75rem; line-height: 1rem; }
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+
+    .text-gray-500 { color: var(--text-gray-500); }
+    .text-gray-700 { color: var(--text-gray-700); }
+    .text-gray-800 { color: var(--text-gray-800); }
+    .text-white { color: var(--text-white); }
+    .text-red-500 { color: var(--text-red-500); }
+    .text-red-600 { color: var(--text-red-600); }
+    .text-green-600 { color: var(--text-green-600); }
+
+    /* --- リンク --- */
+    .hover\:text-blue-600:hover { color: var(--text-blue-600); }
+    .transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-duration: 200ms; }
+    .duration-200 { transition-duration: 200ms; }
+    .duration-300 { transition-duration: 300ms; }
+
+    /* --- フォーム要素 --- */
+    input, select {
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: #fff;
+        border: 1px solid var(--border-gray-300);
+        border-radius: 0.5rem;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        line-height: 1.25;
+        color: var(--text-gray-700);
+    }
+    input:focus, select:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--focus-ring-blue);
+        border-color: var(--bg-blue-500);
+    }
+    .border-red-500 { border-color: var(--border-red-500) !important; }
+
+    /* --- ボタン背景色 & ホバー --- */
+    .bg-gray-400 { background-color: var(--bg-gray-400); }
+    .bg-gray-500 { background-color: var(--bg-gray-500); }
+    .hover\:bg-gray-600:hover:not(:disabled) { background-color: var(--bg-gray-600); }
+
+    .bg-blue-500 { background-color: var(--bg-blue-500); }
+    .hover\:bg-blue-600:hover:not(:disabled) { background-color: var(--bg-blue-600); }
+
+    .bg-green-500 { background-color: var(--bg-green-500); }
+    .hover\:bg-green-600:hover:not(:disabled) { background-color: var(--bg-green-600); }
+
+    /* ボタンの無効化等の状態 */
+    .pointer-events-none { pointer-events: none; }
+    .cursor-not-allowed { cursor: not-allowed; }
+    .opacity-75 { opacity: 0.75; }
+    button { cursor: pointer; border: none; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* --- ローダーアニメーション --- */
+    .loader {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3498db;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="login-section" class="relative bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+
+    <a href="https://script.google.com/macros/s/AKfycbyWZxKFSfB75lk9VgOKZDoth1XXszTNT7zWOY4BMsIzKXbsXhCfWTIrl8oilRf0K10j0w/exec"
+       target="_blank" 
+       rel="noopener noreferrer"
+       class="absolute top-4 right-4 text-xs font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200">
+      棚卸ツールへ &rarr;
+    </a>
+
+    <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">入出庫登録ツール</h1>
+    
+    <form id="login-form" novalidate>
+      <a id="redirect-btn" href="#" target="_top"
+         class="w-full block text-center bg-gray-400 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-300 pointer-events-none">
+        入出庫登録へ
+      </a>
+      
+      <hr class="my-6">
+      
+      <div class="mb-5">
+        <label for="login-id" class="block text-gray-700 text-sm font-bold mb-2">ID</label>
+        <input type="text" id="login-id" class="shadow-sm" inputmode="latin">
+        <p id="login-id-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+      
+      <div class="mb-6">
+        <label for="login-password" class="block text-gray-700 text-sm font-bold mb-2">パスワード</label>
+        <input type="password" id="login-password" class="shadow-sm" inputmode="latin">
+        <p id="login-password-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+      
+      <div class="flex gap-4">
+        <button type="button" id="show-register-btn" class="flex-1 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">利用者情報編集</button>
+        
+        <input type="hidden" id="redirect-flag" value="<?= (typeof redirectFlag !== 'undefined') ? redirectFlag : '' ?>">
+        
+        <button type="submit" id="login-btn" class="flex-1 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center">
+          <span id="login-button-text">ログイン</span>
+          <div id="login-loader" class="loader hidden ml-2"></div>
+        </button>
+      </div>
+      <p id="login-error-message" class="text-center text-sm mt-4 h-5"></p>
+    </form>
+  </div>
+
+  <div id="register-section" class="hidden bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">利用者情報編集</h1>
+    <form id="register-form" novalidate>
+      <div class="mb-5">
+        <label for="action" class="block text-gray-700 text-sm font-bold mb-2">操作種別</label>
+        <select id="action" name="action" class="block w-full text-gray-700 py-3 px-4">
+          <option value="登録">ID新規登録・紐付け</option>
+          <option value="パスワード変更" id="change-password-option" disabled>パスワード変更</option>
+          <option value="削除">ID削除</option>
+        </select>
+        <p class="text-xs text-gray-500 mt-1">パスワード変更はIDを入力すると選択できます。</p>
+      </div>
+      <div id="name-select-container" class="mb-5">
+        <label for="register-name-select" class="block text-gray-700 text-sm font-bold mb-2">担当者名 (紐付け対象)</label>
+        <select id="register-name-select" name="name" class="block w-full text-gray-700 py-3 px-4">
+          <option value="">-- 読込中... --</option>
+        </select>
+      </div>
+      <div class="mb-5">
+        <label for="register-id" class="block text-gray-700 text-sm font-bold mb-2">ID</label>
+        <input type="text" id="register-id" name="id" class="shadow-sm" required>
+        <p id="register-id-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+      <div id="password-container" class="mb-8">
+        <label for="register-password" class="block text-gray-700 text-sm font-bold mb-2">パスワード</label>
+        <input type="password" id="register-password" name="password" class="shadow-sm" required>
+        <p id="register-password-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+      <div class="flex flex-col items-center justify-center">
+        <button type="submit" id="register-submit-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg w-full flex items-center justify-center transition-colors duration-300">
+          <span id="register-button-text">実行</span>
+          <div id="register-loader" class="loader hidden ml-2"></div>
+        </button>
+        <button type="button" id="back-to-login-btn" class="mt-4 w-1/2 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors duration-300">ログイン画面へ</button>
+      </div>
+    </form>
+    <div id="register-result-message" class="mt-6 text-center text-sm font-medium h-5"></div>
+  </div>
+
+  <script>
+    // ★ 修正: 変数未定義対策
+    const GAS_WEB_APP_URL = '<?= (typeof scriptUrl !== "undefined") ? scriptUrl : "" ?>';
+
+    const loginSection = document.getElementById('login-section');
+    const registerSection = document.getElementById('register-section');
+    const showRegisterBtn = document.getElementById('show-register-btn');
+    const backToLoginBtn = document.getElementById('back-to-login-btn');
+    const registerNameSelect = document.getElementById('register-name-select');
+    const actionSelect = document.getElementById('action');
+    const nameSelectContainer = document.getElementById('name-select-container');
+    const passwordContainer = document.getElementById('password-container');
+    const registerIdInputForEvent = document.getElementById('register-id');
+    const changePasswordOption = document.getElementById('change-password-option');
+    const loginIdInput = document.getElementById('login-id');
+    const loginPasswordInput = document.getElementById('login-password');
+    const registerIdInput = document.getElementById('register-id');
+    const registerPasswordInput = document.getElementById('register-password');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const redirectFlagInput = document.getElementById('redirect-flag');
+
+    // --- イベントリスナー類 (元のロジックを維持) ---
+    
+    showRegisterBtn.addEventListener('click', () => {
+      showRegisterBtn.disabled = true;
+
+      loginSection.classList.add('hidden');
+      registerSection.classList.remove('hidden');
+      registerNameSelect.disabled = true;
+      registerNameSelect.innerHTML = '<option value="">読込中...</option>';
+      
+      google.script.run
+        .withSuccessHandler(names => {
+          registerNameSelect.innerHTML = '';
+          if (names && names.length > 0) {
+            registerNameSelect.innerHTML = '<option value="">-- IDを紐付ける担当者を選択 --</option>';
+            names.forEach(name => {
+              registerNameSelect.innerHTML += `<option value="${name}">${name}</option>`;
+            });
+          } else {
+            registerNameSelect.innerHTML = '<option value="">紐付け可能な担当者がいません</option>';
+          }
+          registerNameSelect.disabled = false;
+          showRegisterBtn.disabled = false;
+        })
+        .withFailureHandler(err => {
+          registerNameSelect.innerHTML = `<option value="">読込エラー: ${err.message}</option>`;
+          registerNameSelect.disabled = true;
+          showRegisterBtn.disabled = false;
+        })
+        .getUnlinkedNames();
+    });
+
+    backToLoginBtn.addEventListener('click', () => {
+      backToLoginBtn.disabled = true;
+
+      registerSection.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+      registerForm.reset();
+      document.getElementById('register-id-error').textContent = '';
+      document.getElementById('register-password-error').textContent = '';
+      document.getElementById('register-result-message').textContent = '';
+      registerIdInput.classList.remove('border-red-500');
+      registerPasswordInput.classList.remove('border-red-500');
+      actionSelect.dispatchEvent(new Event('change'));
+      
+      setTimeout(() => {
+        backToLoginBtn.disabled = false;
+      }, 500);
+    });
+
+    registerIdInputForEvent.addEventListener('input', function() {
+      changePasswordOption.disabled = this.value.trim() === '';
+    });
+
+    actionSelect.addEventListener('change', function() {
+      const selectedAction = this.value;
+      nameSelectContainer.classList.toggle('hidden', selectedAction !== '登録');
+      passwordContainer.classList.toggle('hidden', selectedAction === '削除');
+      registerPasswordInput.required = (selectedAction !== '削除');
+      registerNameSelect.required = (selectedAction === '登録');
+    });
+
+    const nonAsciiPattern = /[^\x00-\x7F]/;
+
+    function autoConvertToHalfWidth(inputElement) {
+      const value = inputElement.value;
+      const convertedValue = value.replace(/[\uff01-\uff5e]/g, char =>
+        String.fromCharCode(char.charCodeAt(0) - 0xFEE0)
+      ).replace(/\u3000/g, ' ');
+      if (convertedValue !== value) {
+        inputElement.value = convertedValue;
+      }
+    }
+
+    function validateInput(inputElement, errorElement, isRequired = true) {
+      const value = inputElement.value.trim();
+      if (isRequired && value === '') {
+        errorElement.textContent = 'この項目は必須です。';
+        inputElement.classList.add('border-red-500');
+        return false;
+      }
+      if (value !== '' && nonAsciiPattern.test(value)) {
+        errorElement.textContent = '日本語（全角文字）は使用できません。';
+        inputElement.classList.add('border-red-500');
+        return false;
+      }
+      errorElement.textContent = '';
+      inputElement.classList.remove('border-red-500');
+      return true;
+    }
+
+    const setupRealtimeValidation = (input, error, isRequired = true) => {
+      input.addEventListener('input', () => {
+        autoConvertToHalfWidth(input);
+        validateInput(input, error, isRequired);
+      });
+      input.addEventListener('blur', () => {
+        validateInput(input, error, isRequired);
+      });
+    };
+
+    setupRealtimeValidation(loginIdInput, document.getElementById('login-id-error'));
+    setupRealtimeValidation(loginPasswordInput, document.getElementById('login-password-error'));
+    setupRealtimeValidation(registerIdInput, document.getElementById('register-id-error'));
+    setupRealtimeValidation(registerPasswordInput, document.getElementById('register-password-error'), false);
+
+    loginForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const idError = document.getElementById('login-id-error');
+      const passwordError = document.getElementById('login-password-error');
+      const isIdValid = validateInput(loginIdInput, idError);
+      const isPasswordValid = validateInput(loginPasswordInput, passwordError);
+      if (!isIdValid || !isPasswordValid) {
+        document.getElementById('login-error-message').textContent = '入力内容を確認してください。';
+        document.getElementById('login-error-message').classList.add('text-red-500');
+        return;
+      }
+
+      const redirectFlag = redirectFlagInput.value;
+      const loginBtn = document.getElementById('login-btn');
+      const loginBtnText = document.getElementById('login-button-text');
+      const loginLoader = document.getElementById('login-loader');
+      const errorMessage = document.getElementById('login-error-message');
+
+      loginBtn.disabled = true;
+      loginBtnText.textContent = '認証中...';
+      loginLoader.classList.remove('hidden');
+      errorMessage.textContent = '';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            const redirectBtn = document.getElementById('redirect-btn');
+            redirectBtn.href = result.redirectUrl;
+            redirectBtn.classList.remove('bg-gray-400', 'pointer-events-none');
+            redirectBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+
+            if (redirectFlag === 'admin') {
+              redirectBtn.textContent = '管理者ツールへ';
+            } else {
+              redirectBtn.textContent = '入出庫登録へ';
+            }
+
+            // 画面遷移時のダブルクリック防止
+            redirectBtn.addEventListener('click', function() {
+              redirectBtn.style.pointerEvents = 'none';
+              redirectBtn.classList.add('opacity-75');
+              redirectBtn.innerHTML = `
+                <span style="display: flex; align-items: center; justify-content: center;">
+                  <div class="loader" style="border-top-color: white; border-left-color: white; border-right-color: white; margin-right: 0.5rem;"></div>
+                  <span>画面を読み込んでいます...</span>
+                </span>`;
+            }, { once: true });
+
+            loginBtn.disabled = true;
+            loginBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            loginBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            errorMessage.textContent = '認証成功！上のボタンから進んでください。';
+            errorMessage.classList.remove('text-red-500');
+            errorMessage.classList.add('text-green-600');
+          } else {
+            errorMessage.textContent = result.message;
+            errorMessage.classList.add('text-red-500');
+            errorMessage.classList.remove('text-green-600');
+            loginBtn.disabled = false;
+          }
+          loginBtnText.textContent = 'ログイン';
+          loginLoader.classList.add('hidden');
+        })
+        .withFailureHandler(function(err) {
+          errorMessage.textContent = '通信エラー: ' + err.message;
+          errorMessage.classList.add('text-red-500');
+          errorMessage.classList.remove('text-green-600');
+          loginBtn.disabled = false;
+          loginBtnText.textContent = 'ログイン';
+          loginLoader.classList.add('hidden');
+        })
+        .checkLogin(loginIdInput.value, loginPasswordInput.value, redirectFlag);
+    });
+
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const idError = document.getElementById('register-id-error');
+      const passwordError = document.getElementById('register-password-error');
+      const actionType = actionSelect.value;
+      const isIdValid = validateInput(registerIdInput, idError);
+      const isPasswordRequired = (actionType !== '削除');
+      const isPasswordValid = validateInput(registerPasswordInput, passwordError, isPasswordRequired);
+      const isNameRequired = (actionType === '登録');
+      const isNameValid = !isNameRequired || (registerNameSelect.value !== '');
+
+      if (!isIdValid || !isPasswordValid || !isNameValid) {
+        document.getElementById('register-result-message').textContent = '入力内容を確認してください。';
+        document.getElementById('register-result-message').className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
+        if (!isNameValid && isNameRequired) {
+          registerNameSelect.classList.add('border-red-500');
+        } else {
+          registerNameSelect.classList.remove('border-red-500');
+        }
+        return;
+      }
+
+      registerNameSelect.classList.remove('border-red-500');
+      const submitBtn = document.getElementById('register-submit-button');
+      const btnText = document.getElementById('register-button-text');
+      const loader = document.getElementById('register-loader');
+      const resultMsg = document.getElementById('register-result-message');
+
+      submitBtn.disabled = true;
+      btnText.textContent = '処理中...';
+      loader.classList.remove('hidden');
+      resultMsg.textContent = '';
+
+      try {
+        const formData = new FormData(registerForm);
+        const response = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          body: formData
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+          resultMsg.textContent = result.message;
+          resultMsg.className = 'mt-6 text-center text-sm font-medium h-5 text-green-600';
+          registerForm.reset();
+          backToLoginBtn.click();
+          backToLoginBtn.blur();
+        } else {
+          resultMsg.textContent = 'エラー: ' + result.message;
+          resultMsg.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
+        }
+      } catch (error) {
+        resultMsg.textContent = 'エラー: サーバーとの通信に失敗しました。';
+        resultMsg.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
+      } finally {
+        submitBtn.disabled = false;
+        btnText.textContent = '実行';
+        loader.classList.add('hidden');
+      }
+    });
+  </script>
+
+</body>
+</html>
