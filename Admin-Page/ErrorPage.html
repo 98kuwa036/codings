@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>エラー | システム</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .card-3d {
+      perspective: 1000px;
+    }
+    .card-inner {
+      transform-style: preserve-3d;
+      transition: transform 1s cubic-bezier(0.4, 0.2, 0.2, 1);
+    }
+    .card-tilt:hover .card-inner {
+      transform: rotateY(6deg) rotateX(3deg);
+    }
+    .shine {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.2), transparent 60%);
+      pointer-events: none;
+      transition: background 0.2s;
+    }
+    details[open] summary {
+      border-bottom: 1px solid #ddd;
+      margin-bottom: .5rem;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center min-h-screen">
+
+  <div class="w-full max-w-md p-6 card-3d">
+    <div class="card-inner bg-white rounded-2xl shadow-2xl relative overflow-hidden card-tilt">
+      <div class="shine"></div>
+      <div class="py-8 px-6 relative z-10">
+
+        <div class="flex justify-center mb-5">
+          <svg viewBox="0 0 64 64" class="w-16 h-16 text-red-500 drop-shadow-lg">
+            <polygon points="32,4 60,56 4,56" fill="currentColor" opacity="0.1"/>
+            <line x1="32" y1="22" x2="32" y2="36" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="32" cy="46" r="2.5" fill="currentColor"/>
+          </svg>
+        </div>
+
+        <h1 id="error-title" class="text-2xl font-bold text-gray-800 text-center mb-3">
+          エラーが発生しました
+        </h1>
+
+        <div id="user-message" class="text-center mb-6 leading-relaxed text-gray-700">
+          <p>問題が発生しました。</p>
+          <p class="mt-2">お手数ですが、下のボタンからログインページに戻り、再度操作をお試しください。</p>
+        </div>
+
+        <details class="bg-gray-50 rounded-lg p-3 cursor-pointer text-sm mb-8">
+          <summary class="font-medium text-gray-600 select-none flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            管理者用エラー詳細
+          </summary>
+          <p id="error-text" class="text-red-700 mt-3 p-2 bg-gray-200 rounded break-words">
+            <?= errorMessage || '不明なエラーが発生しました。' ?>
+          </p>
+        </details>
+
+        <div class="text-center">
+          <? if (loginUrl && loginUrl !== '') { ?>
+            <a href="<?= loginUrl ?>" target="_top" class="inline-block py-3 px-8 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg transform hover:scale-[1.03] transition">
+              ログインページに戻る
+            </a>
+          <? } else { ?>
+            <button disabled class="py-3 px-6 bg-gray-400 text-white font-semibold rounded-md cursor-not-allowed">
+              戻るリンクが設定されていません
+            </button>
+          <? } ?>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // シャイン効果
+    document.addEventListener("mousemove", (e) => {
+      const shine = document.querySelector(".shine");
+      if (!shine) return;
+      const x = e.clientX / window.innerWidth * 100;
+      const y = e.clientY / window.innerHeight * 100;
+      shine.style.setProperty("--x", `${x}%`);
+      shine.style.setProperty("--y", `${y}%`);
+    });
+
+    // ★★★ エラーコードに応じてメッセージを切り替え ★★★
+    document.addEventListener("DOMContentLoaded", () => {
+      const errorCode = "<?= errorCode || 'UNKNOWN' ?>";
+      const titleEl = document.getElementById("error-title");
+      const messageEl = document.getElementById("user-message");
+      
+      let title = "エラーが発生しました";
+      let message = `
+        <p>何らかの問題が発生しました。</p>
+        <p class="mt-2">お手数ですが、下のボタンからログインページに戻り、再度操作をお試しください。</p>
+      `;
+
+      switch (errorCode) {
+        case 'INVALID_NONCE':
+          title = "無効なリクエスト";
+          message = `
+            <p><strong>ページの再読み込み（リロード）はセキュリティ対策により禁止されています。</strong></p>
+            <p class="mt-2">お手数ですが、下のボタンからログインページに戻り、再度操作をお試しください。</p>
+          `;
+          break;
+        
+        case 'TOKEN_EXPIRED':
+          title = "セッションが切れました";
+          message = `
+            <p>一定時間操作がなかったため、セッションの有効期限が切れました。</p>
+            <p class="mt-2">お手数ですが、下のボタンからログインページに戻り、再度サインインしてください。</p>
+          `;
+          break;
+          
+        case 'INVALID_TOKEN':
+          title = "認証に失敗しました";
+          message = `
+            <p>認証情報が無効か、悪質なアクセスが検出されました。</p>
+            <p class="mt-2">お手数ですが、下のボタンからログインページに戻り、再度サインインしてください。</p>
+          `;
+          break;
+          
+        case 'SERVER_CONFIG_ERROR':
+          title = "サーバー設定エラー";
+          message = `
+            <p>システムが正しく設定されていません。</p>
+            <p class="mt-2">管理者に連絡してください。</p>
+          `;
+          break;
+          
+        case 'SERVER_EXCEPTION':
+          title = "サーバー内部エラー";
+           message = `
+            <p>サーバー側で予期せぬエラーが発生しました。</p>
+            <p class="mt-2">お手数ですが、下のボタンからログインページに戻り、再度操作をお試しください。</p>
+          `;
+          break;
+
+        case '2FA_MAIL_ERROR':
+          title = "メール送信エラー";
+           message = `
+            <p>2段階認証コードのメール送信に失敗しました。</p>
+            <p class="mt-2">お手数ですが、時間をおいて再度お試しください。</p>
+          `;
+          break;
+      }
+      
+      titleEl.innerHTML = title;
+      messageEl.innerHTML = message;
+    });
+  </script>
+</body>
+</html>
