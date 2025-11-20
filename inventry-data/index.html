@@ -1,324 +1,719 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <base target="_top">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>棚卸記録ツール</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+      background-color: #f3f4f6;
+      color: #1f2937;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 48rem;
+      margin: 0 auto;
+    }
+
+    .fixed-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(255, 255, 255, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
     .loader {
       border: 4px solid #f3f3f3;
       border-radius: 50%;
-      border-top: 4px solid #3498db;
+      border-top: 4px solid #3b82f6;
       width: 40px;
       height: 40px;
-      animation: spin 2s linear infinite;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
     }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
     .loading-state {
       filter: grayscale(1);
       pointer-events: none;
       opacity: 0.7;
     }
+
+    .hidden {
+      display: none;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background-color: rgba(243, 244, 246, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 1rem 0;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    main {
+      padding: 1rem;
+    }
+
+    .card {
+      background-color: #ffffff;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .space-y-4 > * + * {
+      margin-top: 1rem;
+    }
+
+    .space-y-2 > * + * {
+      margin-top: 0.5rem;
+    }
+
+    .space-y-1 > * + * {
+      margin-top: 0.25rem;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .item-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .input-number {
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+    }
+
+    .input-number:focus {
+      outline: none;
+      ring: 2px;
+      ring-color: #3b82f6;
+      border-color: transparent;
+    }
+
+    .btn {
+      width: 100%;
+      font-weight: 700;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background-color 0.2s;
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .btn-primary {
+      background-color: #3b82f6;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: #2563eb;
+    }
+
+    .btn-secondary {
+      background-color: #6b7280;
+      color: #ffffff;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background-color: #4b5563;
+    }
+
+    .btn-success {
+      background-color: #10b981;
+      color: #ffffff;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background-color: #059669;
+    }
+
+    .btn-disabled {
+      background-color: #9ca3af;
+      color: #ffffff;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #3b82f6;
+    }
+
+    .section-title-error {
+      border-bottom-color: #ef4444;
+      color: #dc2626;
+    }
+
+    .confirmation-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 0.5rem;
+    }
+
+    .confirmation-name {
+      font-weight: 500;
+    }
+
+    .confirmation-value {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .missing-item {
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 0.25rem;
+      padding-left: 0.5rem;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-gray {
+      color: #6b7280;
+    }
+
+    .mt-6 {
+      margin-top: 1.5rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .error-box {
+      padding: 1rem;
+      background-color: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      border-radius: 0.375rem;
+    }
+
+    .error-title {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .skeleton {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .skeleton-line {
+      height: 1.5rem;
+      background-color: #e5e7eb;
+      border-radius: 0.375rem;
+    }
+
+    .skeleton-input {
+      height: 2.5rem;
+      background-color: #e5e7eb;
+      border-radius: 0.375rem;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .desktop-warning {
+      position: fixed;
+      inset: 0;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .desktop-warning h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #dc2626;
+      margin-bottom: 1rem;
+    }
+
+    .desktop-warning p {
+      color: #4b5563;
+    }
+
+    @media (min-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
+<body>
 
-  <div id="desktopMsg" class="hidden fixed inset-0 bg-white flex flex-col items-center justify-center text-center p-4">
-    <h2 class="text-2xl font-bold text-red-600 mb-4">このページはスマートフォン専用です</h2>
-    <p class="text-gray-600">PCからはご利用いただけません。<br>スマートフォンでアクセスしてください。</p>
+  <!-- PC警告メッセージ -->
+  <div id="desktopMsg" class="desktop-warning hidden">
+    <h2>このページはスマートフォン専用です</h2>
+    <p>PCからはご利用いただけません。<br>スマートフォンでアクセスしてください。</p>
   </div>
 
+  <!-- メインアプリ -->
   <div id="app" class="hidden">
-    <div id="loadingOverlay" class="fixed inset-0 bg-white/70 flex flex-col items-center justify-center z-50">
-      <div class="loader mb-4"></div>
+
+    <!-- ローディングオーバーレイ -->
+    <div id="loadingOverlay" class="fixed-overlay">
+      <div class="loader"></div>
       <p>マスターデータを読み込んでいます...</p>
     </div>
-    <div class="container mx-auto max-w-2xl">
-      <header class="sticky top-0 bg-gray-100/90 backdrop-blur-sm py-4 z-10 shadow-sm border-b">
-        <h1 id="pageTitle" class="text-2xl font-bold text-center">棚卸数量 入力</h1>
+
+    <div class="container">
+      <header>
+        <h1 id="pageTitle">棚卸数量 入力</h1>
       </header>
-      <main class="p-4 loading-state">
+
+      <main class="loading-state">
+        <!-- ページ1: 入力フォーム -->
         <div id="page1">
-          <form id="inventoryForm" class="bg-white p-6 rounded-lg shadow-md">
+          <form id="inventoryForm" class="card">
             <div id="itemList" class="space-y-4">
-              <div class="space-y-4 animate-pulse">
-                <div class="grid grid-cols-3 gap-2 items-center"><div class="col-span-2 h-6 bg-gray-200 rounded"></div><div class="col-span-1 h-10 bg-gray-200 rounded"></div></div>
-                <div class="grid grid-cols-3 gap-2 items-center"><div class="col-span-2 h-6 bg-gray-200 rounded"></div><div class="col-span-1 h-10 bg-gray-200 rounded"></div></div>
-                <div class="grid grid-cols-3 gap-2 items-center"><div class="col-span-2 h-6 bg-gray-200 rounded"></div><div class="col-span-1 h-10 bg-gray-200 rounded"></div></div>
+              <!-- スケルトンローディング -->
+              <div class="skeleton space-y-4">
+                <div class="item-row">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-input"></div>
+                </div>
+                <div class="item-row">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-input"></div>
+                </div>
+                <div class="item-row">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-input"></div>
+                </div>
               </div>
             </div>
             <div class="mt-6">
-              <button type="button" id="toConfirmBtn" class="w-full bg-gray-400 text-white font-bold py-2 px-4 rounded-lg cursor-not-allowed" disabled>入力内容を確認する</button>
+              <button type="button" id="toConfirmBtn" class="btn btn-disabled" disabled>入力内容を確認する</button>
             </div>
           </form>
         </div>
 
+        <!-- ページ2: 確認画面 -->
         <div id="page2" class="hidden">
-          <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
-            
+          <div class="card space-y-2">
+
+            <!-- 入力済みリスト -->
             <div>
-              <h2 class="text-xl font-bold mb-3 border-b-2 border-blue-500 pb-2">入力済みリスト</h2>
-              <div id="confirmationList" class="space-y-2">
-                </div>
+              <h2 class="section-title">入力済みリスト</h2>
+              <div id="confirmationList" class="space-y-2"></div>
             </div>
 
-            <div id="missingListContainer" class="hidden"> <h2 class="text-xl font-bold mb-3 border-b-2 border-red-500 pb-2 text-red-600">未入力リスト</h2>
-              <div id="missingList" class="space-y-1 text-gray-700">
-                </div>
+            <!-- 未入力リスト -->
+            <div id="missingListContainer" class="hidden">
+              <h2 class="section-title section-title-error">未入力リスト</h2>
+              <div id="missingList" class="space-y-1 text-gray"></div>
             </div>
 
-            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button type="button" id="backBtn" class="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">戻って修正する</button>
-              <button type="button" id="submitBtn" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">この内容で記録する</button>
+            <!-- ボタン群 -->
+            <div class="mt-6 grid-2">
+              <button type="button" id="backBtn" class="btn btn-secondary">戻って修正する</button>
+              <button type="button" id="submitBtn" class="btn btn-success">この内容で記録する</button>
             </div>
           </div>
         </div>
-        </main>
+      </main>
     </div>
   </div>
 
 <script>
-  // --- グローバル変数 ---
-  let masterItems = [];
-  const SESSION_STORAGE_KEY = 'inventoryFormData';
-  
-  // --- DOM要素の取得 ---
-  const app = document.getElementById('app');
-  const desktopMsg = document.getElementById('desktopMsg');
-  const pageTitle = document.getElementById('pageTitle');
-  const mainContent = document.querySelector('main');
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  const page1 = document.getElementById('page1');
-  const page2 = document.getElementById('page2');
-  const toConfirmBtn = document.getElementById('toConfirmBtn');
-  const backBtn = document.getElementById('backBtn');
-  const submitBtn = document.getElementById('submitBtn');
-  const inventoryForm = document.getElementById('inventoryForm');
-  // ▼▼▼ 修正点2: 未入力リスト用のDOM取得を追加 ▼▼▼
-  const confirmationList = document.getElementById('confirmationList');
-  const missingListContainer = document.getElementById('missingListContainer');
-  const missingList = document.getElementById('missingList');
-  // ▲▲▲ 修正点2ここまで ▲▲▲
+(function() {
+  'use strict';
 
-  // --- PC/スマホ判定ロジック ---
+  // ========================================
+  // 定数
+  // ========================================
+  const SESSION_STORAGE_KEY = 'inventoryFormData';
+
+  // ========================================
+  // 状態管理
+  // ========================================
+  const state = {
+    masterItems: [],
+    isLoading: false
+  };
+
+  // ========================================
+  // DOM要素
+  // ========================================
+  const elements = {
+    app: document.getElementById('app'),
+    desktopMsg: document.getElementById('desktopMsg'),
+    pageTitle: document.getElementById('pageTitle'),
+    mainContent: document.querySelector('main'),
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    page1: document.getElementById('page1'),
+    page2: document.getElementById('page2'),
+    toConfirmBtn: document.getElementById('toConfirmBtn'),
+    backBtn: document.getElementById('backBtn'),
+    submitBtn: document.getElementById('submitBtn'),
+    inventoryForm: document.getElementById('inventoryForm'),
+    itemList: document.getElementById('itemList'),
+    confirmationList: document.getElementById('confirmationList'),
+    missingListContainer: document.getElementById('missingListContainer'),
+    missingList: document.getElementById('missingList')
+  };
+
+  // ========================================
+  // ユーティリティ
+  // ========================================
+
+  /**
+   * モバイルデバイス判定
+   */
   function isMobileDevice() {
     if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
       return navigator.userAgentData.mobile;
     }
-    const ua = navigator.userAgent || navigator.vendor || window.opera || "";
+    const ua = navigator.userAgent || navigator.vendor || window.opera || '';
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   }
 
-  // --- アプリケーションの初期化 ---
-  document.addEventListener('DOMContentLoaded', () => {
-    if (!isMobileDevice()) {
-      desktopMsg.classList.remove('hidden');
-      return; 
+  /**
+   * ローディング表示切替
+   */
+  function setLoading(isLoading) {
+    state.isLoading = isLoading;
+    if (isLoading) {
+      elements.loadingOverlay.classList.remove('hidden');
+      elements.mainContent.classList.add('loading-state');
+    } else {
+      elements.loadingOverlay.classList.add('hidden');
+      elements.mainContent.classList.remove('loading-state');
     }
-    app.classList.remove('hidden');
-    google.script.run
-      .withSuccessHandler(onMasterItemsSuccess)
-      .withFailureHandler(onFailure)
-      .getMasterItems();
-  });
+  }
 
-  function onMasterItemsSuccess(items) {
-    if (items.error) {
-      onFailure(items.error);
+  /**
+   * エラー表示
+   */
+  function showError(error) {
+    elements.itemList.innerHTML = `
+      <div class="error-box">
+        <p class="error-title">エラー:</p>
+        <p>${error.toString()}</p>
+      </div>
+    `;
+    elements.pageTitle.textContent = 'エラー';
+  }
+
+  // ========================================
+  // セッションストレージ
+  // ========================================
+
+  function saveFormData() {
+    try {
+      const inputs = elements.inventoryForm.querySelectorAll('input[type="number"]');
+      const data = {};
+      inputs.forEach(input => {
+        if (input.value.trim() !== '') {
+          data[input.name] = input.value;
+        }
+      });
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.error('セッションストレージへの保存に失敗:', e);
+    }
+  }
+
+  function loadFormData() {
+    try {
+      const savedData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        Object.keys(data).forEach(name => {
+          const input = elements.inventoryForm.elements[name];
+          if (input) {
+            input.value = data[name];
+          }
+        });
+      }
+    } catch (e) {
+      console.error('セッションストレージからの読み込みに失敗:', e);
+    }
+  }
+
+  function clearFormData() {
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch (e) {
+      console.error('セッションストレージのクリアに失敗:', e);
+    }
+  }
+
+  // ========================================
+  // UI更新
+  // ========================================
+
+  /**
+   * 確認ボタンの状態更新
+   */
+  function updateButtonState() {
+    const inputs = elements.inventoryForm.querySelectorAll('input[type="number"]');
+    const hasInput = Array.from(inputs).some(input => input.value.trim() !== '');
+
+    if (hasInput) {
+      elements.toConfirmBtn.disabled = false;
+      elements.toConfirmBtn.className = 'btn btn-primary';
+    } else {
+      elements.toConfirmBtn.disabled = true;
+      elements.toConfirmBtn.className = 'btn btn-disabled';
+    }
+  }
+
+  /**
+   * アイテムリストのレンダリング
+   */
+  function renderItemList(items) {
+    if (items.length === 0) {
+      elements.itemList.innerHTML = '<p class="text-center text-gray">表示する物品マスターがありません。</p>';
       return;
     }
-    masterItems = items;
-    const itemListDiv = document.getElementById('itemList');
-    itemListDiv.innerHTML = ''; 
 
-    if (items.length === 0) {
-        itemListDiv.innerHTML = '<p class="text-center text-gray-500">表示する物品マスターがありません。</p>';
-    } else {
-        items.forEach(item => {
-        const itemHtml = `
-          <div class="grid grid-cols-3 gap-2 items-center">
-            <label class="col-span-2 text-md font-medium">${item}</label>
-            <input type="number" name="${item}" placeholder="数量" min="0" 
-                   class="col-span-1 border border-gray-300 rounded-md p-2 text-center focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-          </div>`;
-        itemListDiv.innerHTML += itemHtml;
-      });
-    }
-    
-    inventoryForm.addEventListener('input', () => {
-      updateButtonState();
-      saveDataToSessionStorage();
-    });
+    const html = items.map(item => `
+      <div class="item-row">
+        <label class="item-label">${item}</label>
+        <input type="number" name="${item}" placeholder="数量" min="0" class="input-number">
+      </div>
+    `).join('');
 
-    loadDataFromSessionStorage();
-    updateButtonState();
-
-    loadingOverlay.classList.add('hidden');
-    mainContent.classList.remove('loading-state');
+    elements.itemList.innerHTML = html;
   }
 
-  function onFailure(error) {
-    loadingOverlay.classList.add('hidden');
-    mainContent.classList.remove('loading-state');
-    document.getElementById('itemList').innerHTML = `<div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded"><p class="font-bold">エラー:</p><p>${error.toString()}</p></div>`;
-    pageTitle.textContent = 'エラー';
-  }
+  /**
+   * 確認画面のレンダリング
+   */
+  function renderConfirmation() {
+    elements.confirmationList.innerHTML = '';
+    elements.missingList.innerHTML = '';
 
-  // --- セッションストレージ (変更なし) ---
-  function saveDataToSessionStorage() {
-    const inputs = document.querySelectorAll('#inventoryForm input[type="number"]');
-    const data = {};
-    inputs.forEach(input => {
-      if (input.value.trim() !== '') data[input.name] = input.value;
-    });
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
-  }
-
-  function loadDataFromSessionStorage() {
-    const savedData = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (savedData) {
-      const data = JSON.parse(savedData);
-      Object.keys(data).forEach(name => {
-        const input = inventoryForm.elements[name];
-        if (input) input.value = data[name];
-      });
-    }
-  }
-
-  function clearSessionStorageData() {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
-  }
-
-  // --- ボタン状態更新 (変更なし) ---
-  function updateButtonState() {
-    const inputs = document.querySelectorAll('#inventoryForm input[type="number"]');
-    const isAnyInputFilled = Array.from(inputs).some(input => input.value.trim() !== '');
-    if (isAnyInputFilled) {
-      toConfirmBtn.disabled = false;
-      toConfirmBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-      toConfirmBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
-    } else {
-      toConfirmBtn.disabled = true;
-      toConfirmBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-      toConfirmBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-    }
-  }
-
-  // --- 画面遷移 ---
-  // ▼▼▼ 修正点3: toConfirmBtnのロジックを大幅に変更 ▼▼▼
-  toConfirmBtn.addEventListener('click', () => {
-    // リストを初期化
-    confirmationList.innerHTML = ''; 
-    missingList.innerHTML = '';
-    
     let filledCount = 0;
     const missingItems = [];
 
-    // 全マスターアイテムをループしてチェック
-    masterItems.forEach(itemName => {
-      const input = inventoryForm.elements[itemName]; // name属性でinput要素を取得
-      let valueStr = '';
-
-      if (input) {
-         valueStr = input.value.trim();
-      }
-
-      // 数値であり、かつ0以上かチェック
+    state.masterItems.forEach(itemName => {
+      const input = elements.inventoryForm.elements[itemName];
+      const valueStr = input ? input.value.trim() : '';
       const valueNum = parseInt(valueStr, 10);
+
       if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
-        // 入力あり (0も含む)
-        confirmationList.innerHTML += `<div class="grid grid-cols-2 gap-4 border-b pb-2"><span class="font-medium">${itemName}</span><span class="text-right font-bold">${valueNum}</span></div>`;
+        // 入力あり
+        elements.confirmationList.innerHTML += `
+          <div class="confirmation-row">
+            <span class="confirmation-name">${itemName}</span>
+            <span class="confirmation-value">${valueNum}</span>
+          </div>
+        `;
         filledCount++;
       } else {
-        // 未入力または無効な値 (マイナス値など)
+        // 未入力
         missingItems.push(itemName);
       }
     });
 
-    // 入力済みリストが空の場合の表示
+    // 入力済みが0件の場合
     if (filledCount === 0) {
-        confirmationList.innerHTML = '<p class="text-center text-gray-500">入力された物品はありません。</p>';
+      elements.confirmationList.innerHTML = '<p class="text-center text-gray">入力された物品はありません。</p>';
     }
 
-    // 未入力リストの処理
+    // 未入力リストの表示
     if (missingItems.length > 0) {
-      missingItems.forEach(item => {
-        missingList.innerHTML += `<div class="border-b pb-1 pl-2">${item}</div>`;
-      });
-      missingListContainer.classList.remove('hidden'); // 未入力リストを表示
+      elements.missingList.innerHTML = missingItems.map(item => `
+        <div class="missing-item">${item}</div>
+      `).join('');
+      elements.missingListContainer.classList.remove('hidden');
     } else {
-      missingListContainer.classList.add('hidden'); // 未入力がなければ非表示
+      elements.missingListContainer.classList.add('hidden');
     }
-    
-    page1.classList.add('hidden');
-    page2.classList.remove('hidden');
-    pageTitle.textContent = '入力内容 確認';
-  });
-  // ▲▲▲ 修正点3ここまで ▲▲▲
+  }
 
+  // ========================================
+  // ページ遷移
+  // ========================================
 
-  backBtn.addEventListener('click', () => {
-    page2.classList.add('hidden');
-    page1.classList.remove('hidden');
-    pageTitle.textContent = '棚卸数量 入力';
-  });
+  function showPage1() {
+    elements.page2.classList.add('hidden');
+    elements.page1.classList.remove('hidden');
+    elements.pageTitle.textContent = '棚卸数量 入力';
+  }
 
-  // --- データ送信 ---
-  submitBtn.addEventListener('click', () => {
-    submitBtn.disabled = true;
-    submitBtn.textContent = '送信中...';
-    
+  function showPage2() {
+    renderConfirmation();
+    elements.page1.classList.add('hidden');
+    elements.page2.classList.remove('hidden');
+    elements.pageTitle.textContent = '入力内容 確認';
+  }
+
+  // ========================================
+  // データ送信
+  // ========================================
+
+  function submitData() {
+    elements.submitBtn.disabled = true;
+    elements.submitBtn.textContent = '送信中...';
+
     const inputValues = {};
-    // masterItemsを基準にデータを収集する
-    masterItems.forEach(itemName => {
-      const input = inventoryForm.elements[itemName];
+    state.masterItems.forEach(itemName => {
+      const input = elements.inventoryForm.elements[itemName];
       if (input) {
-          const valueStr = input.value.trim();
-          const valueNum = parseInt(valueStr, 10);
-          // 0以上の有効な数値のみを対象とする
-          if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
-              inputValues[itemName] = valueNum;
-          }
+        const valueStr = input.value.trim();
+        const valueNum = parseInt(valueStr, 10);
+        if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
+          inputValues[itemName] = valueNum;
+        }
       }
     });
 
-    // dataToWriteの作成ロジックも、入力値（inputValues）が存在するものだけを
-    // 送信するか、全マスターを0埋めして送信するかによります。
-    // 現在のgs側の `writeInventoryData` は全マスターを0埋めする前提なので、それに合わせます。
-    const dataToWrite = masterItems.map(itemName => ({
-        name: itemName,
-        quantity: inputValues[itemName] || 0 // 未入力または無効な値は0として扱う
+    const dataToWrite = state.masterItems.map(itemName => ({
+      name: itemName,
+      quantity: inputValues[itemName] || 0
     }));
 
     google.script.run
       .withSuccessHandler(onWriteSuccess)
       .withFailureHandler(onWriteFailure)
       .writeInventoryData(dataToWrite);
-  });
+  }
 
   function onWriteSuccess(response) {
     if (response.success) {
       alert(response.message);
-      clearSessionStorageData(); 
-      inventoryForm.reset();
+      clearFormData();
+      elements.inventoryForm.reset();
       updateButtonState();
-      page2.classList.add('hidden');
-      page1.classList.remove('hidden');
-      pageTitle.textContent = '棚卸数量 入力';
+      showPage1();
     } else {
       onWriteFailure(response);
     }
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'この内容で記録する';
+    elements.submitBtn.disabled = false;
+    elements.submitBtn.textContent = 'この内容で記録する';
   }
 
   function onWriteFailure(error) {
     alert('書き込み中にエラーが発生しました。\n' + (error.error || error.toString()));
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'この内容で記録する';
+    elements.submitBtn.disabled = false;
+    elements.submitBtn.textContent = 'この内容で記録する';
   }
+
+  // ========================================
+  // マスターデータ取得
+  // ========================================
+
+  function fetchMasterItems() {
+    google.script.run
+      .withSuccessHandler(onMasterItemsSuccess)
+      .withFailureHandler(onMasterItemsFailure)
+      .getMasterItems();
+  }
+
+  function onMasterItemsSuccess(items) {
+    if (items.error) {
+      onMasterItemsFailure(items.error);
+      return;
+    }
+
+    state.masterItems = items;
+    renderItemList(items);
+
+    // イベントリスナー設定
+    elements.inventoryForm.addEventListener('input', () => {
+      updateButtonState();
+      saveFormData();
+    });
+
+    loadFormData();
+    updateButtonState();
+    setLoading(false);
+  }
+
+  function onMasterItemsFailure(error) {
+    setLoading(false);
+    showError(error);
+  }
+
+  // ========================================
+  // イベントリスナー
+  // ========================================
+
+  function setupEventListeners() {
+    elements.toConfirmBtn.addEventListener('click', showPage2);
+    elements.backBtn.addEventListener('click', showPage1);
+    elements.submitBtn.addEventListener('click', submitData);
+  }
+
+  // ========================================
+  // 初期化
+  // ========================================
+
+  function init() {
+    if (!isMobileDevice()) {
+      elements.desktopMsg.classList.remove('hidden');
+      return;
+    }
+
+    elements.app.classList.remove('hidden');
+    setupEventListeners();
+    fetchMasterItems();
+  }
+
+  // ========================================
+  // アプリ起動
+  // ========================================
+
+  document.addEventListener('DOMContentLoaded', init);
+
+})();
 </script>
 </body>
 </html>

@@ -1,13 +1,22 @@
-// スプレッドシートのIDを定数として定義
-const SOURCE_ID = '13IsEoCgT9v0-J5TAaCAb_vZyyDMjzv_yXaI5khqvFnY'; // 読み取り元
-const DEST_ID = '1ZlkOr0n8Cc8ISwuyGUtZIoHoS2AutZ9uPmI9JcVxeaQ';   // 書き込み先
-const MASTER_SHEET_NAME = 'マスター';
+// ========================================
+// 設定定数
+// ========================================
+const CONFIG = {
+  SOURCE_ID: '13IsEoCgT9v0-J5TAaCAb_vZyyDMjzv_yXaI5khqvFnY',
+  DEST_ID: '1ZlkOr0n8Cc8ISwuyGUtZIoHoS2AutZ9uPmI9JcVxeaQ',
+  MASTER_SHEET_NAME: 'マスター',
+  CACHE_KEY: 'master_items_v1',
+  CACHE_DURATION: 21600, // 6時間（秒）
+  DATE_FORMAT: 'yyyy-MM-dd',
+  CSV_MIME_TYPE: MimeType.CSV
+};
 
-// キャッシュキー
-const CACHE_KEY = 'master_items_v1';
+// ========================================
+// Webアプリケーション
+// ========================================
 
 /**
- * Webアプリのメイン関数
+ * WebアプリのGETリクエストハンドラ
  */
 function doGet(e) {
   return HtmlService.createTemplateFromFile('index')
@@ -16,151 +25,229 @@ function doGet(e) {
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 
-/**
- * キャッシュをクリアするための手動実行関数
- */
-function clearCache() {
-  const cache = CacheService.getScriptCache();
-  cache.remove(CACHE_KEY);
-  console.log(`キャッシュ（キー: ${CACHE_KEY}）をクリアしました。`);
-  Browser.msgBox('品目キャッシュをクリアしました。');
-}
+// ========================================
+// マスターデータ取得
+// ========================================
 
 /**
- * 実際にスプレッドシートからデータを取得する内部関数
- */
-function fetchItemsFromSheet() {
-  console.log('スプレッドシートからデータを取得しています...');
-  const ss = SpreadsheetApp.openById(SOURCE_ID);
-  const sheet = ss.getSheetByName(MASTER_SHEET_NAME);
-  if (!sheet) {
-    throw new Error(`シート「${MASTER_SHEET_NAME}」が見つかりません。`);
-  }
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    return []; 
-  }
-  const range = sheet.getRange(`B2:B${lastRow}`);
-  const values = range.getValues().flat();
-  const items = values.filter(item => typeof item === 'string' && item.trim() !== '' && !/---.*---/.test(item));
-  return items;
-}
-
-/**
- * マスターシートから物品リストを取得する（キャッシュ対応）
+ * マスターシートから物品リストを取得（キャッシュ対応）
+ * @returns {Array<string>|Object} 物品リストまたはエラーオブジェクト
  */
 function getMasterItems() {
   try {
     const cache = CacheService.getScriptCache();
-    const cachedData = cache.get(CACHE_KEY);
+    const cachedData = cache.get(CONFIG.CACHE_KEY);
 
     if (cachedData != null) {
-      console.log('キャッシュからデータを取得しました。');
+      Logger.log('キャッシュからデータを取得しました。');
       return JSON.parse(cachedData);
     }
 
     const items = fetchItemsFromSheet();
-    cache.put(CACHE_KEY, JSON.stringify(items), 21600); // 6時間キャッシュ
-    console.log(`取得したデータをキャッシュに保存しました。（キー: ${CACHE_KEY}）`);
+    cache.put(CONFIG.CACHE_KEY, JSON.stringify(items), CONFIG.CACHE_DURATION);
+    Logger.log(`取得したデータをキャッシュに保存しました。（キー: ${CONFIG.CACHE_KEY}）`);
 
     return items;
   } catch (e) {
-    console.error(e);
-    return { "error": e.toString() };
+    Logger.log(`getMasterItems エラー: ${e.toString()}`);
+    return { error: e.toString() };
   }
 }
 
+/**
+ * スプレッドシートから物品リストを取得
+ * @returns {Array<string>} 物品リスト
+ */
+function fetchItemsFromSheet() {
+  Logger.log('スプレッドシートからデータを取得しています...');
+
+  const ss = SpreadsheetApp.openById(CONFIG.SOURCE_ID);
+  const sheet = ss.getSheetByName(CONFIG.MASTER_SHEET_NAME);
+
+  if (!sheet) {
+    throw new Error(`シート「${CONFIG.MASTER_SHEET_NAME}」が見つかりません。`);
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return [];
+  }
+
+  const range = sheet.getRange(`B2:B${lastRow}`);
+  const values = range.getValues().flat();
+  const items = values.filter(item =>
+    typeof item === 'string' &&
+    item.trim() !== '' &&
+    !/---.*---/.test(item)
+  );
+
+  return items;
+}
 
 /**
- * ▼▼▼ 修正点 ▼▼▼
- * 棚卸データをスプレッドシートに書き込み、CSVとしてエクスポートし、
- * その後スプレッドシートのデータをクリアする一連の処理。
- *
- * @param {Array<Object>} data - Webアプリから送信されたデータ
- * @returns {Object} 成功または失敗を示すオブジェクト
+ * キャッシュをクリア（手動実行用）
+ */
+function clearCache() {
+  const cache = CacheService.getScriptCache();
+  cache.remove(CONFIG.CACHE_KEY);
+  Logger.log(`キャッシュ（キー: ${CONFIG.CACHE_KEY}）をクリアしました。`);
+  return { success: true, message: 'キャッシュをクリアしました。' };
+}
+
+// ========================================
+// 棚卸データ書き込み
+// ========================================
+
+/**
+ * 棚卸データをスプレッドシートに書き込み、CSVエクスポート、クリアを実行
+ * @param {Array<Object>} data - [{name: string, quantity: number}, ...]
+ * @returns {Object} {success: boolean, message?: string, error?: string}
  */
 function writeInventoryData(data) {
-  let ss;
-  let sheet;
-  
   try {
-    // --- 1. スプレッドシートへの書き込み (追記) ---
-    ss = SpreadsheetApp.openById(DEST_ID);
-    sheet = ss.getSheetByName(MASTER_SHEET_NAME);
+    const ss = SpreadsheetApp.openById(CONFIG.DEST_ID);
+    const sheet = ss.getSheetByName(CONFIG.MASTER_SHEET_NAME);
+
     if (!sheet) {
-      throw new Error(`書き込み先のシート「${MASTER_SHEET_NAME}」が見つかりません。`);
+      throw new Error(`書き込み先のシート「${CONFIG.MASTER_SHEET_NAME}」が見つかりません。`);
     }
-    
-    const today = new Date(); // 共通の日付オブジェクトを使用
+
+    const today = new Date();
     const timeZone = ss.getSpreadsheetTimeZone();
-    const formattedToday = Utilities.formatDate(today, timeZone, 'yyyy-MM-dd');
-    
-    const rows = data.map(item => [
-      formattedToday, // A列: 日付 (yyyy-MM-dd文字列)
-      item.name,      // B列: 物品名
-      item.quantity   // C列: 実在庫数
-    ]);
-    
-    if (rows.length > 0) {
-      // データを最終行の下に追記
-      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
-      console.log(`${rows.length}行のデータをスプレッドシートに追記しました。`);
-    } else {
-      console.log('Webアプリから書き込むデータがありませんでした。');
-    }
+    const formattedDate = Utilities.formatDate(today, timeZone, CONFIG.DATE_FORMAT);
 
-    // --- 2. CSVファイルに転記 (シートの全データを対象) ---
-    const lastRow = sheet.getLastRow();
-    if (lastRow === 0) {
-      console.log('CSVとしてエクスポートするデータがシートにありません。');
-      return { success: true, message: '棚卸データを記録しました（エクスポート対象なし）。' };
-    }
-    
-    // A1からC列の最終行までの全データを取得
-    const rangeToExport = sheet.getRange(`A1:C${lastRow}`);
-    const values = rangeToExport.getValues();
+    // 1. スプレッドシートへの書き込み
+    appendDataToSheet(sheet, data, formattedDate);
 
-    let csvContent = '';
-    values.forEach((row, index) => {
-      let newRow = [...row];
-      // A列が万が一Dateオブジェクトだった場合に備えてフォーマット処理を残す
-      if (newRow[0] instanceof Date) {
-        newRow[0] = Utilities.formatDate(newRow[0], timeZone, 'yyyy-MM-dd');
-      }
-      // 各セルをダブルクォーテーションで囲む
-      csvContent += newRow.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n';
-    });
+    // 2. CSV生成とエクスポート
+    const csvFileName = exportToCSV(ss, sheet, today, timeZone, formattedDate);
 
-    // --- 3. CSVファイル名を決定してルール通りに格納 ---
-    const year = today.getFullYear().toString();
-    const spreadsheetFile = DriveApp.getFileById(ss.getId());
-    const parentFolder = spreadsheetFile.getParents().next();
-    
-    let destinationFolder;
-    const yearFolders = parentFolder.getFoldersByName(year);
-    
-    if (yearFolders.hasNext()) {
-      destinationFolder = yearFolders.next();
-    } else {
-      destinationFolder = parentFolder.createFolder(year);
-    }
-    
-    const fileName = `棚卸_${formattedToday}.csv`;
-    destinationFolder.createFile(fileName, csvContent, MimeType.CSV);
-    console.log(`CSVファイルを作成しました: ${fileName}（保存先: ${destinationFolder.getName()}）`);
+    // 3. スプレッドシートクリア
+    clearSheetData(sheet);
 
-    // --- 4. スプレッドシートクリア ---
-    // CSVに出力した範囲（A1:Cの最終行まで）のデータをクリアする
-    rangeToExport.clearContent();
-    console.log(`スプレッドシート（${MASTER_SHEET_NAME}）のA1:C${lastRow}のデータをクリアしました。`);
-    
-    return { 
-      success: true, 
-      message: `記録が完了し、CSVファイル(${fileName})として保存しました。\nスプレッドシートのデータはクリアされました。` 
+    return {
+      success: true,
+      message: `記録が完了し、CSVファイル(${csvFileName})として保存しました。\nスプレッドシートのデータはクリアされました。`
     };
 
   } catch (e) {
-    console.error(e);
+    Logger.log(`writeInventoryData エラー: ${e.toString()}`);
     return { success: false, error: e.toString() };
   }
+}
+
+/**
+ * データをシートに追記
+ * @param {Sheet} sheet - 対象シート
+ * @param {Array<Object>} data - 書き込みデータ
+ * @param {string} formattedDate - フォーマット済み日付
+ */
+function appendDataToSheet(sheet, data, formattedDate) {
+  if (!data || data.length === 0) {
+    Logger.log('書き込むデータがありません。');
+    return;
+  }
+
+  const rows = data.map(item => [
+    formattedDate,
+    item.name,
+    item.quantity
+  ]);
+
+  const startRow = sheet.getLastRow() + 1;
+  sheet.getRange(startRow, 1, rows.length, 3).setValues(rows);
+  Logger.log(`${rows.length}行のデータをスプレッドシートに追記しました。`);
+}
+
+/**
+ * シートデータをCSVにエクスポート
+ * @param {Spreadsheet} ss - スプレッドシート
+ * @param {Sheet} sheet - 対象シート
+ * @param {Date} today - 今日の日付
+ * @param {string} timeZone - タイムゾーン
+ * @param {string} formattedDate - フォーマット済み日付
+ * @returns {string} CSVファイル名
+ */
+function exportToCSV(ss, sheet, today, timeZone, formattedDate) {
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow === 0) {
+    Logger.log('CSVとしてエクスポートするデータがシートにありません。');
+    return null;
+  }
+
+  const range = sheet.getRange(`A1:C${lastRow}`);
+  const values = range.getValues();
+
+  // CSV生成（BOM付き UTF-8）
+  const csvContent = generateCSVContent(values, timeZone);
+
+  // ファイル保存
+  const destinationFolder = getOrCreateYearFolder(ss, today.getFullYear());
+  const fileName = `棚卸_${formattedDate}.csv`;
+
+  destinationFolder.createFile(fileName, csvContent, CONFIG.CSV_MIME_TYPE);
+  Logger.log(`CSVファイルを作成しました: ${fileName}（保存先: ${destinationFolder.getName()}）`);
+
+  return fileName;
+}
+
+/**
+ * CSV文字列を生成（BOM付き UTF-8）
+ * @param {Array<Array>} values - シートの値
+ * @param {string} timeZone - タイムゾーン
+ * @returns {string} CSV文字列
+ */
+function generateCSVContent(values, timeZone) {
+  const BOM = '\uFEFF'; // Excel文字化け対策
+
+  const csvRows = values.map(row => {
+    const processedRow = row.map((cell, index) => {
+      // A列（日付列）の処理
+      if (index === 0 && cell instanceof Date) {
+        return Utilities.formatDate(cell, timeZone, CONFIG.DATE_FORMAT);
+      }
+      // クォートのエスケープ
+      return `"${String(cell).replace(/"/g, '""')}"`;
+    });
+    return processedRow.join(',');
+  });
+
+  return BOM + csvRows.join('\n');
+}
+
+/**
+ * 年度フォルダを取得または作成
+ * @param {Spreadsheet} ss - スプレッドシート
+ * @param {number} year - 年度
+ * @returns {Folder} 年度フォルダ
+ */
+function getOrCreateYearFolder(ss, year) {
+  const spreadsheetFile = DriveApp.getFileById(ss.getId());
+  const parentFolder = spreadsheetFile.getParents().next();
+
+  const yearFolders = parentFolder.getFoldersByName(year.toString());
+
+  if (yearFolders.hasNext()) {
+    return yearFolders.next();
+  }
+
+  return parentFolder.createFolder(year.toString());
+}
+
+/**
+ * シートのデータをクリア
+ * @param {Sheet} sheet - 対象シート
+ */
+function clearSheetData(sheet) {
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow === 0) {
+    Logger.log('クリアするデータがありません。');
+    return;
+  }
+
+  const range = sheet.getRange(`A1:C${lastRow}`);
+  range.clearContent();
+  Logger.log(`シート（${sheet.getName()}）のA1:C${lastRow}のデータをクリアしました。`);
 }
