@@ -1151,3 +1151,404 @@ Public Sub RunDiscrepancyAnalysisWorkflow()
            "「差異分析」シートを確認し、" & vbCrLf & _
            "必要に応じて「差異補正を適用」を実行してください。", vbInformation, "確認"
 End Sub
+
+'===============================================================================
+' 使用量予測・発注点自動調整
+'===============================================================================
+
+'-------------------------------------------------------------------------------
+' 使用量分析シートのセットアップ
+'-------------------------------------------------------------------------------
+Private Sub SetupUsageAnalysisSheet()
+    Dim ws As Worksheet
+
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets("使用量分析")
+    On Error GoTo 0
+
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        ws.Name = "使用量分析"
+    End If
+
+    With ws
+        .Cells(1, 1).Value = "品名"
+        .Cells(1, 2).Value = "分析期間(日)"
+        .Cells(1, 3).Value = "出庫回数"
+        .Cells(1, 4).Value = "出庫合計"
+        .Cells(1, 5).Value = "日平均使用量"
+        .Cells(1, 6).Value = "週平均使用量"
+        .Cells(1, 7).Value = "月平均使用量"
+        .Cells(1, 8).Value = "使用頻度"
+        .Cells(1, 9).Value = "リードタイム(日)"
+        .Cells(1, 10).Value = "安全在庫係数"
+        .Cells(1, 11).Value = "推奨発注点"
+        .Cells(1, 12).Value = "現在発注点"
+        .Cells(1, 13).Value = "調整要否"
+
+        .Range("A1:M1").Font.Bold = True
+        .Range("A1:M1").Interior.Color = RGB(112, 48, 160)
+        .Range("A1:M1").Font.Color = RGB(255, 255, 255)
+        .Columns("A:M").AutoFit
+    End With
+End Sub
+
+'-------------------------------------------------------------------------------
+' 使用量予測分析を実行
+'-------------------------------------------------------------------------------
+Public Sub AnalyzeUsagePatterns()
+    Dim wsTrans As Worksheet
+    Dim wsMaster As Worksheet
+    Dim wsUsage As Worksheet
+    Dim lastRowTrans As Long
+    Dim lastRowMaster As Long
+    Dim i As Long, j As Long
+    Dim itemName As String
+    Dim outboundCount As Long
+    Dim outboundTotal As Double
+    Dim minDate As Date
+    Dim maxDate As Date
+    Dim analysisDays As Long
+    Dim dailyAvg As Double
+    Dim weeklyAvg As Double
+    Dim monthlyAvg As Double
+    Dim rowNum As Long
+    Dim frequency As String
+
+    ' 使用量分析シートを作成/取得
+    SetupUsageAnalysisSheet
+
+    Set wsTrans = ThisWorkbook.Sheets(TRANSACTION_SHEET)
+    Set wsMaster = ThisWorkbook.Sheets(MASTER_SHEET)
+    Set wsUsage = ThisWorkbook.Sheets("使用量分析")
+
+    ' 使用量分析シートをクリア
+    If wsUsage.Cells(wsUsage.Rows.Count, 1).End(xlUp).Row > 1 Then
+        wsUsage.Range("A2:M" & wsUsage.Cells(wsUsage.Rows.Count, 1).End(xlUp).Row).ClearContents
+    End If
+
+    lastRowTrans = wsTrans.Cells(wsTrans.Rows.Count, 5).End(xlUp).Row
+    lastRowMaster = wsMaster.Cells(wsMaster.Rows.Count, 2).End(xlUp).Row
+
+    ' 分析期間を計算
+    minDate = Date
+    maxDate = DateSerial(1900, 1, 1)
+
+    For i = 2 To lastRowTrans
+        Dim transDate As Date
+        On Error Resume Next
+        transDate = CDate(wsTrans.Cells(i, 2).Value)
+        On Error GoTo 0
+
+        If transDate > DateSerial(1900, 1, 1) Then
+            If transDate < minDate Then minDate = transDate
+            If transDate > maxDate Then maxDate = transDate
+        End If
+    Next i
+
+    analysisDays = maxDate - minDate + 1
+    If analysisDays < 1 Then analysisDays = 1
+
+    Application.ScreenUpdating = False
+
+    rowNum = 2
+
+    ' 各品目の使用量を分析
+    For i = 2 To lastRowMaster
+        itemName = wsMaster.Cells(i, 2).Value
+
+        If itemName <> "" Then
+            outboundCount = 0
+            outboundTotal = 0
+
+            ' 出庫履歴を集計
+            For j = 2 To lastRowTrans
+                If wsTrans.Cells(j, 5).Value = itemName And _
+                   wsTrans.Cells(j, 3).Value = "出庫" Then
+                    outboundCount = outboundCount + 1
+                    outboundTotal = outboundTotal + wsTrans.Cells(j, 6).Value
+                End If
+            Next j
+
+            ' 平均使用量を計算
+            dailyAvg = outboundTotal / analysisDays
+            weeklyAvg = dailyAvg * 7
+            monthlyAvg = dailyAvg * 30
+
+            ' 使用頻度を判定
+            If outboundCount = 0 Then
+                frequency = "未使用"
+            ElseIf dailyAvg >= 1 Then
+                frequency = "高頻度"
+            ElseIf weeklyAvg >= 1 Then
+                frequency = "中頻度"
+            Else
+                frequency = "低頻度"
+            End If
+
+            ' 結果を書き込み
+            wsUsage.Cells(rowNum, 1).Value = itemName
+            wsUsage.Cells(rowNum, 2).Value = analysisDays
+            wsUsage.Cells(rowNum, 3).Value = outboundCount
+            wsUsage.Cells(rowNum, 4).Value = outboundTotal
+            wsUsage.Cells(rowNum, 5).Value = Round(dailyAvg, 2)
+            wsUsage.Cells(rowNum, 6).Value = Round(weeklyAvg, 2)
+            wsUsage.Cells(rowNum, 7).Value = Round(monthlyAvg, 2)
+            wsUsage.Cells(rowNum, 8).Value = frequency
+
+            ' デフォルトのリードタイムと安全在庫係数
+            wsUsage.Cells(rowNum, 9).Value = 7 ' リードタイム7日
+            wsUsage.Cells(rowNum, 10).Value = 1.5 ' 安全在庫係数1.5
+
+            ' 現在の発注点を取得
+            wsUsage.Cells(rowNum, 12).Value = wsMaster.Cells(i, 3).Value
+
+            ' 頻度に応じた色付け
+            Select Case frequency
+                Case "高頻度"
+                    wsUsage.Cells(rowNum, 8).Interior.Color = RGB(255, 199, 206)
+                Case "中頻度"
+                    wsUsage.Cells(rowNum, 8).Interior.Color = RGB(255, 235, 156)
+                Case "低頻度"
+                    wsUsage.Cells(rowNum, 8).Interior.Color = RGB(198, 239, 206)
+                Case "未使用"
+                    wsUsage.Cells(rowNum, 8).Interior.Color = RGB(221, 221, 221)
+            End Select
+
+            rowNum = rowNum + 1
+        End If
+    Next i
+
+    wsUsage.Columns("A:M").AutoFit
+
+    Application.ScreenUpdating = True
+
+    MsgBox "使用量分析が完了しました。" & vbCrLf & _
+           "分析期間: " & Format(minDate, "yyyy/mm/dd") & " ～ " & Format(maxDate, "yyyy/mm/dd") & vbCrLf & _
+           "(" & analysisDays & "日間)" & vbCrLf & vbCrLf & _
+           "「使用量分析」シートでリードタイムと安全在庫係数を" & vbCrLf & _
+           "調整後、「発注点自動調整」を実行してください。", vbInformation, "完了"
+
+    ' 使用量分析シートをアクティブに
+    wsUsage.Activate
+End Sub
+
+'-------------------------------------------------------------------------------
+' 発注点を自動調整
+'-------------------------------------------------------------------------------
+Public Sub AutoAdjustReorderPoints()
+    Dim wsUsage As Worksheet
+    Dim wsMaster As Worksheet
+    Dim lastRowUsage As Long
+    Dim lastRowMaster As Long
+    Dim i As Long, j As Long
+    Dim itemName As String
+    Dim dailyAvg As Double
+    Dim leadTime As Double
+    Dim safetyFactor As Double
+    Dim recommendedROP As Double
+    Dim currentROP As Double
+    Dim adjustCount As Long
+    Dim response As VbMsgBoxResult
+
+    On Error Resume Next
+    Set wsUsage = ThisWorkbook.Sheets("使用量分析")
+    On Error GoTo 0
+
+    If wsUsage Is Nothing Then
+        MsgBox "使用量分析データがありません。" & vbCrLf & _
+               "先に「使用量予測分析」を実行してください。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    Set wsMaster = ThisWorkbook.Sheets(MASTER_SHEET)
+
+    lastRowUsage = wsUsage.Cells(wsUsage.Rows.Count, 1).End(xlUp).Row
+    lastRowMaster = wsMaster.Cells(wsMaster.Rows.Count, 2).End(xlUp).Row
+
+    If lastRowUsage < 2 Then
+        MsgBox "使用量分析データがありません。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+
+    adjustCount = 0
+
+    ' 推奨発注点を計算
+    For i = 2 To lastRowUsage
+        itemName = wsUsage.Cells(i, 1).Value
+        dailyAvg = Val(wsUsage.Cells(i, 5).Value)
+        leadTime = Val(wsUsage.Cells(i, 9).Value)
+        safetyFactor = Val(wsUsage.Cells(i, 10).Value)
+        currentROP = Val(wsUsage.Cells(i, 12).Value)
+
+        ' リードタイム期間の使用量 × 安全在庫係数
+        If dailyAvg > 0 Then
+            recommendedROP = Application.WorksheetFunction.Ceiling(dailyAvg * leadTime * safetyFactor, 1)
+        Else
+            recommendedROP = 0
+        End If
+
+        wsUsage.Cells(i, 11).Value = recommendedROP
+
+        ' 調整要否を判定
+        If recommendedROP = 0 Then
+            wsUsage.Cells(i, 13).Value = "-"
+            wsUsage.Cells(i, 13).Interior.ColorIndex = xlNone
+        ElseIf Abs(recommendedROP - currentROP) > currentROP * 0.2 Then
+            ' 20%以上の差がある場合は調整を推奨
+            If recommendedROP > currentROP Then
+                wsUsage.Cells(i, 13).Value = "↑要増加"
+                wsUsage.Cells(i, 13).Interior.Color = RGB(255, 199, 206)
+            Else
+                wsUsage.Cells(i, 13).Value = "↓要減少"
+                wsUsage.Cells(i, 13).Interior.Color = RGB(198, 239, 206)
+            End If
+            adjustCount = adjustCount + 1
+        Else
+            wsUsage.Cells(i, 13).Value = "適正"
+            wsUsage.Cells(i, 13).Interior.Color = RGB(221, 235, 247)
+        End If
+    Next i
+
+    wsUsage.Columns("A:M").AutoFit
+
+    Application.ScreenUpdating = True
+
+    If adjustCount = 0 Then
+        MsgBox "発注点の計算が完了しました。" & vbCrLf & _
+               "全ての品目が適正な発注点です。", vbInformation, "完了"
+        Exit Sub
+    End If
+
+    ' 適用確認
+    response = MsgBox("推奨発注点の計算が完了しました。" & vbCrLf & _
+                      "調整推奨: " & adjustCount & "件" & vbCrLf & vbCrLf & _
+                      "推奨発注点をマスター設定に反映しますか？", _
+                      vbYesNo + vbQuestion, "発注点更新確認")
+
+    If response = vbYes Then
+        ApplyRecommendedReorderPoints
+    Else
+        MsgBox "「使用量分析」シートで推奨発注点を確認できます。" & vbCrLf & _
+               "必要に応じて手動でマスター設定を更新してください。", vbInformation, "確認"
+    End If
+End Sub
+
+'-------------------------------------------------------------------------------
+' 推奨発注点をマスター設定に反映
+'-------------------------------------------------------------------------------
+Public Sub ApplyRecommendedReorderPoints()
+    Dim wsUsage As Worksheet
+    Dim wsMaster As Worksheet
+    Dim lastRowUsage As Long
+    Dim lastRowMaster As Long
+    Dim i As Long, j As Long
+    Dim itemName As String
+    Dim recommendedROP As Double
+    Dim updateCount As Long
+
+    On Error Resume Next
+    Set wsUsage = ThisWorkbook.Sheets("使用量分析")
+    On Error GoTo 0
+
+    If wsUsage Is Nothing Then
+        MsgBox "使用量分析データがありません。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    Set wsMaster = ThisWorkbook.Sheets(MASTER_SHEET)
+
+    lastRowUsage = wsUsage.Cells(wsUsage.Rows.Count, 1).End(xlUp).Row
+    lastRowMaster = wsMaster.Cells(wsMaster.Rows.Count, 2).End(xlUp).Row
+
+    Application.ScreenUpdating = False
+
+    updateCount = 0
+
+    For i = 2 To lastRowUsage
+        itemName = wsUsage.Cells(i, 1).Value
+        recommendedROP = Val(wsUsage.Cells(i, 11).Value)
+
+        ' 調整要の品目のみ更新
+        If wsUsage.Cells(i, 13).Value Like "*要*" And recommendedROP > 0 Then
+            ' マスター設定で該当品目を検索して更新
+            For j = 2 To lastRowMaster
+                If wsMaster.Cells(j, 2).Value = itemName Then
+                    wsMaster.Cells(j, 3).Value = recommendedROP
+                    updateCount = updateCount + 1
+                    Exit For
+                End If
+            Next j
+        End If
+    Next i
+
+    wsMaster.Columns("A:I").AutoFit
+
+    Application.ScreenUpdating = True
+
+    MsgBox updateCount & "件の発注点を更新しました。" & vbCrLf & vbCrLf & _
+           "「全処理を実行」で発注判定を再実行してください。", vbInformation, "完了"
+End Sub
+
+'-------------------------------------------------------------------------------
+' 使用量予測レポートをCSV出力
+'-------------------------------------------------------------------------------
+Public Sub ExportUsageAnalysisReport()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim filePath As String
+    Dim fileNum As Integer
+
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets("使用量分析")
+    On Error GoTo 0
+
+    If ws Is Nothing Then
+        MsgBox "使用量分析データがありません。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "使用量分析データがありません。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    filePath = Application.GetSaveAsFilename( _
+        InitialFileName:="使用量分析レポート_" & Format(Date, "yyyy-mm-dd") & ".csv", _
+        FileFilter:="CSVファイル (*.csv), *.csv", _
+        Title:="使用量分析レポートを保存")
+
+    If filePath = "False" Then Exit Sub
+
+    fileNum = FreeFile
+    Open filePath For Output As #fileNum
+
+    ' ヘッダー
+    Print #fileNum, "品名,分析期間(日),出庫回数,出庫合計,日平均,週平均,月平均,頻度,リードタイム,安全係数,推奨発注点,現在発注点,調整要否"
+
+    For i = 2 To lastRow
+        Print #fileNum, ws.Cells(i, 1).Value & "," & _
+                       ws.Cells(i, 2).Value & "," & _
+                       ws.Cells(i, 3).Value & "," & _
+                       ws.Cells(i, 4).Value & "," & _
+                       ws.Cells(i, 5).Value & "," & _
+                       ws.Cells(i, 6).Value & "," & _
+                       ws.Cells(i, 7).Value & "," & _
+                       ws.Cells(i, 8).Value & "," & _
+                       ws.Cells(i, 9).Value & "," & _
+                       ws.Cells(i, 10).Value & "," & _
+                       ws.Cells(i, 11).Value & "," & _
+                       ws.Cells(i, 12).Value & "," & _
+                       ws.Cells(i, 13).Value
+    Next i
+
+    Close #fileNum
+
+    MsgBox "使用量分析レポートを出力しました。" & vbCrLf & _
+           filePath, vbInformation, "完了"
+End Sub
