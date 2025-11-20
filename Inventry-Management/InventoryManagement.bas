@@ -13,6 +13,8 @@ Private Const INVENTORY_SHEET As String = "棚卸データ"
 Private Const TRANSACTION_SHEET As String = "入出庫履歴"
 Private Const ORDER_SHEET As String = "発注管理"
 Private Const DASHBOARD_SHEET As String = "ダッシュボード"
+Private Const DISCREPANCY_SHEET As String = "差異分析"
+Private Const PREV_INVENTORY_SHEET As String = "前回棚卸"
 
 '===============================================================================
 ' 初期セットアップ
@@ -27,8 +29,10 @@ Public Sub InitializeSystem()
     ' 各シートを作成
     CreateSheetIfNotExists MASTER_SHEET
     CreateSheetIfNotExists INVENTORY_SHEET
+    CreateSheetIfNotExists PREV_INVENTORY_SHEET
     CreateSheetIfNotExists TRANSACTION_SHEET
     CreateSheetIfNotExists ORDER_SHEET
+    CreateSheetIfNotExists DISCREPANCY_SHEET
     CreateSheetIfNotExists DASHBOARD_SHEET
 
     ' マスター設定シートのヘッダー設定
@@ -45,6 +49,12 @@ Public Sub InitializeSystem()
 
     ' ダッシュボードシートのセットアップ
     SetupDashboardSheet
+
+    ' 差異分析シートのセットアップ
+    SetupDiscrepancySheet
+
+    ' 前回棚卸シートのセットアップ
+    SetupPrevInventorySheet
 
     Application.ScreenUpdating = True
 
@@ -714,4 +724,430 @@ Public Sub ExportOrderReport()
 
     MsgBox orderCount & "件の発注リストを出力しました。" & vbCrLf & _
            filePath, vbInformation, "完了"
+End Sub
+
+'===============================================================================
+' 差異分析・補完機能
+'===============================================================================
+
+'-------------------------------------------------------------------------------
+' 差異分析シートのセットアップ
+'-------------------------------------------------------------------------------
+Private Sub SetupDiscrepancySheet()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(DISCREPANCY_SHEET)
+
+    With ws
+        .Cells(1, 1).Value = "品名"
+        .Cells(1, 2).Value = "前回棚卸"
+        .Cells(1, 3).Value = "入庫合計"
+        .Cells(1, 4).Value = "出庫合計"
+        .Cells(1, 5).Value = "理論在庫"
+        .Cells(1, 6).Value = "今回棚卸"
+        .Cells(1, 7).Value = "差異"
+        .Cells(1, 8).Value = "差異率%"
+        .Cells(1, 9).Value = "推定原因"
+        .Cells(1, 10).Value = "補正種別"
+        .Cells(1, 11).Value = "補正数量"
+
+        .Range("A1:K1").Font.Bold = True
+        .Range("A1:K1").Interior.Color = RGB(192, 0, 0)
+        .Range("A1:K1").Font.Color = RGB(255, 255, 255)
+        .Columns("A:K").AutoFit
+    End With
+End Sub
+
+'-------------------------------------------------------------------------------
+' 前回棚卸シートのセットアップ
+'-------------------------------------------------------------------------------
+Private Sub SetupPrevInventorySheet()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(PREV_INVENTORY_SHEET)
+
+    With ws
+        .Cells(1, 1).Value = "棚卸日"
+        .Cells(1, 2).Value = "品名"
+        .Cells(1, 3).Value = "数量"
+
+        .Range("A1:C1").Font.Bold = True
+        .Range("A1:C1").Interior.Color = RGB(128, 128, 128)
+        .Range("A1:C1").Font.Color = RGB(255, 255, 255)
+        .Columns("A:C").AutoFit
+    End With
+End Sub
+
+'-------------------------------------------------------------------------------
+' 前回棚卸データをインポート
+'-------------------------------------------------------------------------------
+Public Sub ImportPreviousInventoryCSV()
+    Dim filePath As String
+    Dim ws As Worksheet
+    Dim line As String
+    Dim fields() As String
+    Dim fileNum As Integer
+    Dim rowNum As Long
+
+    filePath = Application.GetOpenFilename("CSVファイル (*.csv), *.csv", , "前回棚卸CSVファイルを選択")
+
+    If filePath = "False" Then Exit Sub
+
+    Set ws = ThisWorkbook.Sheets(PREV_INVENTORY_SHEET)
+
+    ' 既存データをクリア
+    If ws.Cells(ws.Rows.Count, 1).End(xlUp).Row > 1 Then
+        ws.Range("A2:C" & ws.Cells(ws.Rows.Count, 1).End(xlUp).Row).ClearContents
+    End If
+
+    fileNum = FreeFile
+    Open filePath For Input As #fileNum
+
+    rowNum = 2
+
+    Do While Not EOF(fileNum)
+        Line Input #fileNum, line
+        fields = ParseCSVLine(line)
+
+        If UBound(fields) >= 2 Then
+            ws.Cells(rowNum, 1).Value = fields(0)
+            ws.Cells(rowNum, 2).Value = fields(1)
+            ws.Cells(rowNum, 3).Value = Val(fields(2))
+            rowNum = rowNum + 1
+        End If
+    Loop
+
+    Close #fileNum
+
+    ws.Columns("A:C").AutoFit
+
+    MsgBox "前回棚卸データのインポートが完了しました。" & vbCrLf & _
+           "インポート件数: " & (rowNum - 2) & "件", vbInformation, "完了"
+End Sub
+
+'-------------------------------------------------------------------------------
+' 棚卸差異分析を実行
+'-------------------------------------------------------------------------------
+Public Sub AnalyzeInventoryDiscrepancy()
+    Dim wsPrev As Worksheet
+    Dim wsCurrent As Worksheet
+    Dim wsTrans As Worksheet
+    Dim wsDisc As Worksheet
+    Dim lastRowPrev As Long
+    Dim lastRowCurrent As Long
+    Dim lastRowTrans As Long
+    Dim i As Long, j As Long
+    Dim itemName As String
+    Dim prevQty As Double
+    Dim currentQty As Double
+    Dim inbound As Double
+    Dim outbound As Double
+    Dim theoretical As Double
+    Dim discrepancy As Double
+    Dim discRate As Double
+    Dim rowNum As Long
+    Dim discCount As Long
+
+    Set wsPrev = ThisWorkbook.Sheets(PREV_INVENTORY_SHEET)
+    Set wsCurrent = ThisWorkbook.Sheets(INVENTORY_SHEET)
+    Set wsTrans = ThisWorkbook.Sheets(TRANSACTION_SHEET)
+    Set wsDisc = ThisWorkbook.Sheets(DISCREPANCY_SHEET)
+
+    ' 差異分析シートをクリア
+    If wsDisc.Cells(wsDisc.Rows.Count, 1).End(xlUp).Row > 1 Then
+        wsDisc.Range("A2:K" & wsDisc.Cells(wsDisc.Rows.Count, 1).End(xlUp).Row).ClearContents
+    End If
+
+    lastRowPrev = wsPrev.Cells(wsPrev.Rows.Count, 2).End(xlUp).Row
+    lastRowCurrent = wsCurrent.Cells(wsCurrent.Rows.Count, 2).End(xlUp).Row
+    lastRowTrans = wsTrans.Cells(wsTrans.Rows.Count, 5).End(xlUp).Row
+
+    Application.ScreenUpdating = False
+
+    rowNum = 2
+    discCount = 0
+
+    ' 前回棚卸の各品目について分析
+    For i = 2 To lastRowPrev
+        itemName = wsPrev.Cells(i, 2).Value
+
+        If itemName <> "" Then
+            prevQty = wsPrev.Cells(i, 3).Value
+
+            ' 今回棚卸数量を取得
+            currentQty = 0
+            For j = 2 To lastRowCurrent
+                If wsCurrent.Cells(j, 2).Value = itemName Then
+                    currentQty = wsCurrent.Cells(j, 3).Value
+                    Exit For
+                End If
+            Next j
+
+            ' 入出庫履歴から合計を計算
+            inbound = 0
+            outbound = 0
+            For j = 2 To lastRowTrans
+                If wsTrans.Cells(j, 5).Value = itemName Then
+                    If wsTrans.Cells(j, 3).Value = "入庫" Then
+                        inbound = inbound + wsTrans.Cells(j, 6).Value
+                    ElseIf wsTrans.Cells(j, 3).Value = "出庫" Then
+                        outbound = outbound + wsTrans.Cells(j, 6).Value
+                    End If
+                End If
+            Next j
+
+            ' 理論在庫を計算
+            theoretical = prevQty + inbound - outbound
+
+            ' 差異を計算
+            discrepancy = currentQty - theoretical
+
+            ' 差異率を計算
+            If theoretical <> 0 Then
+                discRate = (discrepancy / theoretical) * 100
+            Else
+                If currentQty <> 0 Then
+                    discRate = 100
+                Else
+                    discRate = 0
+                End If
+            End If
+
+            ' 結果を書き込み
+            wsDisc.Cells(rowNum, 1).Value = itemName
+            wsDisc.Cells(rowNum, 2).Value = prevQty
+            wsDisc.Cells(rowNum, 3).Value = inbound
+            wsDisc.Cells(rowNum, 4).Value = outbound
+            wsDisc.Cells(rowNum, 5).Value = theoretical
+            wsDisc.Cells(rowNum, 6).Value = currentQty
+            wsDisc.Cells(rowNum, 7).Value = discrepancy
+            wsDisc.Cells(rowNum, 8).Value = Round(discRate, 1)
+
+            ' 推定原因を判定
+            If discrepancy = 0 Then
+                wsDisc.Cells(rowNum, 9).Value = "一致"
+                wsDisc.Cells(rowNum, 9).Interior.Color = RGB(198, 239, 206)
+            ElseIf discrepancy > 0 Then
+                wsDisc.Cells(rowNum, 9).Value = "入庫漏れ可能性"
+                wsDisc.Cells(rowNum, 9).Interior.Color = RGB(255, 235, 156)
+                wsDisc.Cells(rowNum, 10).Value = "入庫"
+                wsDisc.Cells(rowNum, 11).Value = discrepancy
+                discCount = discCount + 1
+            Else
+                wsDisc.Cells(rowNum, 9).Value = "出庫漏れ可能性"
+                wsDisc.Cells(rowNum, 9).Interior.Color = RGB(255, 199, 206)
+                wsDisc.Cells(rowNum, 10).Value = "出庫"
+                wsDisc.Cells(rowNum, 11).Value = Abs(discrepancy)
+                discCount = discCount + 1
+            End If
+
+            ' 差異セルの書式設定
+            If discrepancy <> 0 Then
+                wsDisc.Cells(rowNum, 7).Font.Bold = True
+                If discrepancy > 0 Then
+                    wsDisc.Cells(rowNum, 7).Font.Color = RGB(0, 112, 192)
+                Else
+                    wsDisc.Cells(rowNum, 7).Font.Color = RGB(192, 0, 0)
+                End If
+            End If
+
+            rowNum = rowNum + 1
+        End If
+    Next i
+
+    wsDisc.Columns("A:K").AutoFit
+
+    Application.ScreenUpdating = True
+
+    MsgBox "差異分析が完了しました。" & vbCrLf & _
+           "分析件数: " & (rowNum - 2) & "件" & vbCrLf & _
+           "差異検出: " & discCount & "件", vbInformation, "完了"
+End Sub
+
+'-------------------------------------------------------------------------------
+' 差異を補正データとして入出庫履歴に追加
+'-------------------------------------------------------------------------------
+Public Sub ApplyDiscrepancyCompensation()
+    Dim wsDisc As Worksheet
+    Dim wsTrans As Worksheet
+    Dim lastRowDisc As Long
+    Dim lastRowTrans As Long
+    Dim i As Long
+    Dim compensationCount As Long
+    Dim response As VbMsgBoxResult
+
+    Set wsDisc = ThisWorkbook.Sheets(DISCREPANCY_SHEET)
+    Set wsTrans = ThisWorkbook.Sheets(TRANSACTION_SHEET)
+
+    lastRowDisc = wsDisc.Cells(wsDisc.Rows.Count, 1).End(xlUp).Row
+
+    If lastRowDisc < 2 Then
+        MsgBox "差異分析データがありません。" & vbCrLf & _
+               "先に「差異分析」を実行してください。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    ' 確認ダイアログ
+    response = MsgBox("差異データを入出庫履歴に補正レコードとして追加しますか？" & vbCrLf & vbCrLf & _
+                      "この操作により、差異を解消するための" & vbCrLf & _
+                      "入庫/出庫レコードが自動生成されます。", _
+                      vbYesNo + vbQuestion, "補正データ追加確認")
+
+    If response = vbNo Then Exit Sub
+
+    Application.ScreenUpdating = False
+
+    compensationCount = 0
+
+    For i = 2 To lastRowDisc
+        Dim itemName As String
+        Dim compType As String
+        Dim compQty As Double
+
+        itemName = wsDisc.Cells(i, 1).Value
+        compType = wsDisc.Cells(i, 10).Value
+        compQty = Val(wsDisc.Cells(i, 11).Value)
+
+        If compType <> "" And compQty > 0 Then
+            lastRowTrans = wsTrans.Cells(wsTrans.Rows.Count, 1).End(xlUp).Row + 1
+
+            wsTrans.Cells(lastRowTrans, 1).Value = Now ' タイムスタンプ
+            wsTrans.Cells(lastRowTrans, 2).Value = Date ' 記録日
+            wsTrans.Cells(lastRowTrans, 3).Value = compType ' 種別
+            wsTrans.Cells(lastRowTrans, 4).Value = "差異補正" ' 記録者
+            wsTrans.Cells(lastRowTrans, 5).Value = itemName ' 品名
+            wsTrans.Cells(lastRowTrans, 6).Value = compQty ' 個数
+
+            ' 補正済みの行を色付け
+            wsDisc.Range(wsDisc.Cells(i, 1), wsDisc.Cells(i, 11)).Interior.Color = RGB(221, 235, 247)
+
+            compensationCount = compensationCount + 1
+        End If
+    Next i
+
+    wsTrans.Columns("A:F").AutoFit
+
+    Application.ScreenUpdating = True
+
+    MsgBox compensationCount & "件の補正レコードを追加しました。" & vbCrLf & vbCrLf & _
+           "「全処理を実行」で在庫を再計算してください。", vbInformation, "完了"
+End Sub
+
+'-------------------------------------------------------------------------------
+' 差異レポートをCSV出力
+'-------------------------------------------------------------------------------
+Public Sub ExportDiscrepancyReport()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim filePath As String
+    Dim fileNum As Integer
+    Dim discCount As Long
+
+    Set ws = ThisWorkbook.Sheets(DISCREPANCY_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "差異分析データがありません。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    filePath = Application.GetSaveAsFilename( _
+        InitialFileName:="差異分析レポート_" & Format(Date, "yyyy-mm-dd") & ".csv", _
+        FileFilter:="CSVファイル (*.csv), *.csv", _
+        Title:="差異分析レポートを保存")
+
+    If filePath = "False" Then Exit Sub
+
+    fileNum = FreeFile
+    Open filePath For Output As #fileNum
+
+    ' ヘッダー
+    Print #fileNum, "品名,前回棚卸,入庫合計,出庫合計,理論在庫,今回棚卸,差異,差異率%,推定原因,補正種別,補正数量"
+
+    discCount = 0
+    For i = 2 To lastRow
+        Print #fileNum, ws.Cells(i, 1).Value & "," & _
+                       ws.Cells(i, 2).Value & "," & _
+                       ws.Cells(i, 3).Value & "," & _
+                       ws.Cells(i, 4).Value & "," & _
+                       ws.Cells(i, 5).Value & "," & _
+                       ws.Cells(i, 6).Value & "," & _
+                       ws.Cells(i, 7).Value & "," & _
+                       ws.Cells(i, 8).Value & "," & _
+                       ws.Cells(i, 9).Value & "," & _
+                       ws.Cells(i, 10).Value & "," & _
+                       ws.Cells(i, 11).Value
+
+        If ws.Cells(i, 7).Value <> 0 Then
+            discCount = discCount + 1
+        End If
+    Next i
+
+    Close #fileNum
+
+    MsgBox "差異分析レポートを出力しました。" & vbCrLf & _
+           "差異件数: " & discCount & "件" & vbCrLf & _
+           filePath, vbInformation, "完了"
+End Sub
+
+'-------------------------------------------------------------------------------
+' 現在の棚卸データを前回棚卸にコピー（次回分析用）
+'-------------------------------------------------------------------------------
+Public Sub ArchiveCurrentInventory()
+    Dim wsCurrent As Worksheet
+    Dim wsPrev As Worksheet
+    Dim lastRow As Long
+    Dim response As VbMsgBoxResult
+
+    Set wsCurrent = ThisWorkbook.Sheets(INVENTORY_SHEET)
+    Set wsPrev = ThisWorkbook.Sheets(PREV_INVENTORY_SHEET)
+
+    lastRow = wsCurrent.Cells(wsCurrent.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "現在の棚卸データがありません。", vbExclamation, "エラー"
+        Exit Sub
+    End If
+
+    response = MsgBox("現在の棚卸データを「前回棚卸」にアーカイブしますか？" & vbCrLf & vbCrLf & _
+                      "既存の前回棚卸データは上書きされます。", _
+                      vbYesNo + vbQuestion, "アーカイブ確認")
+
+    If response = vbNo Then Exit Sub
+
+    ' 前回棚卸をクリア
+    If wsPrev.Cells(wsPrev.Rows.Count, 1).End(xlUp).Row > 1 Then
+        wsPrev.Range("A2:C" & wsPrev.Cells(wsPrev.Rows.Count, 1).End(xlUp).Row).ClearContents
+    End If
+
+    ' 現在の棚卸をコピー
+    wsCurrent.Range("A2:C" & lastRow).Copy wsPrev.Range("A2")
+
+    wsPrev.Columns("A:C").AutoFit
+
+    MsgBox "現在の棚卸データを前回棚卸にアーカイブしました。" & vbCrLf & _
+           "件数: " & (lastRow - 1) & "件", vbInformation, "完了"
+End Sub
+
+'-------------------------------------------------------------------------------
+' 差異分析ワークフロー（一括実行）
+'-------------------------------------------------------------------------------
+Public Sub RunDiscrepancyAnalysisWorkflow()
+    Dim response As VbMsgBoxResult
+
+    response = MsgBox("差異分析ワークフローを実行します。" & vbCrLf & vbCrLf & _
+                      "1. 差異分析を実行" & vbCrLf & _
+                      "2. 補正データの確認" & vbCrLf & vbCrLf & _
+                      "続行しますか？", vbYesNo + vbQuestion, "差異分析ワークフロー")
+
+    If response = vbNo Then Exit Sub
+
+    ' 差異分析を実行
+    AnalyzeInventoryDiscrepancy
+
+    ' 差異分析シートをアクティブに
+    ThisWorkbook.Sheets(DISCREPANCY_SHEET).Activate
+
+    MsgBox "差異分析が完了しました。" & vbCrLf & vbCrLf & _
+           "「差異分析」シートを確認し、" & vbCrLf & _
+           "必要に応じて「差異補正を適用」を実行してください。", vbInformation, "確認"
 End Sub
