@@ -2,6 +2,20 @@
 "use strict"; // V8ランタイム推奨
 let handleVerifyClick; // グローバルスコープで宣言
 
+/**
+ * ヘルプセクションの表示/非表示を切り替える
+ */
+function toggleHelp() {
+  const helpContent = document.getElementById('help-content');
+  const toggleIcon = document.getElementById('help-toggle-icon');
+
+  if (helpContent && toggleIcon) {
+    const isHidden = helpContent.style.display === 'none';
+    helpContent.style.display = isHidden ? 'block' : 'none';
+    toggleIcon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
   // --- 1. 変数の読み込み ---
