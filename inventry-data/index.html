@@ -263,29 +263,6 @@
       50% { opacity: 0.5; }
     }
 
-    .desktop-warning {
-      position: fixed;
-      inset: 0;
-      background-color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 1rem;
-    }
-
-    .desktop-warning h2 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #dc2626;
-      margin-bottom: 1rem;
-    }
-
-    .desktop-warning p {
-      color: #4b5563;
-    }
-
     @media (min-width: 768px) {
       .grid-2 {
         grid-template-columns: 1fr 1fr;
@@ -295,14 +272,8 @@
 </head>
 <body>
 
-  <!-- PC警告メッセージ -->
-  <div id="desktopMsg" class="desktop-warning hidden">
-    <h2>このページはスマートフォン専用です</h2>
-    <p>PCからはご利用いただけません。<br>スマートフォンでアクセスしてください。</p>
-  </div>
-
   <!-- メインアプリ -->
-  <div id="app" class="hidden">
+  <div id="app">
 
     <!-- ローディングオーバーレイ -->
     <div id="loadingOverlay" class="fixed-overlay">
@@ -391,7 +362,6 @@
   // ========================================
   const elements = {
     app: document.getElementById('app'),
-    desktopMsg: document.getElementById('desktopMsg'),
     pageTitle: document.getElementById('pageTitle'),
     mainContent: document.querySelector('main'),
     loadingOverlay: document.getElementById('loadingOverlay'),
@@ -410,21 +380,6 @@
   // ========================================
   // ユーティリティ
   // ========================================
-
-  /**
-   * モバイルデバイス判定
-   */
-  function isMobileDevice() {
-    // User-Agent文字列ベースの判定（より確実）
-    const ua = navigator.userAgent || navigator.vendor || window.opera || '';
-    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i.test(ua);
-
-    // 画面幅ベースの補助的な判定（タブレットも含む）
-    const isSmallScreen = window.innerWidth <= 1024;
-
-    // いずれかがtrueならモバイルとして扱う
-    return isMobileUA || isSmallScreen;
-  }
 
   /**
    * ローディング表示切替
@@ -701,12 +656,6 @@
   // ========================================
 
   function init() {
-    if (!isMobileDevice()) {
-      elements.desktopMsg.classList.remove('hidden');
-      return;
-    }
-
-    elements.app.classList.remove('hidden');
     setupEventListeners();
     fetchMasterItems();
   }
