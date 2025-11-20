@@ -1024,14 +1024,30 @@ Private Sub SetupHelpSheet()
         .Cells(r, 1).Value = "・日付形式: yyyy/mm/dd または yyyy-mm-dd"
         r = r + 2
 
+        .Cells(r, 1).Value = "【重要】入出庫CSVの差分エクスポートについて"
+        .Cells(r, 1).Font.Bold = True
+        .Cells(r, 1).Interior.Color = RGB(255, 242, 204)
+        .Range(.Cells(r, 1), .Cells(r, 3)).Merge
+        r = r + 1
+        .Cells(r, 1).Value = "GAS側で差分エクスポート機能を実装済みです。"
+        r = r + 1
+        .Cells(r, 1).Value = "・前回エクスポート以降のデータのみが出力されます"
+        r = r + 1
+        .Cells(r, 1).Value = "・月が変わると自動的に月初からのデータを取得します"
+        r = r + 1
+        .Cells(r, 1).Value = "・同じ月に複数回エクスポートしても重複しません"
+        r = r + 1
+        .Cells(r, 1).Value = "推奨運用：週次または月次でエクスポート→順番にインポート"
+        r = r + 2
+
         .Cells(r, 1).Value = "【入出庫記録CSVの形式】"
         .Cells(r, 1).Font.Bold = True
         r = r + 1
-        .Cells(r, 1).Value = "日付,品名,入庫数,出庫数"
+        .Cells(r, 1).Value = "タイムスタンプ,記録日,種別,記録者,品名,個数"
         .Cells(r, 1).Font.Name = "Consolas"
         .Cells(r, 1).Interior.Color = RGB(242, 242, 242)
         r = r + 1
-        .Cells(r, 1).Value = "例: 2025/10/15,""薬品A"",10,0"
+        .Cells(r, 1).Value = "例: 2025/10/15 10:30:00,2025-10-15,入庫,田中,薬品A,10"
         .Cells(r, 1).Font.Name = "Consolas"
         .Cells(r, 1).Interior.Color = RGB(242, 242, 242)
         r = r + 2
