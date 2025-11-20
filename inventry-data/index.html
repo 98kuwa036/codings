@@ -415,11 +415,15 @@
    * モバイルデバイス判定
    */
   function isMobileDevice() {
-    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
-      return navigator.userAgentData.mobile;
-    }
+    // User-Agent文字列ベースの判定（より確実）
     const ua = navigator.userAgent || navigator.vendor || window.opera || '';
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i.test(ua);
+
+    // 画面幅ベースの補助的な判定（タブレットも含む）
+    const isSmallScreen = window.innerWidth <= 1024;
+
+    // いずれかがtrueならモバイルとして扱う
+    return isMobileUA || isSmallScreen;
   }
 
   /**
