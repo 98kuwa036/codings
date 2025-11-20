@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 4px solid #3498db;
+      width: 40px;
+      height: 40px;
+      animation: spin 2s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-state {
+      filter: grayscale(1);
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+  <div id="desktopMsg" class="hidden fixed inset-0 bg-white flex flex-col items-center justify-center text-center p-4">
+    <h2 class="text-2xl font-bold text-red-600 mb-4">このページはスマートフォン専用です</h2>
+    <p class="text-gray-600">PCからはご利用いただけません。<br>スマートフォンでアクセスしてください。</p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/70 flex flex-col items-center justify-center z-50">
+      <div class="loader mb-4"></div>
+      <p>マスターデータを読み込んでいます...</p>
+    </div>
+    <div class="container mx-auto max-w-2xl">
+      <header class="sticky top-0 bg-gray-100/90 backdrop-blur-sm py-4 z-10 shadow-sm border-b">
+        <h1 id="pageTitle" class="text-2xl font-bold text-center">棚卸数量 入力</h1>
+      </header>
+      <main class="p-4 loading-state">
+        <div id="page1">
+          <form id="inventoryForm" class="bg-white p-6 rounded-lg shadow-md">
+            <div id="itemList" class="space-y-4">
+              <div class="space-y-4 animate-pulse">
+                <div class="grid grid-cols-3 gap-2 items-center"><div class="col-span-2 h-6 bg-gray-200 rounded"></div><div class="col-span-1 h-10 bg-gray-200 rounded"></div></div>
+                <div class="grid grid-cols-3 gap-2 items-center"><div class="col-span-2 h-6 bg-gray-200 rounded"></div><div class="col-span-1 h-10 bg-gray-200 rounded"></div></div>
+                <div class="grid grid-cols-3 gap-2 items-center"><div class="col-span-2 h-6 bg-gray-200 rounded"></div><div class="col-span-1 h-10 bg-gray-200 rounded"></div></div>
+              </div>
+            </div>
+            <div class="mt-6">
+              <button type="button" id="toConfirmBtn" class="w-full bg-gray-400 text-white font-bold py-2 px-4 rounded-lg cursor-not-allowed" disabled>入力内容を確認する</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="page2" class="hidden">
+          <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
+            
+            <div>
+              <h2 class="text-xl font-bold mb-3 border-b-2 border-blue-500 pb-2">入力済みリスト</h2>
+              <div id="confirmationList" class="space-y-2">
+                </div>
+            </div>
+
+            <div id="missingListContainer" class="hidden"> <h2 class="text-xl font-bold mb-3 border-b-2 border-red-500 pb-2 text-red-600">未入力リスト</h2>
+              <div id="missingList" class="space-y-1 text-gray-700">
+                </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button type="button" id="backBtn" class="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">戻って修正する</button>
+              <button type="button" id="submitBtn" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">この内容で記録する</button>
+            </div>
+          </div>
+        </div>
+        </main>
+    </div>
+  </div>
+
+<script>
+  // --- グローバル変数 ---
+  let masterItems = [];
+  const SESSION_STORAGE_KEY = 'inventoryFormData';
+  
+  // --- DOM要素の取得 ---
+  const app = document.getElementById('app');
+  const desktopMsg = document.getElementById('desktopMsg');
+  const pageTitle = document.getElementById('pageTitle');
+  const mainContent = document.querySelector('main');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const page1 = document.getElementById('page1');
+  const page2 = document.getElementById('page2');
+  const toConfirmBtn = document.getElementById('toConfirmBtn');
+  const backBtn = document.getElementById('backBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const inventoryForm = document.getElementById('inventoryForm');
+  // ▼▼▼ 修正点2: 未入力リスト用のDOM取得を追加 ▼▼▼
+  const confirmationList = document.getElementById('confirmationList');
+  const missingListContainer = document.getElementById('missingListContainer');
+  const missingList = document.getElementById('missingList');
+  // ▲▲▲ 修正点2ここまで ▲▲▲
+
+  // --- PC/スマホ判定ロジック ---
+  function isMobileDevice() {
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+      return navigator.userAgentData.mobile;
+    }
+    const ua = navigator.userAgent || navigator.vendor || window.opera || "";
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  }
+
+  // --- アプリケーションの初期化 ---
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!isMobileDevice()) {
+      desktopMsg.classList.remove('hidden');
+      return; 
+    }
+    app.classList.remove('hidden');
+    google.script.run
+      .withSuccessHandler(onMasterItemsSuccess)
+      .withFailureHandler(onFailure)
+      .getMasterItems();
+  });
+
+  function onMasterItemsSuccess(items) {
+    if (items.error) {
+      onFailure(items.error);
+      return;
+    }
+    masterItems = items;
+    const itemListDiv = document.getElementById('itemList');
+    itemListDiv.innerHTML = ''; 
+
+    if (items.length === 0) {
+        itemListDiv.innerHTML = '<p class="text-center text-gray-500">表示する物品マスターがありません。</p>';
+    } else {
+        items.forEach(item => {
+        const itemHtml = `
+          <div class="grid grid-cols-3 gap-2 items-center">
+            <label class="col-span-2 text-md font-medium">${item}</label>
+            <input type="number" name="${item}" placeholder="数量" min="0" 
+                   class="col-span-1 border border-gray-300 rounded-md p-2 text-center focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+          </div>`;
+        itemListDiv.innerHTML += itemHtml;
+      });
+    }
+    
+    inventoryForm.addEventListener('input', () => {
+      updateButtonState();
+      saveDataToSessionStorage();
+    });
+
+    loadDataFromSessionStorage();
+    updateButtonState();
+
+    loadingOverlay.classList.add('hidden');
+    mainContent.classList.remove('loading-state');
+  }
+
+  function onFailure(error) {
+    loadingOverlay.classList.add('hidden');
+    mainContent.classList.remove('loading-state');
+    document.getElementById('itemList').innerHTML = `<div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded"><p class="font-bold">エラー:</p><p>${error.toString()}</p></div>`;
+    pageTitle.textContent = 'エラー';
+  }
+
+  // --- セッションストレージ (変更なし) ---
+  function saveDataToSessionStorage() {
+    const inputs = document.querySelectorAll('#inventoryForm input[type="number"]');
+    const data = {};
+    inputs.forEach(input => {
+      if (input.value.trim() !== '') data[input.name] = input.value;
+    });
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadDataFromSessionStorage() {
+    const savedData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (savedData) {
+      const data = JSON.parse(savedData);
+      Object.keys(data).forEach(name => {
+        const input = inventoryForm.elements[name];
+        if (input) input.value = data[name];
+      });
+    }
+  }
+
+  function clearSessionStorageData() {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  }
+
+  // --- ボタン状態更新 (変更なし) ---
+  function updateButtonState() {
+    const inputs = document.querySelectorAll('#inventoryForm input[type="number"]');
+    const isAnyInputFilled = Array.from(inputs).some(input => input.value.trim() !== '');
+    if (isAnyInputFilled) {
+      toConfirmBtn.disabled = false;
+      toConfirmBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+      toConfirmBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+    } else {
+      toConfirmBtn.disabled = true;
+      toConfirmBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+      toConfirmBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+    }
+  }
+
+  // --- 画面遷移 ---
+  // ▼▼▼ 修正点3: toConfirmBtnのロジックを大幅に変更 ▼▼▼
+  toConfirmBtn.addEventListener('click', () => {
+    // リストを初期化
+    confirmationList.innerHTML = ''; 
+    missingList.innerHTML = '';
+    
+    let filledCount = 0;
+    const missingItems = [];
+
+    // 全マスターアイテムをループしてチェック
+    masterItems.forEach(itemName => {
+      const input = inventoryForm.elements[itemName]; // name属性でinput要素を取得
+      let valueStr = '';
+
+      if (input) {
+         valueStr = input.value.trim();
+      }
+
+      // 数値であり、かつ0以上かチェック
+      const valueNum = parseInt(valueStr, 10);
+      if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
+        // 入力あり (0も含む)
+        confirmationList.innerHTML += `<div class="grid grid-cols-2 gap-4 border-b pb-2"><span class="font-medium">${itemName}</span><span class="text-right font-bold">${valueNum}</span></div>`;
+        filledCount++;
+      } else {
+        // 未入力または無効な値 (マイナス値など)
+        missingItems.push(itemName);
+      }
+    });
+
+    // 入力済みリストが空の場合の表示
+    if (filledCount === 0) {
+        confirmationList.innerHTML = '<p class="text-center text-gray-500">入力された物品はありません。</p>';
+    }
+
+    // 未入力リストの処理
+    if (missingItems.length > 0) {
+      missingItems.forEach(item => {
+        missingList.innerHTML += `<div class="border-b pb-1 pl-2">${item}</div>`;
+      });
+      missingListContainer.classList.remove('hidden'); // 未入力リストを表示
+    } else {
+      missingListContainer.classList.add('hidden'); // 未入力がなければ非表示
+    }
+    
+    page1.classList.add('hidden');
+    page2.classList.remove('hidden');
+    pageTitle.textContent = '入力内容 確認';
+  });
+  // ▲▲▲ 修正点3ここまで ▲▲▲
+
+
+  backBtn.addEventListener('click', () => {
+    page2.classList.add('hidden');
+    page1.classList.remove('hidden');
+    pageTitle.textContent = '棚卸数量 入力';
+  });
+
+  // --- データ送信 ---
+  submitBtn.addEventListener('click', () => {
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中...';
+    
+    const inputValues = {};
+    // masterItemsを基準にデータを収集する
+    masterItems.forEach(itemName => {
+      const input = inventoryForm.elements[itemName];
+      if (input) {
+          const valueStr = input.value.trim();
+          const valueNum = parseInt(valueStr, 10);
+          // 0以上の有効な数値のみを対象とする
+          if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
+              inputValues[itemName] = valueNum;
+          }
+      }
+    });
+
+    // dataToWriteの作成ロジックも、入力値（inputValues）が存在するものだけを
+    // 送信するか、全マスターを0埋めして送信するかによります。
+    // 現在のgs側の `writeInventoryData` は全マスターを0埋めする前提なので、それに合わせます。
+    const dataToWrite = masterItems.map(itemName => ({
+        name: itemName,
+        quantity: inputValues[itemName] || 0 // 未入力または無効な値は0として扱う
+    }));
+
+    google.script.run
+      .withSuccessHandler(onWriteSuccess)
+      .withFailureHandler(onWriteFailure)
+      .writeInventoryData(dataToWrite);
+  });
+
+  function onWriteSuccess(response) {
+    if (response.success) {
+      alert(response.message);
+      clearSessionStorageData(); 
+      inventoryForm.reset();
+      updateButtonState();
+      page2.classList.add('hidden');
+      page1.classList.remove('hidden');
+      pageTitle.textContent = '棚卸数量 入力';
+    } else {
+      onWriteFailure(response);
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'この内容で記録する';
+  }
+
+  function onWriteFailure(error) {
+    alert('書き込み中にエラーが発生しました。\n' + (error.error || error.toString()));
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'この内容で記録する';
+  }
+</script>
+</body>
+</html>
