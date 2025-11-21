@@ -698,6 +698,14 @@
         function updateUILanguage() {
             const t = TRANSLATIONS[currentLang];
 
+            // 言語ボタンの状態を同期
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === currentLang) {
+                    btn.classList.add('active');
+                }
+            });
+
             // ローディング
             const loadingText = document.getElementById('loading-status-text');
             if (loadingText) loadingText.textContent = t.loading;
