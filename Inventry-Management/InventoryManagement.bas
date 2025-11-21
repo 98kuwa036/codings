@@ -207,15 +207,15 @@ Private Sub SetupHelpSheet()
     row = row + 1
     ws.Cells(row, 2).Value = "・棚卸日：実地棚卸を実施した日付"
     row = row + 1
-    ws.Cells(row, 2).Value = "・管理番号：マスター設定シートの管理番号と対応"
+    ws.Cells(row, 2).Value = "・物品名：プルダウンから選択（マスター設定の物品リストから選択）"
     row = row + 1
-    ws.Cells(row, 2).Value = "・物品名：マスターデータから自動取得"
+    ws.Cells(row, 2).Value = "・管理番号：物品名を選択すると自動的に表示されます"
     row = row + 1
-    ws.Cells(row, 2).Value = "・実地棚卸数：実際に数えた在庫数"
+    ws.Cells(row, 2).Value = "・実地棚卸数：実際に数えた在庫数を入力"
     row = row + 1
-    ws.Cells(row, 2).Value = "・理論在庫：システム上の在庫数（入出庫履歴に基づく計算値）"
+    ws.Cells(row, 2).Value = "・理論在庫：システム上の在庫数（マスターから自動取得）"
     row = row + 1
-    ws.Cells(row, 2).Value = "・差異：実地棚卸数 - 理論在庫（プラスは実在庫過剰、マイナスは不足）"
+    ws.Cells(row, 2).Value = "・差異：実地棚卸数 - 理論在庫（自動計算、プラスは実在庫過剰、マイナスは不足）"
     row = row + 1
     ws.Cells(row, 2).Value = "・備考：差異の原因や特記事項を記入"
     row = row + 1
@@ -225,11 +225,13 @@ Private Sub SetupHelpSheet()
     row = row + 1
     ws.Cells(row, 2).Value = "1) 月初や四半期ごとなど、定期的に実地棚卸を実施"
     row = row + 1
-    ws.Cells(row, 2).Value = "2) 実地棚卸数を入力すると、理論在庫と差異が自動計算されます"
+    ws.Cells(row, 2).Value = "2) 棚卸日を入力し、物品名をプルダウンから選択（管理番号と理論在庫は自動表示）"
     row = row + 1
-    ws.Cells(row, 2).Value = "3) 大きな差異がある場合は、原因を調査して備考欄に記録"
+    ws.Cells(row, 2).Value = "3) 実地棚卸数を入力すると、差異が自動計算されます"
     row = row + 1
-    ws.Cells(row, 2).Value = "4) 棚卸後は「前回棚卸」シートに履歴が保存されます"
+    ws.Cells(row, 2).Value = "4) 大きな差異がある場合は、原因を調査して備考欄に記録"
+    row = row + 1
+    ws.Cells(row, 2).Value = "5) 棚卸後は「前回棚卸」シートに履歴が保存されます"
     row = row + 1
     ws.Cells(row, 1).Value = ""
     row = row + 1
@@ -295,23 +297,23 @@ Private Sub SetupHelpSheet()
     row = row + 1
     ws.Cells(row, 2).Value = "・発注日：発注を行った日付"
     row = row + 1
-    ws.Cells(row, 2).Value = "・管理番号：発注対象物品の管理番号"
+    ws.Cells(row, 2).Value = "・物品名：プルダウンから選択（マスター設定の物品リストから選択）"
     row = row + 1
-    ws.Cells(row, 2).Value = "・物品名：発注対象の物品名"
+    ws.Cells(row, 2).Value = "・管理番号：物品名を選択すると自動的に表示されます"
     row = row + 1
-    ws.Cells(row, 2).Value = "・発注数：発注した数量"
+    ws.Cells(row, 2).Value = "・発注数：発注した数量を入力"
     row = row + 1
-    ws.Cells(row, 2).Value = "・単位：発注時の単位（最小単位または完品単位）"
+    ws.Cells(row, 2).Value = "・単位：物品名を選択すると自動的に表示されます（マスター設定の最小単位）"
     row = row + 1
-    ws.Cells(row, 2).Value = "・納期：納品予定日"
+    ws.Cells(row, 2).Value = "・納期：納品予定日を入力"
     row = row + 1
-    ws.Cells(row, 2).Value = "・ステータス：「発注済」「納品済」「キャンセル」など"
+    ws.Cells(row, 2).Value = "・ステータス：プルダウンから選択（発注済／納品済／キャンセル）"
     row = row + 1
-    ws.Cells(row, 2).Value = "・発注先：発注した業者名"
+    ws.Cells(row, 2).Value = "・発注先：発注した業者名を入力"
     row = row + 1
-    ws.Cells(row, 2).Value = "・担当者：発注処理を行った担当者"
+    ws.Cells(row, 2).Value = "・担当者：発注処理を行った担当者を入力"
     row = row + 1
-    ws.Cells(row, 2).Value = "・備考：発注番号、見積番号、特記事項など"
+    ws.Cells(row, 2).Value = "・備考：発注番号、見積番号、特記事項などを入力"
     row = row + 1
 
     ws.Cells(row, 1).Value = "【使い方】"
@@ -319,11 +321,15 @@ Private Sub SetupHelpSheet()
     row = row + 1
     ws.Cells(row, 2).Value = "1) マスター設定シートで「要発注」と表示された物品を確認"
     row = row + 1
-    ws.Cells(row, 2).Value = "2) 発注処理を行ったら、このシートに発注情報を記録"
+    ws.Cells(row, 2).Value = "2) 発注日を入力し、物品名をプルダウンから選択（管理番号と単位は自動表示）"
     row = row + 1
-    ws.Cells(row, 2).Value = "3) 納品されたら、ステータスを「納品済」に更新し、入庫登録を実施"
+    ws.Cells(row, 2).Value = "3) 発注数、納期、発注先、担当者を入力"
     row = row + 1
-    ws.Cells(row, 2).Value = "4) 納期遅延がある場合は、備考欄に理由を記録"
+    ws.Cells(row, 2).Value = "4) ステータスはデフォルトで「発注済」、必要に応じてプルダウンから変更"
+    row = row + 1
+    ws.Cells(row, 2).Value = "5) 納品されたら、ステータスを「納品済」に更新し、入庫登録を実施"
+    row = row + 1
+    ws.Cells(row, 2).Value = "6) 納期遅延がある場合は、備考欄に理由を記録"
     row = row + 1
     ws.Cells(row, 1).Value = ""
     row = row + 1
@@ -641,17 +647,50 @@ End Sub
 '-------------------------------------------------------------------------------
 Private Sub SetupInventorySheet()
     Dim ws As Worksheet
+    Dim wsMaster As Worksheet
+    Dim lastRow As Long
+
     Set ws = ThisWorkbook.Sheets(INVENTORY_SHEET)
+    Set wsMaster = ThisWorkbook.Sheets(MASTER_SHEET)
 
     With ws
         .Cells(1, 1).Value = "棚卸日"
-        .Cells(1, 2).Value = "品名"
-        .Cells(1, 3).Value = "数量"
+        .Cells(1, 2).Value = "物品名"
+        .Cells(1, 3).Value = "管理番号"
+        .Cells(1, 4).Value = "実地棚卸数"
+        .Cells(1, 5).Value = "理論在庫"
+        .Cells(1, 6).Value = "差異"
+        .Cells(1, 7).Value = "備考"
 
-        .Range("A1:C1").Font.Bold = True
-        .Range("A1:C1").Interior.Color = RGB(237, 125, 49)
-        .Range("A1:C1").Font.Color = RGB(255, 255, 255)
-        .Columns("A:C").AutoFit
+        .Range("A1:G1").Font.Bold = True
+        .Range("A1:G1").Interior.Color = RGB(237, 125, 49)
+        .Range("A1:G1").Font.Color = RGB(255, 255, 255)
+        .Columns("A:G").AutoFit
+
+        ' B列（物品名）にデータ入力規則を設定
+        lastRow = wsMaster.Cells(wsMaster.Rows.Count, 2).End(xlUp).Row
+        If lastRow > 1 Then
+            ' 物品名のプルダウンリスト設定（2行目以降の100行分）
+            With .Range("B2:B1000").Validation
+                .Delete
+                .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+                     Formula1:="=" & MASTER_SHEET & "!$B$2:$B$" & lastRow
+                .IgnoreBlank = True
+                .InCellDropdown = True
+            End With
+
+            ' C列（管理番号）に自動取得の数式を設定
+            .Range("C2").Formula = "=IF(B2="""","""",IFERROR(INDEX(" & MASTER_SHEET & "!$A:$A,MATCH(B2," & MASTER_SHEET & "!$B:$B,0)),""""))"
+            .Range("C2").Copy .Range("C3:C1000")
+
+            ' E列（理論在庫）に数式を設定
+            .Range("E2").Formula = "=IF(B2="""","""",IFERROR(INDEX(" & MASTER_SHEET & "!$G:$G,MATCH(B2," & MASTER_SHEET & "!$B:$B,0)),""""))"
+            .Range("E2").Copy .Range("E3:E1000")
+
+            ' F列（差異）に数式を設定
+            .Range("F2").Formula = "=IF(D2="""","""",D2-E2)"
+            .Range("F2").Copy .Range("F3:F1000")
+        End If
     End With
 End Sub
 
@@ -660,22 +699,61 @@ End Sub
 '-------------------------------------------------------------------------------
 Private Sub SetupOrderSheet()
     Dim ws As Worksheet
+    Dim wsMaster As Worksheet
+    Dim lastRow As Long
+
     Set ws = ThisWorkbook.Sheets(ORDER_SHEET)
+    Set wsMaster = ThisWorkbook.Sheets(MASTER_SHEET)
 
     With ws
         .Cells(1, 1).Value = "発注日"
-        .Cells(1, 2).Value = "管理番号"
-        .Cells(1, 3).Value = "物品名"
-        .Cells(1, 4).Value = "発注数量"
-        .Cells(1, 5).Value = "完品数"
-        .Cells(1, 6).Value = "ステータス"
-        .Cells(1, 7).Value = "納品日"
-        .Cells(1, 8).Value = "備考"
+        .Cells(1, 2).Value = "物品名"
+        .Cells(1, 3).Value = "管理番号"
+        .Cells(1, 4).Value = "発注数"
+        .Cells(1, 5).Value = "単位"
+        .Cells(1, 6).Value = "納期"
+        .Cells(1, 7).Value = "ステータス"
+        .Cells(1, 8).Value = "発注先"
+        .Cells(1, 9).Value = "担当者"
+        .Cells(1, 10).Value = "備考"
 
-        .Range("A1:H1").Font.Bold = True
-        .Range("A1:H1").Interior.Color = RGB(165, 165, 165)
-        .Range("A1:H1").Font.Color = RGB(255, 255, 255)
-        .Columns("A:H").AutoFit
+        .Range("A1:J1").Font.Bold = True
+        .Range("A1:J1").Interior.Color = RGB(165, 165, 165)
+        .Range("A1:J1").Font.Color = RGB(255, 255, 255)
+        .Columns("A:J").AutoFit
+
+        ' B列（物品名）にデータ入力規則を設定
+        lastRow = wsMaster.Cells(wsMaster.Rows.Count, 2).End(xlUp).Row
+        If lastRow > 1 Then
+            ' 物品名のプルダウンリスト設定（2行目以降の1000行分）
+            With .Range("B2:B1000").Validation
+                .Delete
+                .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+                     Formula1:="=" & MASTER_SHEET & "!$B$2:$B$" & lastRow
+                .IgnoreBlank = True
+                .InCellDropdown = True
+            End With
+
+            ' C列（管理番号）に自動取得の数式を設定
+            .Range("C2").Formula = "=IF(B2="""","""",IFERROR(INDEX(" & MASTER_SHEET & "!$A:$A,MATCH(B2," & MASTER_SHEET & "!$B:$B,0)),""""))"
+            .Range("C2").Copy .Range("C3:C1000")
+
+            ' E列（単位）に最小単位を自動取得
+            .Range("E2").Formula = "=IF(B2="""","""",IFERROR(INDEX(" & MASTER_SHEET & "!$D:$D,MATCH(B2," & MASTER_SHEET & "!$B:$B,0)),""""))"
+            .Range("E2").Copy .Range("E3:E1000")
+
+            ' G列（ステータス）にデフォルト値を設定
+            .Range("G2").Value = "発注済"
+
+            ' G列にステータスのプルダウンリストを設定
+            With .Range("G2:G1000").Validation
+                .Delete
+                .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+                     Formula1:="発注済,納品済,キャンセル"
+                .IgnoreBlank = True
+                .InCellDropdown = True
+            End With
+        End If
     End With
 End Sub
 
