@@ -242,10 +242,49 @@
         .h-8 { height: 2rem; }
         .h-10 { height: 2.5rem; }
 
+        /* --- 言語切り替えスイッチ --- */
+        .lang-switcher {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            gap: 0.25rem;
+            background-color: var(--bg-gray-100);
+            border-radius: 0.375rem;
+            padding: 0.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .lang-btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-gray-600);
+            background-color: transparent;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        .lang-btn:hover {
+            background-color: white;
+        }
+        .lang-btn.active {
+            background-color: white;
+            color: var(--text-blue-600);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 flex items-center justify-center min-h-screen py-12">
-  <div class="w-full max-w-lg p-8 space-y-6 bg-white rounded-xl shadow-lg">
+  <div class="w-full max-w-lg p-8 space-y-6 bg-white rounded-xl shadow-lg" style="position: relative;">
+
+    <!-- 言語切り替えスイッチ -->
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="ja" onclick="switchLanguage('ja')">日本語</button>
+      <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')">English</button>
+      <button class="lang-btn" data-lang="id" onclick="switchLanguage('id')">Indonesia</button>
+    </div>
     
     <div id="status-message" class="space-y-6 py-4 animate-pulse transition-opacity duration-300 ease-in-out">
       <div class="h-8 bg-gray-300 rounded-md w-3/4 mx-auto"></div>
@@ -491,6 +530,420 @@
 
     <script>
         "use strict";
+
+        // --- ★ 多言語対応データ ★ ---
+        const TRANSLATIONS = {
+            ja: {
+                // ローディング
+                loading: 'アプリを起動しています...',
+                // メインタイトル
+                title_outbound: '出庫登録ツール',
+                title_inbound: '入庫登録ツール',
+                // プログレスバー
+                step1: '情報入力',
+                step2: '品目登録',
+                step3: '内容確認',
+                // ヘルプセクション
+                help_title: '使い方ガイド',
+                help_about: 'このツールについて',
+                help_about_desc: '薬品・資材の入庫（納品）と出庫（使用）を記録するツールです。',
+                help_steps: '3ステップで完了',
+                help_step1_desc: '情報入力：担当者と日付を確認',
+                help_step2_desc: '品目登録：品名と個数を入力して追加',
+                help_step3_desc: '内容確認：入力内容を確認して登録',
+                help_switch: '入庫・出庫の切り替え',
+                help_switch_desc: '右下の「入庫」ボタンで切り替えられます。\n出庫 = 在庫から取り出す（マイナス）\n入庫 = 在庫に追加する（プラス）',
+                // Page 1
+                label_registrant: '担当者名',
+                label_date: '日付',
+                btn_next: '次へ進む',
+                btn_mode_outbound: '入庫',
+                btn_mode_inbound: '出庫',
+                // Page 2
+                legend_inbound: '入庫情報',
+                label_voucher_photo: '伝票写真 (任意)',
+                btn_select_file: 'ファイルを選択',
+                btn_launch_camera: 'カメラを起動',
+                label_voucher_number: '伝票番号 (写真選択後に有効化)',
+                placeholder_voucher_number: 'ファイル名になります',
+                legend_item_outbound: '出庫品目',
+                legend_item_inbound: '入庫品目',
+                label_item_name: '品名',
+                placeholder_item_search: '品名を検索...',
+                placeholder_item_select: '-- 品名を選択 --',
+                label_quantity: '個数',
+                placeholder_quantity: '個数',
+                btn_add_item: '品目を追加',
+                heading_added_items: '追加済みリスト',
+                btn_confirm: '内容を確認する',
+                btn_back: '戻る',
+                // Page 3
+                heading_confirmation: '確認画面',
+                label_confirm_registrant: '登録者名',
+                label_confirm_date: '日付',
+                label_confirm_mode_outbound: '出庫品目',
+                label_confirm_mode_inbound: '入庫品目',
+                btn_register: 'この内容で登録する',
+                btn_edit: '修正する',
+                // 成功画面
+                success_title: '登録完了',
+                success_message: 'データの登録が正常に完了しました。',
+                btn_new_entry: '新しい記録を追加する',
+                // 新規物品登録
+                temp_register_mode: '新規物品 仮登録モード',
+                page_register_title: '新規物品 仮登録',
+                page_register_desc: 'ここで登録された物品は、管理者がPCの「管理者ページ」で承認するまでマスターには反映されません。',
+                btn_launch_ocr: 'ラベルを撮影 (OCR)',
+                label_reg_name: '品名',
+                placeholder_reg_name: '品名（OCRで読み取った後、編集してください）',
+                label_reg_category: 'カテゴリ (必須)',
+                placeholder_reg_category: '-- 分類を選択してください --',
+                btn_temp_register: 'この内容で仮登録する'
+            },
+            en: {
+                // Loading
+                loading: 'Starting application...',
+                // Main title
+                title_outbound: 'Inventory Release Tool',
+                title_inbound: 'Inventory Receipt Tool',
+                // Progress bar
+                step1: 'Info Input',
+                step2: 'Items Entry',
+                step3: 'Confirm',
+                // Help section
+                help_title: 'User Guide',
+                help_about: 'About This Tool',
+                help_about_desc: 'This tool records receipt (inbound) and release (outbound) of medicines and materials.',
+                help_steps: '3 Steps to Complete',
+                help_step1_desc: 'Info Input: Verify person in charge and date',
+                help_step2_desc: 'Items Entry: Enter item name and quantity',
+                help_step3_desc: 'Confirm: Review and register data',
+                help_switch: 'Switching Modes',
+                help_switch_desc: 'Use the button on the bottom right to switch.\nOutbound = Remove from stock (minus)\nInbound = Add to stock (plus)',
+                // Page 1
+                label_registrant: 'Person in Charge',
+                label_date: 'Date',
+                btn_next: 'Next',
+                btn_mode_outbound: 'Inbound',
+                btn_mode_inbound: 'Outbound',
+                // Page 2
+                legend_inbound: 'Inbound Information',
+                label_voucher_photo: 'Voucher Photo (Optional)',
+                btn_select_file: 'Select File',
+                btn_launch_camera: 'Launch Camera',
+                label_voucher_number: 'Voucher Number (enabled after photo)',
+                placeholder_voucher_number: 'Will be the filename',
+                legend_item_outbound: 'Outbound Items',
+                legend_item_inbound: 'Inbound Items',
+                label_item_name: 'Item Name',
+                placeholder_item_search: 'Search item name...',
+                placeholder_item_select: '-- Select item --',
+                label_quantity: 'Quantity',
+                placeholder_quantity: 'Quantity',
+                btn_add_item: 'Add Item',
+                heading_added_items: 'Added List',
+                btn_confirm: 'Confirm',
+                btn_back: 'Back',
+                // Page 3
+                heading_confirmation: 'Confirmation',
+                label_confirm_registrant: 'Registered By',
+                label_confirm_date: 'Date',
+                label_confirm_mode_outbound: 'Outbound Items',
+                label_confirm_mode_inbound: 'Inbound Items',
+                btn_register: 'Register',
+                btn_edit: 'Edit',
+                // Success screen
+                success_title: 'Registration Complete',
+                success_message: 'Data has been registered successfully.',
+                btn_new_entry: 'Add New Record',
+                // Temporary item registration
+                temp_register_mode: 'New Item Temp Registration Mode',
+                page_register_title: 'New Item Temporary Registration',
+                page_register_desc: 'Items registered here will not be reflected in the master until approved by the administrator on the PC "Admin Page".',
+                btn_launch_ocr: 'Capture Label (OCR)',
+                label_reg_name: 'Item Name',
+                placeholder_reg_name: 'Item name (edit after OCR scan)',
+                label_reg_category: 'Category (Required)',
+                placeholder_reg_category: '-- Select category --',
+                btn_temp_register: 'Register Temporarily'
+            },
+            id: {
+                // Loading
+                loading: 'Memulai aplikasi...',
+                // Main title
+                title_outbound: 'Alat Pencatatan Pengeluaran',
+                title_inbound: 'Alat Pencatatan Penerimaan',
+                // Progress bar
+                step1: 'Input Info',
+                step2: 'Daftar Item',
+                step3: 'Konfirmasi',
+                // Help section
+                help_title: 'Panduan Penggunaan',
+                help_about: 'Tentang Alat Ini',
+                help_about_desc: 'Alat ini mencatat penerimaan (masuk) dan pengeluaran (keluar) obat dan bahan.',
+                help_steps: '3 Langkah untuk Selesai',
+                help_step1_desc: 'Input Info: Verifikasi penanggung jawab dan tanggal',
+                help_step2_desc: 'Daftar Item: Masukkan nama dan jumlah item',
+                help_step3_desc: 'Konfirmasi: Tinjau dan daftarkan data',
+                help_switch: 'Mengganti Mode',
+                help_switch_desc: 'Gunakan tombol di kanan bawah untuk mengganti.\nKeluar = Ambil dari stok (minus)\nMasuk = Tambah ke stok (plus)',
+                // Page 1
+                label_registrant: 'Penanggung Jawab',
+                label_date: 'Tanggal',
+                btn_next: 'Lanjut',
+                btn_mode_outbound: 'Masuk',
+                btn_mode_inbound: 'Keluar',
+                // Page 2
+                legend_inbound: 'Informasi Penerimaan',
+                label_voucher_photo: 'Foto Dokumen (Opsional)',
+                btn_select_file: 'Pilih File',
+                btn_launch_camera: 'Buka Kamera',
+                label_voucher_number: 'Nomor Dokumen (aktif setelah foto)',
+                placeholder_voucher_number: 'Akan menjadi nama file',
+                legend_item_outbound: 'Item Keluar',
+                legend_item_inbound: 'Item Masuk',
+                label_item_name: 'Nama Item',
+                placeholder_item_search: 'Cari nama item...',
+                placeholder_item_select: '-- Pilih item --',
+                label_quantity: 'Jumlah',
+                placeholder_quantity: 'Jumlah',
+                btn_add_item: 'Tambah Item',
+                heading_added_items: 'Daftar Ditambahkan',
+                btn_confirm: 'Konfirmasi',
+                btn_back: 'Kembali',
+                // Page 3
+                heading_confirmation: 'Konfirmasi',
+                label_confirm_registrant: 'Didaftarkan Oleh',
+                label_confirm_date: 'Tanggal',
+                label_confirm_mode_outbound: 'Item Keluar',
+                label_confirm_mode_inbound: 'Item Masuk',
+                btn_register: 'Daftarkan',
+                btn_edit: 'Edit',
+                // Success screen
+                success_title: 'Pendaftaran Selesai',
+                success_message: 'Data telah berhasil didaftarkan.',
+                btn_new_entry: 'Tambah Catatan Baru',
+                // Temporary item registration
+                temp_register_mode: 'Mode Pendaftaran Sementara Item Baru',
+                page_register_title: 'Pendaftaran Sementara Item Baru',
+                page_register_desc: 'Item yang didaftarkan di sini tidak akan tercermin dalam master sampai disetujui oleh administrator di "Halaman Admin" PC.',
+                btn_launch_ocr: 'Tangkap Label (OCR)',
+                label_reg_name: 'Nama Item',
+                placeholder_reg_name: 'Nama item (edit setelah scan OCR)',
+                label_reg_category: 'Kategori (Wajib)',
+                placeholder_reg_category: '-- Pilih kategori --',
+                btn_temp_register: 'Daftarkan Sementara'
+            }
+        };
+
+        // 現在の言語（デフォルトは日本語）
+        let currentLang = localStorage.getItem('lang') || 'ja';
+
+        // --- ★ 言語切り替え関数 ★ ---
+        function switchLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+
+            // ボタンのアクティブ状態を更新
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // テキストを更新
+            updateUILanguage();
+        }
+
+        // --- ★ UI言語更新関数 ★ ---
+        function updateUILanguage() {
+            const t = TRANSLATIONS[currentLang];
+
+            // ローディング
+            const loadingText = document.getElementById('loading-status-text');
+            if (loadingText) loadingText.textContent = t.loading;
+
+            // メインタイトル（モードに応じて）
+            const mainTitle = document.getElementById('main-title');
+            if (mainTitle) {
+                mainTitle.textContent = state.mode === 'outbound' ? t.title_outbound : t.title_inbound;
+            }
+
+            // プログレスバー
+            const progressSteps = document.querySelectorAll('#progress-bar p.text-sm');
+            if (progressSteps.length === 3) {
+                progressSteps[0].textContent = t.step1;
+                progressSteps[1].textContent = t.step2;
+                progressSteps[2].textContent = t.step3;
+            }
+
+            // 新規物品仮登録モード
+            const registerProgressInfo = document.querySelector('#register-progress-info p');
+            if (registerProgressInfo) registerProgressInfo.childNodes[2].textContent = t.temp_register_mode;
+
+            // ヘルプセクション
+            const helpTitle = document.querySelector('#help-section p');
+            if (helpTitle) {
+                const svg = helpTitle.querySelector('svg');
+                helpTitle.innerHTML = '';
+                if (svg) helpTitle.appendChild(svg);
+                helpTitle.appendChild(document.createTextNode(t.help_title));
+            }
+
+            const helpContent = document.getElementById('help-content');
+            if (helpContent) {
+                helpContent.innerHTML = `
+                    <p style="margin: 0 0 0.5rem 0;"><strong>${t.help_about}</strong></p>
+                    <p style="margin: 0 0 0.75rem 0;">${t.help_about_desc}</p>
+                    <p style="margin: 0 0 0.5rem 0;"><strong>${t.help_steps}</strong></p>
+                    <ol style="margin: 0 0 0.75rem 0; padding-left: 1.25rem;">
+                        <li>${t.help_step1_desc}</li>
+                        <li>${t.help_step2_desc}</li>
+                        <li>${t.help_step3_desc}</li>
+                    </ol>
+                    <p style="margin: 0 0 0.5rem 0;"><strong>${t.help_switch}</strong></p>
+                    <p style="margin: 0; white-space: pre-line;">${t.help_switch_desc}</p>
+                `;
+            }
+
+            // Page 1ラベル
+            const labels = {
+                'registrant-section label': t.label_registrant,
+                'date-section label': t.label_date
+            };
+            Object.keys(labels).forEach(selector => {
+                const elem = document.querySelector(`#${selector.replace(' label', '')} label`);
+                if (elem) elem.textContent = labels[selector];
+            });
+
+            // Page 1ボタン
+            const nextBtn = document.getElementById('next-btn');
+            if (nextBtn) nextBtn.textContent = t.btn_next;
+
+            const toggleModeBtn = document.getElementById('toggle-mode-button');
+            if (toggleModeBtn) {
+                toggleModeBtn.textContent = state.mode === 'outbound' ? t.btn_mode_outbound : t.btn_mode_inbound;
+            }
+
+            // Page 2
+            const inboundFieldsLegend = document.querySelector('#inbound-fields legend');
+            if (inboundFieldsLegend) inboundFieldsLegend.textContent = t.legend_inbound;
+
+            const voucherPhotoLabel = document.querySelector('#photo-upload-section label');
+            if (voucherPhotoLabel) voucherPhotoLabel.textContent = t.label_voucher_photo;
+
+            const selectFileBtn = document.getElementById('select-file-btn');
+            if (selectFileBtn) selectFileBtn.textContent = t.btn_select_file;
+
+            const launchCameraBtn = document.getElementById('launch-camera-btn');
+            if (launchCameraBtn) launchCameraBtn.textContent = t.btn_launch_camera;
+
+            const voucherNumberLabel = document.querySelector('#voucher-number-input-group label');
+            if (voucherNumberLabel) voucherNumberLabel.textContent = t.label_voucher_number;
+
+            const voucherNumberInput = document.getElementById('voucher-number');
+            if (voucherNumberInput) voucherNumberInput.placeholder = t.placeholder_voucher_number;
+
+            const itemSectionLegend = document.getElementById('item-section-legend');
+            if (itemSectionLegend) {
+                itemSectionLegend.textContent = state.mode === 'outbound' ? t.legend_item_outbound : t.legend_item_inbound;
+            }
+
+            const itemNameLabel = document.querySelector('#item-add-section label[for="item-name"]');
+            if (itemNameLabel) itemNameLabel.textContent = t.label_item_name;
+
+            const itemSearchInput = document.getElementById('item-search');
+            if (itemSearchInput) itemSearchInput.placeholder = t.placeholder_item_search;
+
+            const itemNameSelect = document.getElementById('item-name');
+            if (itemNameSelect && itemNameSelect.options.length > 0) {
+                itemNameSelect.options[0].textContent = t.placeholder_item_select;
+            }
+
+            const quantityLabel = document.querySelector('#item-add-section label[for="quantity"]');
+            if (quantityLabel) quantityLabel.textContent = t.label_quantity;
+
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) quantityInput.placeholder = t.placeholder_quantity;
+
+            const addItemBtn = document.getElementById('add-item-button');
+            if (addItemBtn) addItemBtn.textContent = t.btn_add_item;
+
+            const addedItemsHeading = document.querySelector('#added-items-container h3');
+            if (addedItemsHeading) addedItemsHeading.textContent = t.heading_added_items;
+
+            const confirmBtn = document.getElementById('confirm-button');
+            if (confirmBtn) confirmBtn.textContent = t.btn_confirm;
+
+            const backToPage1Btn = document.getElementById('back-to-page1-btn');
+            if (backToPage1Btn) backToPage1Btn.textContent = t.btn_back;
+
+            // Page 3
+            const confirmationHeading = document.querySelector('#page3 h2');
+            if (confirmationHeading) confirmationHeading.textContent = t.heading_confirmation;
+
+            const confirmLabels = document.querySelectorAll('#page3 p.text-gray-500');
+            if (confirmLabels.length >= 3) {
+                confirmLabels[0].textContent = t.label_confirm_registrant;
+                confirmLabels[1].textContent = t.label_confirm_date;
+            }
+
+            const confirmModeLabel = document.getElementById('confirm-mode-label');
+            if (confirmModeLabel) {
+                confirmModeLabel.textContent = state.mode === 'outbound' ? t.label_confirm_mode_outbound : t.label_confirm_mode_inbound;
+            }
+
+            const registerBtn = document.getElementById('register-btn');
+            if (registerBtn) registerBtn.textContent = t.btn_register;
+
+            const backToPage2Btn = document.getElementById('back-to-page2-btn');
+            if (backToPage2Btn) backToPage2Btn.textContent = t.btn_edit;
+
+            // 成功画面
+            const successTitle = document.querySelector('#success-screen h2');
+            if (successTitle) successTitle.textContent = t.success_title;
+
+            const successMessage = document.getElementById('success-message');
+            if (successMessage) successMessage.textContent = t.success_message;
+
+            const newEntryBtn = document.getElementById('new-entry-btn');
+            if (newEntryBtn) newEntryBtn.textContent = t.btn_new_entry;
+
+            // 新規物品登録ページ
+            const pageRegisterHeading = document.querySelector('#pageRegister h2');
+            if (pageRegisterHeading) pageRegisterHeading.textContent = t.page_register_title;
+
+            const pageRegisterDesc = document.querySelector('#pageRegister p.text-sm');
+            if (pageRegisterDesc) pageRegisterDesc.textContent = t.page_register_desc;
+
+            const launchOcrBtn = document.getElementById('launch-ocr-btn');
+            if (launchOcrBtn) {
+                const span = launchOcrBtn.querySelector('span');
+                if (span) span.textContent = t.btn_launch_ocr;
+            }
+
+            const regNameLabel = document.querySelector('label[for="reg-name"]');
+            if (regNameLabel) regNameLabel.textContent = t.label_reg_name;
+
+            const regNameTextarea = document.getElementById('reg-name');
+            if (regNameTextarea) regNameTextarea.placeholder = t.placeholder_reg_name;
+
+            const regCategoryLabel = document.querySelector('label[for="reg-category"]');
+            if (regCategoryLabel) regCategoryLabel.textContent = t.label_reg_category;
+
+            const regCategorySelect = document.getElementById('reg-category');
+            if (regCategorySelect && regCategorySelect.options.length > 0) {
+                regCategorySelect.options[0].textContent = t.placeholder_reg_category;
+            }
+
+            const registerTempBtn = document.getElementById('register-temp-btn');
+            if (registerTempBtn) registerTempBtn.textContent = t.btn_temp_register;
+
+            const backToPage1FromReg = document.getElementById('back-to-page1-from-reg');
+            if (backToPage1FromReg) backToPage1FromReg.textContent = t.btn_back;
+        }
+
         // --- ★ 認証データ（サーバーから埋め込み・安全化） ★ ---
         // サーバー側で文字列化されている場合も、オブジェクトの場合も対応できるように処理
         const rawAuth = <?= typeof initialAuthData !== 'undefined' ? JSON.stringify(initialAuthData) : 'null' ?>;
@@ -549,8 +1002,23 @@
     <script>
         window.addEventListener('load', () => {
             console.log("All scripts loaded. Executing initialize()...");
+
+            // 保存された言語を復元
+            const savedLang = localStorage.getItem('lang') || 'ja';
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === savedLang) {
+                    btn.classList.add('active');
+                }
+            });
+            currentLang = savedLang;
+
             if (typeof initialize === 'function') {
-                initialize(); 
+                initialize();
+                // 初期化後に言語を適用
+                setTimeout(() => {
+                    updateUILanguage();
+                }, 500);
             } else {
                 console.error("Main.js is not loaded or initialize() is missing.");
             }
