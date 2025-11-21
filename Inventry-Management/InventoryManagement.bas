@@ -8,7 +8,6 @@ Attribute VB_Name = "InventoryManagement"
 Option Explicit
 
 ' 定数定義
-Private Const HELP_SHEET As String = "使い方ガイド"
 Private Const MASTER_SHEET As String = "マスター設定"
 Private Const INVENTORY_SHEET As String = "棚卸データ"
 Private Const TRANSACTION_SHEET As String = "入出庫履歴"
@@ -28,8 +27,7 @@ Private Const USAGE_ANALYSIS_SHEET As String = "使用量分析"
 Public Sub InitializeSystem()
     Application.ScreenUpdating = False
 
-    ' 各シートを作成（使い方ガイドを最初に）
-    CreateSheetIfNotExists HELP_SHEET
+    ' 各シートを作成
     CreateSheetIfNotExists MASTER_SHEET
     CreateSheetIfNotExists INVENTORY_SHEET
     CreateSheetIfNotExists PREV_INVENTORY_SHEET
@@ -38,9 +36,6 @@ Public Sub InitializeSystem()
     CreateSheetIfNotExists DISCREPANCY_SHEET
     CreateSheetIfNotExists USAGE_ANALYSIS_SHEET
     CreateSheetIfNotExists DASHBOARD_SHEET
-
-    ' 使い方ガイドシートのセットアップ
-    SetupHelpSheet
 
     ' マスター設定シートのヘッダー設定
     SetupMasterSheet
@@ -66,13 +61,9 @@ Public Sub InitializeSystem()
     ' 使用量分析シートのセットアップ
     SetupUsageAnalysisSheet
 
-    ' 使い方ガイドシートを最初に移動
-    ThisWorkbook.Sheets(HELP_SHEET).Move Before:=ThisWorkbook.Sheets(1)
-
     Application.ScreenUpdating = True
 
-    MsgBox "システムの初期化が完了しました。" & vbCrLf & _
-           "「使い方ガイド」シートをご確認ください。", vbInformation, "完了"
+    MsgBox "システムの初期化が完了しました。", vbInformation, "完了"
 End Sub
 
 '-------------------------------------------------------------------------------
@@ -787,322 +778,6 @@ Private Sub SetupPrevInventorySheet()
         .Range("A1:C1").Interior.Color = RGB(128, 128, 128)
         .Range("A1:C1").Font.Color = RGB(255, 255, 255)
         .Columns("A:C").AutoFit
-    End With
-End Sub
-
-'-------------------------------------------------------------------------------
-' 使い方ガイドシートのセットアップ
-'-------------------------------------------------------------------------------
-Private Sub SetupHelpSheet()
-    Dim ws As Worksheet
-    Set ws = ThisWorkbook.Sheets(HELP_SHEET)
-
-    Dim r As Long
-    r = 1
-
-    ' タイトル
-    With ws
-        .Cells(r, 1).Value = "在庫管理・発注管理システム 使い方ガイド"
-        .Cells(r, 1).Font.Size = 18
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(68, 114, 196)
-        .Cells(r, 1).Font.Color = RGB(255, 255, 255)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        .Rows(r).RowHeight = 30
-        r = r + 2
-
-        ' システム概要
-        .Cells(r, 1).Value = "■ システム概要"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        .Cells(r, 1).Value = "このシステムは、薬品・資材の在庫管理と発注管理を支援します。"
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        .Cells(r, 1).WrapText = True
-        r = r + 1
-
-        .Cells(r, 1).Value = "主な機能："
-        r = r + 1
-        .Cells(r, 1).Value = "  ・棚卸データと入出庫記録から現在庫を自動計算"
-        r = r + 1
-        .Cells(r, 1).Value = "  ・発注点を下回った物品を自動検出"
-        r = r + 1
-        .Cells(r, 1).Value = "  ・棚卸差異分析による入力漏れの補完"
-        r = r + 1
-        .Cells(r, 1).Value = "  ・使用量予測に基づく発注点の自動調整"
-        r = r + 2
-
-        ' 各シートの説明
-        .Cells(r, 1).Value = "■ 各シートの説明"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        ' テーブルヘッダー
-        .Cells(r, 1).Value = "シート名"
-        .Cells(r, 2).Value = "説明"
-        .Cells(r, 3).Value = "使い方"
-        .Range(.Cells(r, 1), .Cells(r, 3)).Font.Bold = True
-        .Range(.Cells(r, 1), .Cells(r, 3)).Interior.Color = RGB(180, 198, 231)
-        r = r + 1
-
-        ' マスター設定
-        .Cells(r, 1).Value = "マスター設定"
-        .Cells(r, 2).Value = "物品の基本情報を管理（管理番号、物品名、発注点など）"
-        .Cells(r, 3).Value = "物品情報を手動入力または編集"
-        r = r + 1
-
-        ' 棚卸データ
-        .Cells(r, 1).Value = "棚卸データ"
-        .Cells(r, 2).Value = "定期的な実地棚卸の結果を記録"
-        .Cells(r, 3).Value = "CSVインポートまたは手動入力"
-        r = r + 1
-
-        ' 入出庫履歴
-        .Cells(r, 1).Value = "入出庫履歴"
-        .Cells(r, 2).Value = "日々の入庫（納品）と出庫（使用）を記録"
-        .Cells(r, 3).Value = "CSVインポートまたは手動入力"
-        r = r + 1
-
-        ' 発注管理
-        .Cells(r, 1).Value = "発注管理"
-        .Cells(r, 2).Value = "発注が必要な物品を自動抽出"
-        .Cells(r, 3).Value = "CheckReorderPoints マクロを実行"
-        r = r + 1
-
-        ' 差異分析
-        .Cells(r, 1).Value = "差異分析"
-        .Cells(r, 2).Value = "理論在庫と実在庫の差異を分析"
-        .Cells(r, 3).Value = "AnalyzeInventoryDiscrepancy マクロを実行"
-        r = r + 1
-
-        ' 前回棚卸
-        .Cells(r, 1).Value = "前回棚卸"
-        .Cells(r, 2).Value = "前回の棚卸データを保管（差異分析用）"
-        .Cells(r, 3).Value = "ImportPreviousInventoryCSV でインポート"
-        r = r + 1
-
-        ' 使用量分析
-        .Cells(r, 1).Value = "使用量分析"
-        .Cells(r, 2).Value = "使用量の統計分析と推奨発注点を計算"
-        .Cells(r, 3).Value = "AnalyzeUsagePatterns マクロを実行"
-        r = r + 1
-
-        ' ダッシュボード
-        .Cells(r, 1).Value = "ダッシュボード"
-        .Cells(r, 2).Value = "在庫状況のサマリーと発注推奨リスト"
-        .Cells(r, 3).Value = "GenerateDashboard マクロを実行"
-        r = r + 2
-
-        ' 基本的な使い方
-        .Cells(r, 1).Value = "■ 基本的な使い方"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        .Cells(r, 1).Value = "【初回セットアップ】"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "1. InitializeSystem マクロを実行（既に実行済みです）"
-        r = r + 1
-        .Cells(r, 1).Value = "2. 「マスター設定」シートに物品情報を登録"
-        r = r + 1
-        .Cells(r, 1).Value = "   ・管理番号、物品名、発注点、最小単位、完品単位、完品個数を入力"
-        r = r + 2
-
-        .Cells(r, 1).Value = "【日常運用】"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "1. 入出庫があった際に「入出庫履歴」シートに記録"
-        r = r + 1
-        .Cells(r, 1).Value = "   ・ImportTransactionCSV マクロでCSVから一括インポート可能"
-        r = r + 1
-        .Cells(r, 1).Value = "2. 定期的に実地棚卸を実施し、「棚卸データ」シートに記録"
-        r = r + 1
-        .Cells(r, 1).Value = "   ・ImportInventoryCSV マクロでCSVから一括インポート可能"
-        r = r + 1
-        .Cells(r, 1).Value = "3. CalculateCurrentInventory マクロで現在庫を計算"
-        r = r + 1
-        .Cells(r, 1).Value = "4. CheckReorderPoints マクロで発注が必要な物品をチェック"
-        r = r + 2
-
-        ' マクロ実行方法
-        .Cells(r, 1).Value = "■ マクロの実行方法"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        .Cells(r, 1).Value = "1. Alt + F8 キーを押してマクロダイアログを開く"
-        r = r + 1
-        .Cells(r, 1).Value = "2. 実行したいマクロを選択"
-        r = r + 1
-        .Cells(r, 1).Value = "3. 「実行」ボタンをクリック"
-        r = r + 2
-
-        ' 主要マクロ一覧
-        .Cells(r, 1).Value = "■ 主要マクロ一覧"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        ' マクロリストヘッダー
-        .Cells(r, 1).Value = "マクロ名"
-        .Cells(r, 2).Value = "機能"
-        .Range(.Cells(r, 1), .Cells(r, 2)).Font.Bold = True
-        .Range(.Cells(r, 1), .Cells(r, 2)).Interior.Color = RGB(180, 198, 231)
-        r = r + 1
-
-        .Cells(r, 1).Value = "InitializeSystem"
-        .Cells(r, 2).Value = "システムの初期化（初回のみ）"
-        r = r + 1
-
-        .Cells(r, 1).Value = "ImportTransactionCSV"
-        .Cells(r, 2).Value = "入出庫記録CSVをインポート"
-        r = r + 1
-
-        .Cells(r, 1).Value = "ImportInventoryCSV"
-        .Cells(r, 2).Value = "棚卸データCSVをインポート"
-        r = r + 1
-
-        .Cells(r, 1).Value = "ImportPreviousInventoryCSV"
-        .Cells(r, 2).Value = "前回棚卸データをインポート"
-        r = r + 1
-
-        .Cells(r, 1).Value = "CalculateCurrentInventory"
-        .Cells(r, 2).Value = "現在庫を計算してマスター設定に反映"
-        r = r + 1
-
-        .Cells(r, 1).Value = "CheckReorderPoints"
-        .Cells(r, 2).Value = "発注が必要な物品をチェック"
-        r = r + 1
-
-        .Cells(r, 1).Value = "AnalyzeInventoryDiscrepancy"
-        .Cells(r, 2).Value = "棚卸差異を分析"
-        r = r + 1
-
-        .Cells(r, 1).Value = "ApplyDiscrepancyCompensation"
-        .Cells(r, 2).Value = "差異を補正する記録を生成"
-        r = r + 1
-
-        .Cells(r, 1).Value = "AnalyzeUsagePatterns"
-        .Cells(r, 2).Value = "使用量を分析"
-        r = r + 1
-
-        .Cells(r, 1).Value = "AutoAdjustReorderPoints"
-        .Cells(r, 2).Value = "使用量予測に基づき発注点を調整"
-        r = r + 1
-
-        .Cells(r, 1).Value = "GenerateDashboard"
-        .Cells(r, 2).Value = "ダッシュボードを生成"
-        r = r + 2
-
-        ' CSVインポートの注意点
-        .Cells(r, 1).Value = "■ CSVインポートの注意点"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        .Cells(r, 1).Value = "・CSVファイルの1行目はヘッダー行として読み飛ばされます"
-        r = r + 1
-        .Cells(r, 1).Value = "・文字コードは Shift-JIS を推奨"
-        r = r + 1
-        .Cells(r, 1).Value = "・カンマを含むデータはダブルクォートで囲んでください"
-        r = r + 1
-        .Cells(r, 1).Value = "・日付形式: yyyy/mm/dd または yyyy-mm-dd"
-        r = r + 2
-
-        .Cells(r, 1).Value = "【重要】入出庫CSVの差分エクスポートについて"
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(255, 242, 204)
-        .Range(.Cells(r, 1), .Cells(r, 3)).Merge
-        r = r + 1
-        .Cells(r, 1).Value = "GAS側で差分エクスポート機能を実装済みです。"
-        r = r + 1
-        .Cells(r, 1).Value = "・前回エクスポート以降のデータのみが出力されます"
-        r = r + 1
-        .Cells(r, 1).Value = "・月が変わると自動的に月初からのデータを取得します"
-        r = r + 1
-        .Cells(r, 1).Value = "・同じ月に複数回エクスポートしても重複しません"
-        r = r + 1
-        .Cells(r, 1).Value = "推奨運用：週次または月次でエクスポート→順番にインポート"
-        r = r + 2
-
-        .Cells(r, 1).Value = "【入出庫記録CSVの形式】"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "タイムスタンプ,記録日,種別,記録者,品名,個数"
-        .Cells(r, 1).Font.Name = "Consolas"
-        .Cells(r, 1).Interior.Color = RGB(242, 242, 242)
-        r = r + 1
-        .Cells(r, 1).Value = "例: 2025/10/15 10:30:00,2025-10-15,入庫,田中,薬品A,10"
-        .Cells(r, 1).Font.Name = "Consolas"
-        .Cells(r, 1).Interior.Color = RGB(242, 242, 242)
-        r = r + 2
-
-        .Cells(r, 1).Value = "【棚卸データCSVの形式】"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "棚卸日,品名,数量"
-        .Cells(r, 1).Font.Name = "Consolas"
-        .Cells(r, 1).Interior.Color = RGB(242, 242, 242)
-        r = r + 1
-        .Cells(r, 1).Value = "例: 2025/11/12,""薬品A"",45"
-        .Cells(r, 1).Font.Name = "Consolas"
-        .Cells(r, 1).Interior.Color = RGB(242, 242, 242)
-        r = r + 2
-
-        ' よくある質問
-        .Cells(r, 1).Value = "■ よくある質問"
-        .Cells(r, 1).Font.Size = 14
-        .Cells(r, 1).Font.Bold = True
-        .Cells(r, 1).Interior.Color = RGB(217, 225, 242)
-        .Range(.Cells(r, 1), .Cells(r, 6)).Merge
-        r = r + 1
-
-        .Cells(r, 1).Value = "Q1: 現在庫がマイナスになってしまいます"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "A: 入出庫記録に漏れがある可能性があります。差異分析機能を使用して確認してください。"
-        r = r + 2
-
-        .Cells(r, 1).Value = "Q2: 発注点の設定方法がわかりません"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "A: 発注点 = 日平均使用量 × リードタイム × 安全係数 を目安に設定してください。"
-        r = r + 1
-        .Cells(r, 1).Value = "   使用量予測機能（AnalyzeUsagePatterns）を使うと自動で推奨値を計算できます。"
-        r = r + 2
-
-        .Cells(r, 1).Value = "Q3: CSVインポートでエラーが出ます"
-        .Cells(r, 1).Font.Bold = True
-        r = r + 1
-        .Cells(r, 1).Value = "A: CSVファイルの形式、文字コード（Shift-JIS推奨）、ダブルクォートの使用を確認してください。"
-        r = r + 2
-
-        ' 書式設定
-        .Columns("A:A").ColumnWidth = 35
-        .Columns("B:B").ColumnWidth = 60
-        .Columns("C:C").ColumnWidth = 40
-        .Range("A:C").VerticalAlignment = xlTop
-        .Range("A:C").WrapText = True
-
-        ' 枠線
-        .Range("A1:C" & r).Borders.LineStyle = xlContinuous
-        .Range("A1:C" & r).Borders.Weight = xlThin
-
     End With
 End Sub
 

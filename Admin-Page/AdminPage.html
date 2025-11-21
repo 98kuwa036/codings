@@ -336,38 +336,6 @@
   </ul>
 
   <main>
-    <!-- 初心者向け説明セクション -->
-    <div id="help-section" style="background-color: #eff6ff; border: 1px solid #93c5fd; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1.5rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleHelp()">
-        <p style="font-size: 0.9375rem; font-weight: 600; color: #1d4ed8; margin: 0; display: flex; align-items: center;">
-          <i class="material-icons" style="font-size: 1.25rem; margin-right: 0.5rem; color: #1d4ed8;">help_outline</i>
-          使い方ガイド
-        </p>
-        <i class="material-icons" id="help-toggle-icon" style="font-size: 1.25rem; color: #1d4ed8; transition: transform 0.2s;">expand_more</i>
-      </div>
-      <div id="help-content" style="display: none; margin-top: 1rem; font-size: 0.875rem; color: #374151; line-height: 1.6;">
-        <p style="margin: 0 0 0.75rem 0;"><strong>管理者ダッシュボードについて</strong></p>
-        <p style="margin: 0 0 1rem 0;">このページでは入出庫記録の確認、ユーザー管理、物品マスター管理などを行えます。</p>
-
-        <p style="margin: 0 0 0.5rem 0;"><strong>主な機能</strong></p>
-        <ul style="margin: 0 0 1rem 0; padding-left: 1.5rem;">
-          <li><strong>A: 記録</strong> - 入出庫記録の一覧表示（最新500件）</li>
-          <li><strong>B: ログ</strong> - システム実行ログの確認</li>
-          <li><strong>C: ユーザ</strong> - ユーザーの追加・編集・削除</li>
-          <li><strong>D: マスター</strong> - 物品の追加・編集・削除</li>
-          <li><strong>E: UI設定</strong> - 入出庫画面の表示項目をカスタマイズ</li>
-          <li><strong>F: 権限設定</strong> - 権限コードの確認・管理</li>
-          <li><strong>G: 登録承認</strong> - 仮登録された物品の本登録</li>
-        </ul>
-
-        <p style="margin: 0 0 0.5rem 0;"><strong>操作のヒント</strong></p>
-        <p style="margin: 0 0 0.5rem 0;">・各タブをクリックして機能を切り替え<br>
-        ・「更新」ボタンで最新データを再読み込み<br>
-        ・「新規」ボタンで追加、テーブル内のアイコンで編集・削除<br>
-        ・右上のアイコンでライト/ダークテーマ切替</p>
-      </div>
-    </div>
-
     <div class="row">
       <div class="col s12">
         <ul class="tabs">
@@ -756,20 +724,6 @@
       if (themeIconMobile) themeIconMobile.innerText = newIconName;
       
       console.log(`Theme changed to ${newTheme}`);
-    }
-
-    /**
-     * ヘルプセクションの表示/非表示を切り替える
-     */
-    function toggleHelp() {
-      const helpContent = document.getElementById('help-content');
-      const toggleIcon = document.getElementById('help-toggle-icon');
-
-      if (helpContent && toggleIcon) {
-        const isHidden = helpContent.style.display === 'none';
-        helpContent.style.display = isHidden ? 'block' : 'none';
-        toggleIcon.textContent = isHidden ? 'expand_less' : 'expand_more';
-      }
     }
 
     // ======================================================
@@ -1712,7 +1666,6 @@
       window.loadRoleSettings = loadRoleSettings; 
       window.handleRoleSettingChange = handleRoleSettingChange;
       window.toggleTheme = toggleTheme;
-      window.toggleHelp = toggleHelp;
 
       window.loadPendingData = loadPendingData;
       window.approveItem = approveItem;

@@ -22,40 +22,6 @@
 
     <h1 class="text-2xl font-bold mb-6 text-center text-gray-800"><?= systemName ?></h1>
 
-    <!-- 初心者向け説明セクション -->
-    <div id="help-section" style="background-color: #eff6ff; border: 1px solid #93c5fd; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleHelp()">
-        <p style="font-size: 0.875rem; font-weight: 600; color: #1d4ed8; margin: 0; display: flex; align-items: center;">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-          </svg>
-          使い方ガイド
-        </p>
-        <svg id="help-toggle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#1d4ed8" style="width: 1rem; height: 1rem; transition: transform 0.2s;">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-      <div id="help-content" style="display: none; margin-top: 0.75rem; font-size: 0.8125rem; color: #374151; line-height: 1.5;">
-        <p style="margin: 0 0 0.5rem 0;"><strong>このツールについて</strong></p>
-        <p style="margin: 0 0 0.75rem 0;">入出庫記録システムのログイン画面です。IDとパスワードでログインしてください。</p>
-
-        <p style="margin: 0 0 0.5rem 0;"><strong>初めてご利用の方</strong></p>
-        <ol style="margin: 0 0 0.75rem 0; padding-left: 1.25rem;">
-          <li>「利用者情報編集」ボタンをクリック</li>
-          <li>操作種別で「ID新規登録・紐付け」を選択</li>
-          <li>担当者名、ID、パスワードを入力して「実行」</li>
-          <li>登録完了後、ログイン画面に戻ってログイン</li>
-        </ol>
-
-        <p style="margin: 0 0 0.5rem 0;"><strong>パスワードを変更したい場合</strong></p>
-        <p style="margin: 0 0 0.75rem 0;">「利用者情報編集」→ IDを入力 → 「パスワード変更」を選択</p>
-
-        <p style="margin: 0 0 0.5rem 0;"><strong>注意事項</strong></p>
-        <p style="margin: 0;">・IDとパスワードは半角英数字のみ使用可能<br>
-        ・全角文字を入力すると自動的に半角に変換されます</p>
-      </div>
-    </div>
-
     <form id="login-form" novalidate>
       <a id="redirect-btn" href="#" target="_top"
          class="w-full block text-center bg-gray-400 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-300 pointer-events-none">
