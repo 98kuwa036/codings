@@ -674,13 +674,12 @@
             }
         };
 
-        // 現在の言語（デフォルトは日本語、セッション単位で保持）
-        let currentLang = sessionStorage.getItem('lang') || 'ja';
+        // 現在の言語（ページアクセス時は必ず日本語から開始）
+        let currentLang = 'ja';
 
         // --- ★ 言語切り替え関数 ★ ---
         function switchLanguage(lang) {
             currentLang = lang;
-            sessionStorage.setItem('lang', lang);
 
             // ボタンのアクティブ状態を更新
             document.querySelectorAll('.lang-btn').forEach(btn => {
