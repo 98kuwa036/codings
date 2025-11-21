@@ -8,6 +8,7 @@ Attribute VB_Name = "InventoryManagement"
 Option Explicit
 
 ' 定数定義
+Private Const HELP_SHEET As String = "使い方ガイド"
 Private Const MASTER_SHEET As String = "マスター設定"
 Private Const INVENTORY_SHEET As String = "棚卸データ"
 Private Const TRANSACTION_SHEET As String = "入出庫履歴"
@@ -28,6 +29,7 @@ Public Sub InitializeSystem()
     Application.ScreenUpdating = False
 
     ' 各シートを作成
+    CreateSheetIfNotExists HELP_SHEET
     CreateSheetIfNotExists MASTER_SHEET
     CreateSheetIfNotExists INVENTORY_SHEET
     CreateSheetIfNotExists PREV_INVENTORY_SHEET
@@ -36,6 +38,9 @@ Public Sub InitializeSystem()
     CreateSheetIfNotExists DISCREPANCY_SHEET
     CreateSheetIfNotExists USAGE_ANALYSIS_SHEET
     CreateSheetIfNotExists DASHBOARD_SHEET
+
+    ' 使い方ガイドシートのセットアップ
+    SetupHelpSheet
 
     ' マスター設定シートのヘッダー設定
     SetupMasterSheet
@@ -79,6 +84,507 @@ Private Sub CreateSheetIfNotExists(sheetName As String)
         Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
         ws.Name = sheetName
     End If
+End Sub
+
+'-------------------------------------------------------------------------------
+' 使い方ガイドシートのセットアップ
+'-------------------------------------------------------------------------------
+Private Sub SetupHelpSheet()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(HELP_SHEET)
+
+    ' シートをクリア
+    ws.Cells.Clear
+
+    ' タイトル行
+    With ws.Range("A1:F1")
+        .Merge
+        .Value = "在庫管理・注文管理システム 使い方ガイド"
+        .Font.Size = 18
+        .Font.Bold = True
+        .Interior.Color = RGB(68, 114, 196)
+        .Font.Color = RGB(255, 255, 255)
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 40
+    End With
+
+    ' システム概要
+    ws.Range("A3").Value = "【システム概要】"
+    ws.Range("A3").Font.Size = 14
+    ws.Range("A3").Font.Bold = True
+    ws.Range("A3").Interior.Color = RGB(217, 225, 242)
+
+    ws.Range("A4").Value = "このシステムは、物品の在庫管理・棚卸・発注管理を効率的に行うためのExcel VBAツールです。"
+    ws.Range("A5").Value = "Webアプリケーションと連携して、リアルタイムでの在庫追跡と履歴管理が可能です。"
+    ws.Range("A6").Value = ""
+
+    ' 主な機能
+    ws.Range("A7").Value = "【主な機能】"
+    ws.Range("A7").Font.Size = 14
+    ws.Range("A7").Font.Bold = True
+    ws.Range("A7").Interior.Color = RGB(217, 225, 242)
+
+    ws.Range("A8").Value = "✓ 物品マスター管理（管理番号、品名、発注点、単位設定）"
+    ws.Range("A9").Value = "✓ 入出庫履歴の自動記録と追跡"
+    ws.Range("A10").Value = "✓ 定期棚卸データの管理と差異分析"
+    ws.Range("A11").Value = "✓ 発注管理と発注点に基づく自動アラート"
+    ws.Range("A12").Value = "✓ ダッシュボードでの在庫状況可視化"
+    ws.Range("A13").Value = "✓ 使用量分析とトレンド把握"
+    ws.Range("A14").Value = ""
+
+    ' 各シートの詳細説明
+    ws.Range("A15").Value = "【各シートの詳細説明】"
+    ws.Range("A15").Font.Size = 14
+    ws.Range("A15").Font.Bold = True
+    ws.Range("A15").Interior.Color = RGB(217, 225, 242)
+
+    Dim row As Integer
+    row = 16
+
+    ' 1. マスター設定シート
+    ws.Cells(row, 1).Value = "1. マスター設定シート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "管理対象物品の基本情報を登録・管理するマスターデータベースです。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【主な項目】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・管理番号：物品を一意に識別するコード（例：A001, B002）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・物品名：物品の正式名称（例：ボールペン 黒、コピー用紙 A4）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・発注点：この在庫数を下回ったら発注が必要（例：10個）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・最小単位：最小の取り扱い単位（例：本、枚、箱）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・完品単位：発注時の単位（例：ダース、ケース、箱）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・完品個数：完品単位1つに含まれる最小単位の数（例：1ダース=12本）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・現在庫：リアルタイムで更新される現在の在庫数"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・発注要否：発注点を下回った場合「要発注」と自動表示"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・推奨発注数：適正在庫まで回復するための推奨発注量"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 新規物品を追加する場合は、最終行の次の行に必要情報を入力"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 管理番号は重複しないように設定（A001, A002...のように連番推奨）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 発注点は、過去の使用実績や調達リードタイムを考慮して設定"
+    row = row + 1
+    ws.Cells(row, 2).Value = "4) 完品単位と完品個数を正確に設定することで、発注量計算が正確になります"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 2. 棚卸データシート
+    ws.Cells(row, 1).Value = "2. 棚卸データシート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "定期的な実地棚卸の結果を記録し、理論在庫との差異を把握します。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【主な項目】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・棚卸日：実地棚卸を実施した日付"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・管理番号：マスター設定シートの管理番号と対応"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・物品名：マスターデータから自動取得"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・実地棚卸数：実際に数えた在庫数"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・理論在庫：システム上の在庫数（入出庫履歴に基づく計算値）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・差異：実地棚卸数 - 理論在庫（プラスは実在庫過剰、マイナスは不足）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・備考：差異の原因や特記事項を記入"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 月初や四半期ごとなど、定期的に実地棚卸を実施"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 実地棚卸数を入力すると、理論在庫と差異が自動計算されます"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 大きな差異がある場合は、原因を調査して備考欄に記録"
+    row = row + 1
+    ws.Cells(row, 2).Value = "4) 棚卸後は「前回棚卸」シートに履歴が保存されます"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 3. 入出庫履歴シート
+    ws.Cells(row, 1).Value = "3. 入出庫履歴シート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "すべての入庫・出庫の履歴を記録し、在庫の動きを追跡します。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【主な項目】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・タイムスタンプ：記録が作成された日時"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・記録日：実際の入出庫日（タイムスタンプと同じか遡及入力の場合は過去日）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・種別：「入庫」「出庫」「新規登録」のいずれか"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・記録者：操作を行った担当者名"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・品名：対象物品の名称"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・個数：入庫または出庫した数量"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・備考：補足情報（納品先、払出先、発注番号など）"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) Webアプリから入出庫登録を行うと、このシートに自動記録されます"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 手動で追記する場合は、必ず全項目を正確に入力してください"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 過去のデータは削除せず保存することで、使用量分析に活用できます"
+    row = row + 1
+    ws.Cells(row, 2).Value = "4) 大量のデータが蓄積した場合は、年度ごとにアーカイブを検討"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 4. 発注管理シート
+    ws.Cells(row, 1).Value = "4. 発注管理シート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "発注業務を管理し、納品状況を追跡します。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【主な項目】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・発注日：発注を行った日付"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・管理番号：発注対象物品の管理番号"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・物品名：発注対象の物品名"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・発注数：発注した数量"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・単位：発注時の単位（最小単位または完品単位）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・納期：納品予定日"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・ステータス：「発注済」「納品済」「キャンセル」など"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・発注先：発注した業者名"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・担当者：発注処理を行った担当者"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・備考：発注番号、見積番号、特記事項など"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) マスター設定シートで「要発注」と表示された物品を確認"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 発注処理を行ったら、このシートに発注情報を記録"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 納品されたら、ステータスを「納品済」に更新し、入庫登録を実施"
+    row = row + 1
+    ws.Cells(row, 2).Value = "4) 納期遅延がある場合は、備考欄に理由を記録"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 5. ダッシュボードシート
+    ws.Cells(row, 1).Value = "5. ダッシュボードシート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "在庫状況を一目で把握できる統合ビューを提供します。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【表示内容】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・在庫状況サマリー：総在庫数、要発注品目数、発注済品目数"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・発注アラート一覧：発注点を下回っている物品のリスト"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・最近の入出庫履歴：直近10件の入出庫記録"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・グラフ：在庫推移、カテゴリ別在庫、使用量トレンドなど"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 毎日の業務開始時に確認し、要発注品目をチェック"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) データは他のシートから自動集計されるため、手動入力は不要"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 印刷して会議資料として活用することも可能"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 6. 差異分析シート
+    ws.Cells(row, 1).Value = "6. 差異分析シート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "棚卸時の差異を詳細に分析し、在庫管理の精度向上に役立てます。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【分析内容】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・差異の大きい物品のランキング"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・差異率の計算（差異÷理論在庫×100）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・過去の棚卸との比較"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・傾向分析（特定物品で常に差異が発生していないか）"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 棚卸完了後、このシートで差異状況を確認"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 差異率が高い物品は、管理方法の見直しを検討"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 継続的に差異が発生する場合は、発注点や保管方法の改善が必要"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 7. 前回棚卸シート
+    ws.Cells(row, 1).Value = "7. 前回棚卸シート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "過去の棚卸データを保存し、履歴として参照できるようにします。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 新しい棚卸を開始する前に、現在の棚卸データがここに自動保存されます"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 過去の棚卸データと比較する際に参照"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 手動での編集は原則不要（履歴保存用）"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 8. 使用量分析シート
+    ws.Cells(row, 1).Value = "8. 使用量分析シート"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Font.Size = 12
+    ws.Cells(row, 1).Interior.Color = RGB(255, 242, 204)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【目的】"
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 2).Value = "物品ごとの使用量を分析し、適正在庫や発注サイクルの最適化に活用します。"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【分析内容】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "・月別使用量の集計"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・平均使用量の計算"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・使用量トレンド（増加傾向、減少傾向）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "・季節変動の把握"
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "【使い方】"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 定期的にこのシートを確認し、使用量パターンを把握"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 平均使用量に基づいて、発注点を適切に設定"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 使用量が大きく変動した場合は、原因を調査"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 運用フロー
+    ws.Cells(row, 1).Value = "【基本的な運用フロー】"
+    ws.Cells(row, 1).Font.Size = 14
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Interior.Color = RGB(217, 225, 242)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "日次作業"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) ダッシュボードで在庫状況を確認"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) Webアプリから入出庫を登録（自動的に履歴シートに記録）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 要発注品目がある場合は発注手続きを実施"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "週次作業"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 発注管理シートで納品状況を確認"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 納品された物品は入庫登録を実施"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 使用量分析シートで消費トレンドを確認"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "月次作業"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "1) 実地棚卸を実施（棚卸データシートに記録）"
+    row = row + 1
+    ws.Cells(row, 2).Value = "2) 差異分析シートで在庫差異を確認・分析"
+    row = row + 1
+    ws.Cells(row, 2).Value = "3) 大きな差異があれば原因を調査し、改善策を実施"
+    row = row + 1
+    ws.Cells(row, 2).Value = "4) 必要に応じてマスターデータ（発注点など）を見直し"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' トラブルシューティング
+    ws.Cells(row, 1).Value = "【よくある質問・トラブルシューティング】"
+    ws.Cells(row, 1).Font.Size = 14
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Interior.Color = RGB(217, 225, 242)
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "Q1. 在庫数が合わない場合"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "A: 入出庫履歴シートで最近の記録を確認してください。記録漏れや誤入力がないかチェックします。"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "Q2. 発注点をどう設定すれば良いか"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "A: 使用量分析シートで平均使用量を確認し、「平均使用量 × 調達リードタイム（日数） + 安全在庫」で計算します。"
+    row = row + 1
+    ws.Cells(row, 2).Value = "   例：1日10個使用、調達7日、安全在庫30個の場合 → 10×7+30=100個"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "Q3. Webアプリと連携できない"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "A: Google Apps Scriptの設定を確認してください。スクリプトIDとシート名が正しく設定されているか確認が必要です。"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ws.Cells(row, 1).Value = "Q4. データが多くなって動作が重い"
+    ws.Cells(row, 1).Font.Bold = True
+    row = row + 1
+    ws.Cells(row, 2).Value = "A: 古い入出庫履歴データを別ファイルにアーカイブすることを検討してください。年度ごとに分けると良いでしょう。"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' 注意事項
+    ws.Cells(row, 1).Value = "【注意事項】"
+    ws.Cells(row, 1).Font.Size = 14
+    ws.Cells(row, 1).Font.Bold = True
+    ws.Cells(row, 1).Interior.Color = RGB(255, 199, 206)
+    row = row + 1
+
+    ws.Cells(row, 2).Value = "⚠ ヘッダー行（各シートの1行目）は削除・変更しないでください"
+    row = row + 1
+    ws.Cells(row, 2).Value = "⚠ 数式が設定されているセルは、上書きしないよう注意してください"
+    row = row + 1
+    ws.Cells(row, 2).Value = "⚠ 定期的にファイルのバックアップを取ることを推奨します"
+    row = row + 1
+    ws.Cells(row, 2).Value = "⚠ 複数人で同時編集する場合は、Google Sheetsの使用を推奨します"
+    row = row + 1
+    ws.Cells(row, 2).Value = "⚠ マスター設定の管理番号は、一度使用したら変更しないでください"
+    row = row + 1
+    ws.Cells(row, 1).Value = ""
+    row = row + 1
+
+    ' フッター
+    ws.Cells(row, 1).Value = "更新日: " & Format(Now, "yyyy/mm/dd hh:mm")
+    ws.Cells(row, 1).Font.Size = 9
+    ws.Cells(row, 1).Font.Italic = True
+
+    ' 列幅調整
+    ws.Columns("A:A").ColumnWidth = 30
+    ws.Columns("B:F").ColumnWidth = 80
+
+    ' 全体のフォント設定
+    ws.Cells.Font.Name = "メイリオ"
+    ws.Cells.Font.Size = 10
+
+    ' 文字の折り返し
+    ws.Columns("B:F").WrapText = True
+
+    ' シート保護（編集不可）
+    ws.Protect DrawingObjects:=True, Contents:=True, Scenarios:=True
+
 End Sub
 
 '-------------------------------------------------------------------------------
