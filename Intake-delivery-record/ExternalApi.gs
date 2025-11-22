@@ -22,19 +22,30 @@ function runOCR(imageBase64) {
 
   const apiUrl = `https://vision.googleapis.com/v1/images:annotate?key=${VISION_API_KEY}`;
 
+  // Base64データを抽出（data:image/jpeg;base64, のプレフィックスを除去）
+  let base64Content;
+  if (imageBase64.includes(',')) {
+    base64Content = imageBase64.split(',')[1];
+  } else {
+    base64Content = imageBase64;
+  }
+
+  Logger.log(`OCR開始: Base64データサイズ = ${base64Content.length} 文字`);
+
   const payload = {
     requests: [
       {
         image: {
-          content: imageBase64.split(',')[1] // Base64データ本体のみ
+          content: base64Content
         },
         features: [
           {
-            type: 'TEXT_DETECTION'
+            type: 'TEXT_DETECTION',
+            maxResults: 10
           }
         ],
         imageContext: {
-          languageHints: ["ja"] // 日本語をヒントにする
+          languageHints: ["ja", "en"] // 日本語と英語をヒントにする
         }
       }
     ]
@@ -49,21 +60,53 @@ function runOCR(imageBase64) {
 
   try {
     const response = UrlFetchApp.fetch(apiUrl, options);
-    const result = JSON.parse(response.getContentText());
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
 
-    if (result.responses && result.responses[0] && result.responses[0].fullTextAnnotation) {
-      const detectedText = result.responses[0].fullTextAnnotation.text;
-      Logger.log("OCR Success: Text detected.");
-      return detectedText;
-    } else if (result.responses && result.responses[0].error) {
-      Logger.log(`OCR API Error: ${result.responses[0].error.message}`);
-      throw new Error(`Vision APIエラー: ${result.responses[0].error.message}`);
+    Logger.log(`Vision API Response Code: ${responseCode}`);
+
+    if (responseCode !== 200) {
+      Logger.log(`Vision API Error Response: ${responseText}`);
+      throw new Error(`Vision APIがエラーを返しました (HTTP ${responseCode}): ${responseText.substring(0, 200)}`);
+    }
+
+    const result = JSON.parse(responseText);
+
+    // レスポンス全体をログ出力（デバッグ用）
+    Logger.log(`Vision API Response: ${JSON.stringify(result).substring(0, 500)}`);
+
+    if (result.responses && result.responses[0]) {
+      const firstResponse = result.responses[0];
+
+      // エラーチェック
+      if (firstResponse.error) {
+        Logger.log(`OCR API Error: ${JSON.stringify(firstResponse.error)}`);
+        throw new Error(`Vision APIエラー: ${firstResponse.error.message} (コード: ${firstResponse.error.code})`);
+      }
+
+      // テキスト検出結果
+      if (firstResponse.fullTextAnnotation && firstResponse.fullTextAnnotation.text) {
+        const detectedText = firstResponse.fullTextAnnotation.text;
+        Logger.log(`OCR Success: ${detectedText.length}文字のテキストを検出`);
+        Logger.log(`検出テキスト(最初の100文字): ${detectedText.substring(0, 100)}`);
+        return detectedText;
+      } else if (firstResponse.textAnnotations && firstResponse.textAnnotations.length > 0) {
+        // fullTextAnnotation が無い場合は textAnnotations を使用
+        const detectedText = firstResponse.textAnnotations[0].description;
+        Logger.log(`OCR Success (textAnnotations): ${detectedText.length}文字のテキストを検出`);
+        return detectedText;
+      } else {
+        Logger.log("OCR Success: テキストが検出されませんでした");
+        Logger.log(`Response詳細: ${JSON.stringify(firstResponse)}`);
+        return "（テキストは検出されませんでした。画像が不鮮明か、テキストが含まれていない可能性があります）";
+      }
     } else {
-      Logger.log("OCR Success: No text detected.");
-      return "（テキストは検出されませんでした）";
+      Logger.log(`予期しないレスポンス形式: ${responseText}`);
+      throw new Error("Vision APIから予期しないレスポンス形式が返されました");
     }
   } catch (error) {
     Logger.log(`runOCR Error: ${error.message}`);
+    Logger.log(`Error Stack: ${error.stack}`);
     throw new Error(`OCRの実行に失敗しました: ${error.message}`);
   }
 }
