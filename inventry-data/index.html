@@ -27,7 +27,7 @@
     .fixed-overlay {
       position: fixed;
       inset: 0;
-      background-color: rgba(255, 255, 255, 0.7);
+      background-color: rgba(255, 255, 255, 0.95); /* 背景を少し濃くしました */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -57,7 +57,7 @@
     }
 
     .hidden {
-      display: none;
+      display: none !important; /* 強制的に非表示 */
     }
 
     header {
@@ -137,6 +137,7 @@
       cursor: pointer;
       font-size: 0.875rem;
       transition: background-color 0.2s;
+      white-space: nowrap; /* 折り返し禁止 */
     }
 
     .btn:disabled {
@@ -273,10 +274,19 @@
 </head>
 <body>
 
-  <!-- メインアプリ -->
+  <div id="pc-blocker" class="fixed-overlay hidden" style="background-color: #fff; z-index: 9999;">
+    <div class="text-center p-4" style="padding: 2rem;">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🚫</div>
+      <h2 class="section-title section-title-error" style="border: none;">PCからのアクセス不可</h2>
+      <p class="mt-6 text-gray" style="font-size: 1.1rem; font-weight: bold;">
+        このツールはスマートフォン専用です。<br>
+        スマホからアクセスしてください。
+      </p>
+    </div>
+  </div>
+
   <div id="app">
 
-    <!-- ローディングオーバーレイ -->
     <div id="loadingOverlay" class="fixed-overlay">
       <div class="loader"></div>
       <p>マスターデータを読み込んでいます...</p>
@@ -288,11 +298,9 @@
       </header>
 
       <main class="loading-state">
-        <!-- ページ1: 入力フォーム -->
         <div id="page1">
           <form id="inventoryForm" class="card">
             <div id="itemList" class="space-y-4">
-              <!-- スケルトンローディング -->
               <div class="skeleton space-y-4">
                 <div class="item-row">
                   <div class="skeleton-line"></div>
@@ -314,23 +322,19 @@
           </form>
         </div>
 
-        <!-- ページ2: 確認画面 -->
         <div id="page2" class="hidden">
           <div class="card space-y-2">
 
-            <!-- 入力済みリスト -->
             <div>
               <h2 class="section-title">入力済みリスト</h2>
               <div id="confirmationList" class="space-y-2"></div>
             </div>
 
-            <!-- 未入力リスト -->
             <div id="missingListContainer" class="hidden">
               <h2 class="section-title section-title-error">未入力リスト</h2>
               <div id="missingList" class="space-y-1 text-gray"></div>
             </div>
 
-            <!-- ボタン群 -->
             <div class="mt-6 grid-2">
               <button type="button" id="backBtn" class="btn btn-secondary">戻って修正する</button>
               <button type="button" id="submitBtn" class="btn btn-success">この内容で記録する</button>
@@ -363,6 +367,7 @@
   // ========================================
   const elements = {
     app: document.getElementById('app'),
+    pcBlocker: document.getElementById('pc-blocker'), // ★ 追加
     pageTitle: document.getElementById('pageTitle'),
     mainContent: document.querySelector('main'),
     loadingOverlay: document.getElementById('loadingOverlay'),
@@ -377,6 +382,18 @@
     missingListContainer: document.getElementById('missingListContainer'),
     missingList: document.getElementById('missingList')
   };
+
+  // ========================================
+  // ★ スマホ判定ロジック
+  // ========================================
+  function isSmartPhone() {
+    const ua = navigator.userAgent;
+    // iPhone または Androidのモバイル（タブレットを除く）を判定
+    if (ua.match(/iPhone|Android.+Mobile/)) {
+      return true;
+    }
+    return false;
+  }
 
   // ========================================
   // ユーティリティ
@@ -657,6 +674,14 @@
   // ========================================
 
   function init() {
+    // ★ スマホチェックを実行
+    if (!isSmartPhone()) {
+        // スマホでない場合、アプリ本体を隠してブロッカーを表示
+        elements.app.style.display = 'none';
+        elements.pcBlocker.classList.remove('hidden');
+        return; // 処理を中断（マスターデータ読み込み等をしない）
+    }
+
     setupEventListeners();
     fetchMasterItems();
   }
