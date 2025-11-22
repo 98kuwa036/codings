@@ -45,9 +45,10 @@ function showMainContent() {
  * Main.js の initialize で致命的なエラーが発生したときに呼び出される
  */
 function showFatalError(error) {
+  const t = TRANSLATIONS[currentLang];
   console.error('Initialization failed:', error);
-  updateLoadingStatus(`エラー: ${error.message || '不明なエラー'}`);
-  
+  updateLoadingStatus(`${t.error_fatal}${error.message || t.error_unknown}`);
+
   if(dom.statusMessage) {
     dom.statusMessage.classList.remove('animate-pulse');
     dom.statusMessage.innerHTML = `
@@ -56,13 +57,13 @@ function showFatalError(error) {
           <svg class="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
       </div>
       <div class="text-center space-y-2">
-          <h2 class="text-xl font-semibold text-gray-800">読み込みエラー</h2>
-          <p class="text-gray-600">アプリの起動に失敗しました。</p>
-          <p class="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">${error.message || '不明なエラーが発生しました。'}</p>
-          <button 
-              onclick="location.reload()" 
+          <h2 class="text-xl font-semibold text-gray-800">${t.error_loading}</h2>
+          <p class="text-gray-600">${t.error_app_start_failed}</p>
+          <p class="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">${error.message || t.error_unknown}</p>
+          <button
+              onclick="location.reload()"
               class="mt-4 py-2 px-4 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">
-              再読み込み
+              ${t.btn_reload}
           </button>
       </div>
     </div>`;
@@ -76,8 +77,9 @@ function showFatalError(error) {
  * 汎用的なAPIエラーをアラート表示する
  */
 function showApiError(error) {
+  const t = TRANSLATIONS[currentLang];
   console.error("API Error:", error);
-  alert(`エラーが発生しました: ${error.message || '不明なエラー'}`);
+  alert(`${t.error_occurred}${error.message || t.error_unknown}`);
 }
 
 
@@ -242,6 +244,7 @@ function onGetInitialDataSuccess(data) {
  * Api.js の onDropdownUpdated から呼び出される
  */
 function applyDropdownUpdates(newData) {
+  const t = TRANSLATIONS[currentLang];
   if (newData.users) {
      const currentName = dom.registrantNameHidden.value || state.currentUser; // 現在選択中の名前を維持
      dom.registrantSelect.innerHTML = '';
@@ -254,7 +257,7 @@ function applyDropdownUpdates(newData) {
   if (newData.items) {
     // 全品目を保存（フィルタリング用）
     state.allItems = newData.items;
-    dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>';
+    dom.itemName.innerHTML = `<option value="" disabled selected>${t.placeholder_item_select}</option>`;
     newData.items.forEach(item => {
       dom.itemName.appendChild(new Option(item, item));
     });
@@ -270,6 +273,7 @@ function applyDropdownUpdates(newData) {
  * 検索文字列に基づいてitem-nameのオプションをフィルタリングする
  */
 function filterItems() {
+  const t = TRANSLATIONS[currentLang];
   const searchTerm = dom.itemSearch.value.toLowerCase().trim();
   const items = state.allItems || [];
 
@@ -277,7 +281,7 @@ function filterItems() {
   const currentValue = dom.itemName.value;
 
   // オプションを再構築
-  dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>';
+  dom.itemName.innerHTML = `<option value="" disabled selected>${t.placeholder_item_select}</option>`;
 
   let matchCount = 0;
   items.forEach(item => {
@@ -292,7 +296,7 @@ function filterItems() {
 
   // 検索結果がない場合のメッセージ
   if (matchCount === 0 && searchTerm) {
-    dom.itemName.innerHTML = '<option value="" disabled selected>-- 該当なし --</option>';
+    dom.itemName.innerHTML = `<option value="" disabled selected>${t.msg_no_match}</option>`;
   }
 
   validateItemAdd();
@@ -320,16 +324,17 @@ function validatePage2() {
   dom.confirmBtn.disabled = state.items.length === 0;
 }
 function resetForNewEntry() {
+  const t = TRANSLATIONS[currentLang];
   state.items = []; state.file = null;
   dom.fileNameDisplay.textContent = '';
   dom.voucherNumber.disabled = true; dom.voucherNumber.value = '';
-  dom.voucherNumber.placeholder = "ファイル名になります";
+  dom.voucherNumber.placeholder = t.placeholder_voucher_number;
   dom.voucherFileInput.value = null; dom.voucherCameraInput.value = null;
   dom.itemName.value = ''; dom.quantity.value = '';
   dom.itemSearch.value = ''; // 検索フィールドをクリア
   // 品名リストを全件表示に戻す
   if (state.allItems) {
-    dom.itemName.innerHTML = '<option value="" disabled selected>-- 品名を選択 --</option>';
+    dom.itemName.innerHTML = `<option value="" disabled selected>${t.placeholder_item_select}</option>`;
     state.allItems.forEach(item => {
       dom.itemName.appendChild(new Option(item, item));
     });
@@ -369,15 +374,16 @@ function toggleMode(isInit = false) {
   
   dom.nextBtn.style.display = ''; 
 
+  const t = TRANSLATIONS[currentLang];
   if (state.mode === 'inbound') {
-    dom.mainTitle.textContent = '入庫記録ツール';
-    buttonText = isAdmin ? '出庫へ' : '出庫'; 
+    dom.mainTitle.textContent = t.title_inbound;
+    buttonText = isAdmin ? t.btn_mode_inbound : t.btn_mode_inbound;
   } else if (state.mode === 'outbound') {
-    dom.mainTitle.textContent = '出庫記録ツール';
-    buttonText = isAdmin ? '登録へ' : '入庫';
+    dom.mainTitle.textContent = t.title_outbound;
+    buttonText = isAdmin ? t.temp_register_mode.split(' ')[0] + 'へ' : t.btn_mode_outbound;
   } else if (state.mode === 'register') {
-    dom.mainTitle.textContent = '新規物品 仮登録';
-    buttonText = '入庫へ'; 
+    dom.mainTitle.textContent = t.page_register_title;
+    buttonText = t.btn_mode_outbound;
   }
   
   dom.toggleModeBtn.textContent = buttonText;
@@ -387,29 +393,29 @@ function toggleMode(isInit = false) {
   }
   
   if (state.mode === 'inbound') {
-    dom.itemSectionLegend.textContent = '入庫品目';
+    dom.itemSectionLegend.textContent = t.legend_item_inbound;
     const hideInboundSection = !settings.ui_photo_upload_visible && !settings.ui_voucher_number_visible;
     if (hideInboundSection) { dom.inboundFields.classList.add('hidden'); }
     else { dom.inboundFields.classList.remove('hidden'); }
   } else {
-    dom.itemSectionLegend.textContent = '出庫品目';
+    dom.itemSectionLegend.textContent = t.legend_item_outbound;
     dom.inboundFields.classList.add('hidden');
-    if (!isInit) resetFileInput(); 
+    if (!isInit) resetFileInput();
   }
   
   if (!isInit && state.mode !== 'register') validatePage2();
 }
 
 function toggleUserEdit() {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   const isEditing = dom.registrantSelect.classList.contains('hidden');
   dom.registrantSelect.classList.toggle('hidden', !isEditing);
   dom.registrantDisplayContainer.classList.toggle('hidden', isEditing);
   if (isEditing) {
-    dom.changeUserBtn.textContent = '確定';
+    dom.changeUserBtn.textContent = t.msg_mode_confirm;
     dom.registrantSelect.value = dom.registrantNameHidden.value;
   } else {
-    dom.changeUserBtn.textContent = '変更';
+    dom.changeUserBtn.textContent = t.msg_mode_change;
     const newName = dom.registrantSelect.value;
     dom.registrantDisplay.textContent = newName;
     dom.registrantNameHidden.value = newName;
@@ -417,26 +423,26 @@ function toggleUserEdit() {
   validatePage1();
 }
 function handleFileSelect(event) {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   const file = event.target.files[0];
   if (!file) {
     state.file = null;
-    resetFileInput(); 
+    resetFileInput();
     return;
   }
-  state.file = file; 
+  state.file = file;
   dom.fileNameDisplay.textContent = file.name;
   dom.voucherNumber.disabled = false;
-  dom.voucherNumber.placeholder = "伝票番号を入力 (必須)";
+  dom.voucherNumber.placeholder = t.msg_voucher_placeholder_active;
   validatePage2();
 }
 function resetFileInput() {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   state.file = null;
   dom.fileNameDisplay.textContent = '';
   dom.voucherNumber.disabled = true;
   dom.voucherNumber.value = '';
-  dom.voucherNumber.placeholder = "ファイル名になります";
+  dom.voucherNumber.placeholder = t.placeholder_voucher_number;
   dom.voucherFileInput.value = null;
   dom.voucherCameraInput.value = null;
   validatePage2();
@@ -490,10 +496,10 @@ function addItem() {
   validatePage2();
 }
 function renderAddedItems() {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   dom.addedItemsList.innerHTML = '';
   if (state.items.length === 0) {
-    dom.addedItemsList.innerHTML = '<p class="text-gray-500">品目が追加されていません。</p>';
+    dom.addedItemsList.innerHTML = `<p class="text-gray-500">${t.msg_no_items_added}</p>`;
     return;
   }
   state.items.forEach((item, index) => {
@@ -517,23 +523,23 @@ function removeItem(event) {
   validatePage2();
 }
 function showConfirmationPage() {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   dom.confirmRegistrant.textContent = dom.registrantNameHidden.value;
   dom.confirmDate.textContent = dom.dateInput.value;
-  const modeLabel = state.mode === 'inbound' ? '入庫' : '出庫';
-  dom.confirmModeLabel.textContent = `${modeLabel}品目リスト`;
+  const modeLabel = state.mode === 'inbound' ? t.label_confirm_mode_inbound : t.label_confirm_mode_outbound;
+  dom.confirmModeLabel.textContent = modeLabel;
   dom.confirmItemsList.innerHTML = '';
   state.items.forEach(item => {
     const p = document.createElement('p');
     p.className = 'text-gray-800';
-    p.textContent = `${item.name} ( ${item.quantity} 個 )`; 
+    p.textContent = `${item.name} ( ${item.quantity} ${t.msg_quantity_unit} )`;
     dom.confirmItemsList.appendChild(p);
   });
   if (state.mode === 'inbound' && state.file) {
     const p = document.createElement('p');
     p.className = 'text-gray-800 mt-2 border-t pt-2';
     const voucherDisplay = dom.voucherNumber.value.trim() || state.file.name;
-    p.textContent = `伝票 (${voucherDisplay})`;
+    p.textContent = `${t.msg_voucher} (${voucherDisplay})`;
     dom.confirmItemsList.appendChild(p);
   }
   navigateTo(3);
@@ -546,13 +552,14 @@ function showConfirmationPage() {
 /**
  * (★ 移管) メイン登録ボタンのローディング状態を更新
  */
-function setRegistrationLoading(isLoading, message = '登録処理中...') {
+function setRegistrationLoading(isLoading, message) {
+  const t = TRANSLATIONS[currentLang];
   if (isLoading) {
     dom.registerBtn.disabled = true;
-    dom.registerBtn.innerHTML = `<span class="loader inline-block mr-2"></span> ${message}`;
+    dom.registerBtn.innerHTML = `<span class="loader inline-block mr-2"></span> ${message || t.msg_registering}`;
   } else {
     dom.registerBtn.disabled = false;
-    dom.registerBtn.innerHTML = 'この内容で登録する';
+    dom.registerBtn.innerHTML = t.btn_register;
   }
 }
 // (Api.js から削除された resetRegisterButton の代わり)
@@ -574,44 +581,45 @@ function getRegistrationData() {
  * (★ 移管) メイン登録処理 (Api.js の submitRegistration から移管)
  */
 async function handleSubmitRegistration() {
+  const t = TRANSLATIONS[currentLang];
   const formData = getRegistrationData();
-  setRegistrationLoading(true, '登録処理中...');
+  setRegistrationLoading(true, t.msg_registering);
   let uploadedFileId = null;
 
   try {
     if (state.mode === 'inbound' && state.file) {
       // (ファイルあり)
-      setRegistrationLoading(true, 'URL取得中...');
+      setRegistrationLoading(true, t.msg_getting_upload_url);
       const fileInfo = { fileName: state.file.name, mimeType: state.file.type };
-      
+
       const { uploadUrl, fileId } = await api.getResumableUploadUrl(fileInfo.fileName, fileInfo.mimeType);
 
-      if (!uploadUrl || !fileId) throw new Error("アップロードURLまたはFileIDの取得に失敗しました。");
-      
-      uploadedFileId = fileId; 
-      setRegistrationLoading(true, '記録を登録中...');
-      
-      const textResult = await api.acceptRegistrationData(formData, null); // fileId = null で先に実行
-      
+      if (!uploadUrl || !fileId) throw new Error("Upload URL or FileID retrieval failed.");
+
+      uploadedFileId = fileId;
+      setRegistrationLoading(true, t.msg_registering_data);
+
+      const textResult = await api.acceptRegistrationData(formData, null);
+
       if (!textResult.success) {
-         throw new Error(`テキストデータの登録に失敗しました: ${textResult.message}`);
+         throw new Error(`Text data registration failed: ${textResult.message}`);
       }
 
-      setRegistrationLoading(true, '写真アップロード中...');
+      setRegistrationLoading(true, t.msg_uploading_photo);
       const response = await fetch(uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": fileInfo.mimeType, },
-        body: state.file, 
+        body: state.file,
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error(`ファイルアップロードに失敗 (HTTP ${response.status}): ${errText}`);
+        throw new Error(`File upload failed (HTTP ${response.status}): ${errText}`);
       }
-      
-      setRegistrationLoading(true, '最終処理中...');
-      const queueFormData = { ...formData, items: [] }; 
-      
+
+      setRegistrationLoading(true, t.msg_finalizing);
+      const queueFormData = { ...formData, items: [] };
+
       const finalResult = await api.acceptRegistrationData(queueFormData, uploadedFileId);
       // ★ 成功ハンドラを直接呼び出し
       dom.successMessage.textContent = finalResult.message;
@@ -621,8 +629,8 @@ async function handleSubmitRegistration() {
 
     } else {
       // (ファイルなしの場合) テキストデータのみ送信
-      const result = await api.acceptRegistrationData(formData, null); // fileId = null
-      
+      const result = await api.acceptRegistrationData(formData, null);
+
       // ★ 成功ハンドラを直接呼び出し
       dom.successMessage.textContent = result.message;
       dom.mainContent.style.display = 'none';
@@ -631,7 +639,7 @@ async function handleSubmitRegistration() {
     }
   } catch (error) {
     // ★ 失敗ハンドラを直接呼び出し
-    showApiError(error); 
+    showApiError(error);
     setRegistrationLoading(false); // ボタンを元に戻す
     showPage(3); // 確認画面に戻る
   }
@@ -641,12 +649,13 @@ async function handleSubmitRegistration() {
  * (★ 移管) 仮登録ボタンのローディング状態を更新
  */
 function setTempRegisterLoading(isLoading) {
+  const t = TRANSLATIONS[currentLang];
   if (isLoading) {
     dom.registerTempBtn.disabled = true;
-    dom.registerTempBtn.innerHTML = '<span class="loader inline-block mr-2"></span> 仮登録中...';
+    dom.registerTempBtn.innerHTML = `<span class="loader inline-block mr-2"></span> ${t.msg_temp_registering}`;
   } else {
     dom.registerTempBtn.disabled = false;
-    dom.registerTempBtn.innerHTML = 'この内容で仮登録する';
+    dom.registerTempBtn.innerHTML = t.btn_temp_register;
   }
 }
 // (Api.js から削除された resetTempRegisterButton の代わり)
@@ -676,15 +685,16 @@ function resetRegisterForm() {
  * (★ 移管) 新規物品 仮登録 (Api.js の submitTemporaryRegistration から移管)
  */
 async function handleSubmitTemporaryRegistration() {
+  const t = TRANSLATIONS[currentLang];
   const itemData = getTemporaryRegistrationData();
 
   // バリデーション
   if (!itemData.name) {
-    alert("「品名」は必ず入力してください。");
+    alert(t.error_name_required);
     return;
   }
-  if (!itemData.category) { 
-    alert("「カテゴリ」を必ず選択してください。");
+  if (!itemData.category) {
+    alert(t.error_category_required);
     return;
   }
 
@@ -694,7 +704,7 @@ async function handleSubmitTemporaryRegistration() {
     const result = await api.saveTemporaryItem(itemData);
 
     // 成功時
-    alert(result.message); // (またはトースト通知)
+    alert(result.message);
     resetRegisterForm();
     setTempRegisterLoading(false);
     toggleMode(false); // page1 に戻る
@@ -711,15 +721,16 @@ async function handleSubmitTemporaryRegistration() {
 // ===============================================================
 
 function launchOcrCamera() {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   if (dom.ocrCameraInput) {
     dom.ocrCameraInput.click();
   } else {
-    alert("エラー: OCRカメラの入力要素が見つかりません。");
+    alert(t.error_ocr_camera_not_found);
   }
 }
 
 function handleOcrImageSelect(event) {
+  const t = TRANSLATIONS[currentLang];
   const file = event.target.files[0];
   if (!file) {
     return;
@@ -730,7 +741,7 @@ function handleOcrImageSelect(event) {
   console.log(`選択された画像: ${file.name}, サイズ: ${fileSizeMB.toFixed(2)}MB`);
 
   if (fileSizeMB > 10) {
-    alert(`警告: 画像サイズが${fileSizeMB.toFixed(1)}MBと大きいです。処理に時間がかかる場合があります。`);
+    alert(t.msg_ocr_file_size_warning.replace('{size}', fileSizeMB.toFixed(1)));
   }
 
   const btn = dom.launchOcrBtn;
@@ -740,7 +751,7 @@ function handleOcrImageSelect(event) {
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
-    <span>読み取り中...</span>`;
+    <span>${t.msg_ocr_reading}</span>`;
 
   imageToBase64(file)
     .then(base64String => {
@@ -759,35 +770,37 @@ function handleOcrImageSelect(event) {
 }
 
 function onOcrSuccess(extractedText) {
+  const t = TRANSLATIONS[currentLang];
   console.log("OCR Success:", extractedText);
 
-  if (extractedText && extractedText !== "（テキストは検出されませんでした）" && !extractedText.includes("検出されませんでした")) {
-    alert("テキストを抽出しました。\n品名欄を編集してください。");
+  if (extractedText && extractedText !== "（テキストは検出されませんでした）" && !extractedText.includes("検出されませんでした") && !extractedText.includes("No text detected")) {
+    alert(t.msg_ocr_success);
     dom.regName.value = extractedText.replace(/\n/g, ' ');
   } else {
-    alert("テキストが検出されませんでした。\n\n改善のヒント:\n・画像を明るい場所で撮影してください\n・テキストにピントを合わせてください\n・カメラを近づけすぎないようにしてください");
+    alert(t.msg_ocr_no_text);
   }
 
   resetOcrButton();
 }
 
 function onOcrFailure(error) {
+  const t = TRANSLATIONS[currentLang];
   console.error("OCR Failure:", error);
 
-  let errorMsg = "OCRエラーが発生しました。";
+  let errorMsg = t.error_ocr;
 
   if (error.message) {
     // エラーメッセージからユーザーフレンドリーなメッセージを生成
-    if (error.message.includes("APIキー")) {
-      errorMsg = "Vision APIの設定エラーです。\n管理者に連絡してください。";
-    } else if (error.message.includes("HTTP 403")) {
-      errorMsg = "Vision APIの権限エラーです。\nAPIキーが無効か、APIが有効化されていません。\n管理者に連絡してください。";
-    } else if (error.message.includes("HTTP 400")) {
-      errorMsg = "リクエストが無効です。\n画像形式が正しくない可能性があります。";
-    } else if (error.message.includes("HTTP 429")) {
-      errorMsg = "API呼び出し制限を超えました。\nしばらく待ってから再試行してください。";
+    if (error.message.includes("APIキー") || error.message.includes("API key")) {
+      errorMsg = t.error_ocr_api_key;
+    } else if (error.message.includes("HTTP 403") || error.message.includes("403")) {
+      errorMsg = t.error_ocr_403;
+    } else if (error.message.includes("HTTP 400") || error.message.includes("400")) {
+      errorMsg = t.error_ocr_400;
+    } else if (error.message.includes("HTTP 429") || error.message.includes("429")) {
+      errorMsg = t.error_ocr_429;
     } else {
-      errorMsg = `OCRエラー: ${error.message}`;
+      errorMsg = `${t.error_ocr_with_msg}${error.message}`;
     }
   }
 
@@ -797,14 +810,14 @@ function onOcrFailure(error) {
 }
 
 function resetOcrButton() {
-  // ( ... 変更なし ... )
+  const t = TRANSLATIONS[currentLang];
   const btn = dom.launchOcrBtn;
   btn.disabled = false;
   btn.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
       <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574v9.548c0 1.067.75 1.994 1.802 2.169a47.865 47.865 0 001.134.175 2.31 2.31 0 011.64 1.055l.822 1.594a2.083 2.083 0 003.487 0l.822-1.594a2.31 2.31 0 011.64-1.055 47.865 47.865 0 001.134-.175 2.31 2.31 0 011.802-2.17V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.594a2.083 2.083 0 00-3.487 0l-.822 1.594A2.31 2.31 0 016.827 6.175zM12 12.75a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
     </svg>
-    <span>ラベルを撮影 (OCR)</span>`;
+    <span>${t.btn_launch_ocr}</span>`;
 }
 
 function imageToBase64(file, maxWidth = 1600) {

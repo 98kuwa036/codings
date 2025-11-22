@@ -556,7 +556,44 @@
                 placeholder_reg_name: '品名（OCRで読み取った後、編集してください）',
                 label_reg_category: 'カテゴリ (必須)',
                 placeholder_reg_category: '-- 分類を選択してください --',
-                btn_temp_register: 'この内容で仮登録する'
+                btn_temp_register: 'この内容で仮登録する',
+                // エラーメッセージ
+                error_fatal: 'エラー: ',
+                error_unknown: '不明なエラー',
+                error_loading: '読み込みエラー',
+                error_app_start_failed: 'アプリの起動に失敗しました。',
+                error_occurred: 'エラーが発生しました: ',
+                btn_reload: '再読み込み',
+                // 動的メッセージ
+                msg_no_items_added: '品目が追加されていません。',
+                msg_no_match: '-- 該当なし --',
+                msg_voucher_placeholder_active: '伝票番号を入力 (必須)',
+                msg_quantity_unit: '個',
+                msg_voucher: '伝票',
+                msg_mode_change: '変更',
+                msg_mode_confirm: '確定',
+                // 登録処理
+                msg_registering: '登録処理中...',
+                msg_getting_upload_url: 'URL取得中...',
+                msg_registering_data: '記録を登録中...',
+                msg_uploading_photo: '写真アップロード中...',
+                msg_finalizing: '最終処理中...',
+                msg_temp_registering: '仮登録中...',
+                // 仮登録エラー
+                error_name_required: '「品名」は必ず入力してください。',
+                error_category_required: '「カテゴリ」を必ず選択してください。',
+                // OCR関連
+                error_ocr_camera_not_found: 'エラー: OCRカメラの入力要素が見つかりません。',
+                msg_ocr_file_size_warning: '警告: 画像サイズが{size}MBと大きいです。処理に時間がかかる場合があります。',
+                msg_ocr_reading: '読み取り中...',
+                msg_ocr_success: 'テキストを抽出しました。\n品名欄を編集してください。',
+                msg_ocr_no_text: 'テキストが検出されませんでした。\n\n改善のヒント:\n・画像を明るい場所で撮影してください\n・テキストにピントを合わせてください\n・カメラを近づけすぎないようにしてください',
+                error_ocr: 'OCRエラーが発生しました。',
+                error_ocr_api_key: 'Vision APIの設定エラーです。\n管理者に連絡してください。',
+                error_ocr_403: 'Vision APIの権限エラーです。\nAPIキーが無効か、APIが有効化されていません。\n管理者に連絡してください。',
+                error_ocr_400: 'リクエストが無効です。\n画像形式が正しくない可能性があります。',
+                error_ocr_429: 'API呼び出し制限を超えました。\nしばらく待ってから再試行してください。',
+                error_ocr_with_msg: 'OCRエラー: '
             },
             en: {
                 // Loading
@@ -613,7 +650,44 @@
                 placeholder_reg_name: 'Item name (edit after OCR scan)',
                 label_reg_category: 'Category (Required)',
                 placeholder_reg_category: '-- Select category --',
-                btn_temp_register: 'Register Temporarily'
+                btn_temp_register: 'Register Temporarily',
+                // Error messages
+                error_fatal: 'Error: ',
+                error_unknown: 'Unknown error',
+                error_loading: 'Loading Error',
+                error_app_start_failed: 'Failed to start application.',
+                error_occurred: 'An error occurred: ',
+                btn_reload: 'Reload',
+                // Dynamic messages
+                msg_no_items_added: 'No items added.',
+                msg_no_match: '-- No match --',
+                msg_voucher_placeholder_active: 'Enter voucher number (required)',
+                msg_quantity_unit: 'pcs',
+                msg_voucher: 'Voucher',
+                msg_mode_change: 'Change',
+                msg_mode_confirm: 'Confirm',
+                // Registration process
+                msg_registering: 'Registering...',
+                msg_getting_upload_url: 'Getting upload URL...',
+                msg_registering_data: 'Registering data...',
+                msg_uploading_photo: 'Uploading photo...',
+                msg_finalizing: 'Finalizing...',
+                msg_temp_registering: 'Temp registering...',
+                // Temp registration errors
+                error_name_required: 'Item name is required.',
+                error_category_required: 'Category must be selected.',
+                // OCR related
+                error_ocr_camera_not_found: 'Error: OCR camera input element not found.',
+                msg_ocr_file_size_warning: 'Warning: Image size is {size}MB. Processing may take some time.',
+                msg_ocr_reading: 'Reading...',
+                msg_ocr_success: 'Text extracted.\nPlease edit the item name field.',
+                msg_ocr_no_text: 'No text detected.\n\nTips for improvement:\n・Take photo in bright lighting\n・Focus on the text\n・Don\'t get too close with camera',
+                error_ocr: 'OCR error occurred.',
+                error_ocr_api_key: 'Vision API configuration error.\nPlease contact administrator.',
+                error_ocr_403: 'Vision API permission error.\nAPI key is invalid or API is not enabled.\nPlease contact administrator.',
+                error_ocr_400: 'Invalid request.\nImage format may be incorrect.',
+                error_ocr_429: 'API call limit exceeded.\nPlease wait and try again.',
+                error_ocr_with_msg: 'OCR Error: '
             },
             id: {
                 // Loading
@@ -670,7 +744,44 @@
                 placeholder_reg_name: 'Nama item (edit setelah scan OCR)',
                 label_reg_category: 'Kategori (Wajib)',
                 placeholder_reg_category: '-- Pilih kategori --',
-                btn_temp_register: 'Daftarkan Sementara'
+                btn_temp_register: 'Daftarkan Sementara',
+                // Pesan kesalahan
+                error_fatal: 'Kesalahan: ',
+                error_unknown: 'Kesalahan tidak dikenal',
+                error_loading: 'Kesalahan Pemuatan',
+                error_app_start_failed: 'Gagal memulai aplikasi.',
+                error_occurred: 'Terjadi kesalahan: ',
+                btn_reload: 'Muat Ulang',
+                // Pesan dinamis
+                msg_no_items_added: 'Tidak ada item yang ditambahkan.',
+                msg_no_match: '-- Tidak ada yang cocok --',
+                msg_voucher_placeholder_active: 'Masukkan nomor dokumen (wajib)',
+                msg_quantity_unit: 'buah',
+                msg_voucher: 'Dokumen',
+                msg_mode_change: 'Ubah',
+                msg_mode_confirm: 'Konfirmasi',
+                // Proses pendaftaran
+                msg_registering: 'Mendaftarkan...',
+                msg_getting_upload_url: 'Mendapatkan URL upload...',
+                msg_registering_data: 'Mendaftarkan data...',
+                msg_uploading_photo: 'Mengunggah foto...',
+                msg_finalizing: 'Menyelesaikan...',
+                msg_temp_registering: 'Mendaftarkan sementara...',
+                // Kesalahan pendaftaran sementara
+                error_name_required: 'Nama item wajib diisi.',
+                error_category_required: 'Kategori harus dipilih.',
+                // Terkait OCR
+                error_ocr_camera_not_found: 'Kesalahan: Elemen input kamera OCR tidak ditemukan.',
+                msg_ocr_file_size_warning: 'Peringatan: Ukuran gambar {size}MB. Pemrosesan mungkin memakan waktu.',
+                msg_ocr_reading: 'Membaca...',
+                msg_ocr_success: 'Teks berhasil diekstrak.\nSilakan edit bidang nama item.',
+                msg_ocr_no_text: 'Tidak ada teks terdeteksi.\n\nTips untuk perbaikan:\n・Ambil foto dengan pencahayaan terang\n・Fokuskan pada teks\n・Jangan terlalu dekat dengan kamera',
+                error_ocr: 'Terjadi kesalahan OCR.',
+                error_ocr_api_key: 'Kesalahan konfigurasi Vision API.\nHubungi administrator.',
+                error_ocr_403: 'Kesalahan izin Vision API.\nKunci API tidak valid atau API tidak diaktifkan.\nHubungi administrator.',
+                error_ocr_400: 'Permintaan tidak valid.\nFormat gambar mungkin salah.',
+                error_ocr_429: 'Batas panggilan API terlampaui.\nSilakan tunggu dan coba lagi.',
+                error_ocr_with_msg: 'Kesalahan OCR: '
             }
         };
 
@@ -923,15 +1034,14 @@
         window.addEventListener('load', () => {
             console.log("All scripts loaded. Executing initialize()...");
 
-            // 保存された言語を復元
-            const savedLang = localStorage.getItem('lang') || 'ja';
+            // ページアクセス時は必ず日本語から開始
+            currentLang = 'ja';
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.remove('active');
-                if (btn.getAttribute('data-lang') === savedLang) {
+                if (btn.getAttribute('data-lang') === 'ja') {
                     btn.classList.add('active');
                 }
             });
-            currentLang = savedLang;
 
             if (typeof initialize === 'function') {
                 initialize();

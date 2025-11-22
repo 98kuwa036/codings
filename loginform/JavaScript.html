@@ -25,7 +25,19 @@
             authenticating: '認証中...',
             auth_success: '認証成功！上のボタンから進んでください。',
             loading_screen: '画面を読み込んでいます...',
-            processing: '処理中...'
+            processing: '処理中...',
+            // バリデーションエラー
+            error_required: 'この項目は必須です。',
+            error_no_fullwidth: '日本語（全角文字）は使用できません。',
+            error_check_input: '入力内容を確認してください。',
+            error_communication: '通信エラー: ',
+            error_server_communication: 'エラー: サーバーとの通信に失敗しました。',
+            error_generic: 'エラー: ',
+            // 選択肢
+            loading_names: '読込中...',
+            error_loading: '読込エラー: ',
+            select_person: '-- IDを紐付ける担当者を選択 --',
+            no_available_persons: '紐付け可能な担当者がいません'
         },
         en: {
             inventory_link: 'To Inventory Tool →',
@@ -49,7 +61,19 @@
             authenticating: 'Authenticating...',
             auth_success: 'Authentication successful! Please proceed from the button above.',
             loading_screen: 'Loading screen...',
-            processing: 'Processing...'
+            processing: 'Processing...',
+            // Validation errors
+            error_required: 'This field is required.',
+            error_no_fullwidth: 'Full-width characters (Japanese) cannot be used.',
+            error_check_input: 'Please check your input.',
+            error_communication: 'Communication error: ',
+            error_server_communication: 'Error: Failed to communicate with server.',
+            error_generic: 'Error: ',
+            // Options
+            loading_names: 'Loading...',
+            error_loading: 'Loading error: ',
+            select_person: '-- Select person to link ID --',
+            no_available_persons: 'No available persons to link'
         },
         id: {
             inventory_link: 'Ke Alat Inventaris →',
@@ -73,7 +97,19 @@
             authenticating: 'Mengautentikasi...',
             auth_success: 'Autentikasi berhasil! Silakan lanjutkan dari tombol di atas.',
             loading_screen: 'Memuat layar...',
-            processing: 'Memproses...'
+            processing: 'Memproses...',
+            // Error validasi
+            error_required: 'Bidang ini wajib diisi.',
+            error_no_fullwidth: 'Karakter lebar penuh (Jepang) tidak dapat digunakan.',
+            error_check_input: 'Silakan periksa input Anda.',
+            error_communication: 'Kesalahan komunikasi: ',
+            error_server_communication: 'Kesalahan: Gagal berkomunikasi dengan server.',
+            error_generic: 'Kesalahan: ',
+            // Pilihan
+            loading_names: 'Memuat...',
+            error_loading: 'Kesalahan pemuatan: ',
+            select_person: '-- Pilih orang untuk menghubungkan ID --',
+            no_available_persons: 'Tidak ada orang yang tersedia untuk dihubungkan'
         }
     };
 
@@ -193,14 +229,15 @@
     }
 
     function validateInput(inputElement, errorElement, isRequired = true) {
+        const t = TRANSLATIONS[currentLang];
         const value = inputElement.value.trim();
         if (isRequired && value === '') {
-            errorElement.textContent = 'この項目は必須です。';
+            errorElement.textContent = t.error_required;
             inputElement.classList.add('border-red-500');
             return false;
         }
         if (value !== '' && nonAsciiPattern.test(value)) {
-            errorElement.textContent = '日本語（全角文字）は使用できません。';
+            errorElement.textContent = t.error_no_fullwidth;
             inputElement.classList.add('border-red-500');
             return false;
         }
@@ -256,28 +293,31 @@
 
     // 利用者情報編集画面を表示
     function handleShowRegister() {
+        const t = TRANSLATIONS[currentLang];
         dom.showRegisterBtn.disabled = true;
         dom.loginSection.classList.add('hidden');
         dom.registerSection.classList.remove('hidden');
         dom.registerNameSelect.disabled = true;
-        dom.registerNameSelect.innerHTML = '<option value="">読込中...</option>';
+        dom.registerNameSelect.innerHTML = `<option value="">${t.loading_names}</option>`;
 
         google.script.run
             .withSuccessHandler(names => {
+                const t = TRANSLATIONS[currentLang];
                 dom.registerNameSelect.innerHTML = '';
                 if (names && names.length > 0) {
-                    dom.registerNameSelect.innerHTML = '<option value="">-- IDを紐付ける担当者を選択 --</option>';
+                    dom.registerNameSelect.innerHTML = `<option value="">${t.select_person}</option>`;
                     names.forEach(name => {
                         dom.registerNameSelect.innerHTML += `<option value="${name}">${name}</option>`;
                     });
                 } else {
-                    dom.registerNameSelect.innerHTML = '<option value="">紐付け可能な担当者がいません</option>';
+                    dom.registerNameSelect.innerHTML = `<option value="">${t.no_available_persons}</option>`;
                 }
                 dom.registerNameSelect.disabled = false;
                 dom.showRegisterBtn.disabled = false;
             })
             .withFailureHandler(err => {
-                dom.registerNameSelect.innerHTML = `<option value="">読込エラー: ${err.message}</option>`;
+                const t = TRANSLATIONS[currentLang];
+                dom.registerNameSelect.innerHTML = `<option value="">${t.error_loading}${err.message}</option>`;
                 dom.registerNameSelect.disabled = true;
                 dom.showRegisterBtn.disabled = false;
             })
@@ -315,11 +355,12 @@
     function handleLoginSubmit(e) {
         e.preventDefault();
 
+        const t = TRANSLATIONS[currentLang];
         const isIdValid = validateInput(dom.loginIdInput, dom.loginIdError);
         const isPasswordValid = validateInput(dom.loginPasswordInput, dom.loginPasswordError);
 
         if (!isIdValid || !isPasswordValid) {
-            dom.loginErrorMessage.textContent = '入力内容を確認してください。';
+            dom.loginErrorMessage.textContent = t.error_check_input;
             dom.loginErrorMessage.classList.add('text-red-500');
             return;
         }
@@ -388,7 +429,7 @@
     // ログイン失敗時
     function handleLoginFailure(err) {
         const t = TRANSLATIONS[currentLang];
-        dom.loginErrorMessage.textContent = '通信エラー: ' + err.message;
+        dom.loginErrorMessage.textContent = t.error_communication + err.message;
         dom.loginErrorMessage.classList.add('text-red-500');
         dom.loginErrorMessage.classList.remove('text-green-600');
         dom.loginBtn.disabled = false;
@@ -400,6 +441,7 @@
     async function handleRegisterSubmit(e) {
         e.preventDefault();
 
+        const t = TRANSLATIONS[currentLang];
         const actionType = dom.actionSelect.value;
         const isIdValid = validateInput(dom.registerIdInput, dom.registerIdError);
         const isPasswordRequired = (actionType !== '削除');
@@ -408,7 +450,7 @@
         const isNameValid = !isNameRequired || (dom.registerNameSelect.value !== '');
 
         if (!isIdValid || !isPasswordValid || !isNameValid) {
-            dom.registerResultMessage.textContent = '入力内容を確認してください。';
+            dom.registerResultMessage.textContent = t.error_check_input;
             dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
             if (!isNameValid && isNameRequired) {
                 dom.registerNameSelect.classList.add('border-red-500');
@@ -421,7 +463,6 @@
         dom.registerNameSelect.classList.remove('border-red-500');
 
         // UI更新
-        const t = TRANSLATIONS[currentLang];
         dom.registerSubmitBtn.disabled = true;
         dom.registerBtnText.textContent = t.processing;
         dom.registerLoader.classList.remove('hidden');
@@ -442,11 +483,11 @@
                 dom.backToLoginBtn.click();
                 dom.backToLoginBtn.blur();
             } else {
-                dom.registerResultMessage.textContent = 'エラー: ' + result.message;
+                dom.registerResultMessage.textContent = t.error_generic + result.message;
                 dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
             }
         } catch (error) {
-            dom.registerResultMessage.textContent = 'エラー: サーバーとの通信に失敗しました。';
+            dom.registerResultMessage.textContent = t.error_server_communication;
             dom.registerResultMessage.className = 'mt-6 text-center text-sm font-medium h-5 text-red-600';
         } finally {
             const t = TRANSLATIONS[currentLang];
