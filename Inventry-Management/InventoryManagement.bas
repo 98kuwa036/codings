@@ -207,15 +207,15 @@ Private Sub SetupHelpSheet()
     row = row + 1
     ws.Cells(row, 2).Value = "・棚卸日：実地棚卸を実施した日付"
     row = row + 1
-    ws.Cells(row, 2).Value = "・物品名：プルダウンから選択（マスター設定の物品リストから選択）"
+    ws.Cells(row, 2).Value = "・管理番号：マスター設定シートの管理番号と対応"
     row = row + 1
-    ws.Cells(row, 2).Value = "・管理番号：物品名を選択すると自動的に表示されます"
+    ws.Cells(row, 2).Value = "・物品名：対象物品の名称"
     row = row + 1
-    ws.Cells(row, 2).Value = "・実地棚卸数：実際に数えた在庫数を入力"
+    ws.Cells(row, 2).Value = "・実地棚卸数：実際に数えた在庫数"
     row = row + 1
-    ws.Cells(row, 2).Value = "・理論在庫：システム上の在庫数（マスターから自動取得）"
+    ws.Cells(row, 2).Value = "・理論在庫：システム上の在庫数（入出庫履歴に基づく計算値）"
     row = row + 1
-    ws.Cells(row, 2).Value = "・差異：実地棚卸数 - 理論在庫（自動計算、プラスは実在庫過剰、マイナスは不足）"
+    ws.Cells(row, 2).Value = "・差異：実地棚卸数 - 理論在庫（プラスは実在庫過剰、マイナスは不足）"
     row = row + 1
     ws.Cells(row, 2).Value = "・備考：差異の原因や特記事項を記入"
     row = row + 1
@@ -223,13 +223,15 @@ Private Sub SetupHelpSheet()
     ws.Cells(row, 1).Value = "【使い方】"
     ws.Cells(row, 1).Font.Bold = True
     row = row + 1
+    ws.Cells(row, 2).Value = "⚠ このシートはCSVインポート専用です（手入力は非推奨）"
+    row = row + 1
     ws.Cells(row, 2).Value = "1) 月初や四半期ごとなど、定期的に実地棚卸を実施"
     row = row + 1
-    ws.Cells(row, 2).Value = "2) 棚卸日を入力し、物品名をプルダウンから選択（管理番号と理論在庫は自動表示）"
+    ws.Cells(row, 2).Value = "2) 棚卸アプリやシステムからCSV形式でエクスポート"
     row = row + 1
-    ws.Cells(row, 2).Value = "3) 実地棚卸数を入力すると、差異が自動計算されます"
+    ws.Cells(row, 2).Value = "3) VBAの「CSVインポート」機能を使用してデータを取り込み"
     row = row + 1
-    ws.Cells(row, 2).Value = "4) 大きな差異がある場合は、原因を調査して備考欄に記録"
+    ws.Cells(row, 2).Value = "4) 取り込まれたデータの差異を確認し、大きな差異があれば原因を調査"
     row = row + 1
     ws.Cells(row, 2).Value = "5) 棚卸後は「前回棚卸」シートに履歴が保存されます"
     row = row + 1
@@ -643,20 +645,16 @@ Private Sub SetupTransactionSheet()
 End Sub
 
 '-------------------------------------------------------------------------------
-' 棚卸データシートのセットアップ
+' 棚卸データシートのセットアップ（CSVインポート用）
 '-------------------------------------------------------------------------------
 Private Sub SetupInventorySheet()
     Dim ws As Worksheet
-    Dim wsMaster As Worksheet
-    Dim lastRow As Long
-
     Set ws = ThisWorkbook.Sheets(INVENTORY_SHEET)
-    Set wsMaster = ThisWorkbook.Sheets(MASTER_SHEET)
 
     With ws
         .Cells(1, 1).Value = "棚卸日"
-        .Cells(1, 2).Value = "物品名"
-        .Cells(1, 3).Value = "管理番号"
+        .Cells(1, 2).Value = "管理番号"
+        .Cells(1, 3).Value = "物品名"
         .Cells(1, 4).Value = "実地棚卸数"
         .Cells(1, 5).Value = "理論在庫"
         .Cells(1, 6).Value = "差異"
@@ -666,31 +664,6 @@ Private Sub SetupInventorySheet()
         .Range("A1:G1").Interior.Color = RGB(237, 125, 49)
         .Range("A1:G1").Font.Color = RGB(255, 255, 255)
         .Columns("A:G").AutoFit
-
-        ' B列（物品名）にデータ入力規則を設定
-        lastRow = wsMaster.Cells(wsMaster.Rows.Count, 2).End(xlUp).Row
-        If lastRow > 1 Then
-            ' 物品名のプルダウンリスト設定（2行目以降の100行分）
-            With .Range("B2:B1000").Validation
-                .Delete
-                .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-                     Formula1:="=" & MASTER_SHEET & "!$B$2:$B$" & lastRow
-                .IgnoreBlank = True
-                .InCellDropdown = True
-            End With
-
-            ' C列（管理番号）に自動取得の数式を設定
-            .Range("C2").Formula = "=IF(B2="""","""",IFERROR(INDEX(" & MASTER_SHEET & "!$A:$A,MATCH(B2," & MASTER_SHEET & "!$B:$B,0)),""""))"
-            .Range("C2").Copy .Range("C3:C1000")
-
-            ' E列（理論在庫）に数式を設定
-            .Range("E2").Formula = "=IF(B2="""","""",IFERROR(INDEX(" & MASTER_SHEET & "!$G:$G,MATCH(B2," & MASTER_SHEET & "!$B:$B,0)),""""))"
-            .Range("E2").Copy .Range("E3:E1000")
-
-            ' F列（差異）に数式を設定
-            .Range("F2").Formula = "=IF(D2="""","""",D2-E2)"
-            .Range("F2").Copy .Range("F3:F1000")
-        End If
     End With
 End Sub
 
