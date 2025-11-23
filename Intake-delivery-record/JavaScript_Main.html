@@ -1,0 +1,70 @@
+<script>
+// ===============================================================
+// [ JavaScript_Main.html ]
+// メイン初期化処理
+// ===============================================================
+console.log("[Loaded] JavaScript_Main");
+
+/**
+ * アプリ起動時に非同期でデータを取得し、UIを初期化する
+ */
+async function initialize() {
+    // 短い待機（UIのちらつき防止）
+    await new Promise(r => setTimeout(r, 500));
+
+    try {
+        console.log("Initialization started...");
+        updateLoadingStatus('アプリを起動しています...');
+
+        // 認証データを確認
+        if (!AUTH_DATA) {
+            throw new Error("認証データが見つかりません。ログインページからアクセスしてください。");
+        }
+
+        // 認証データを取得
+        const { uid, n_adm, n_rec, originalUrl } = AUTH_DATA;
+        state.originalUrl = originalUrl;
+
+        // フォームのデフォルト値を設定
+        initializeFormDefaults();
+
+        // イベントリスナーの設定
+        updateLoadingStatus('インターフェースを準備中...');
+        setupEventListeners();
+
+        // サーバーから初期データを取得
+        updateLoadingStatus('サーバーからデータを取得中...');
+        const data = await api.getInitialData(uid, n_adm, n_rec);
+
+        if (!data) {
+            throw new Error("データの取得に失敗しました。");
+        }
+
+        // UIを構築
+        updateLoadingStatus('UIを構築しています...');
+        onGetInitialDataSuccess(data);
+
+        // 完了。メインコンテンツを表示
+        updateLoadingStatus('まもなく完了します...');
+        showMainContent();
+
+        console.log("Initialization complete.");
+
+    } catch (error) {
+        showFatalError(error);
+    }
+}
+
+/**
+ * URLハッシュに基づき、初期ページを決定する
+ * (onGetInitialDataSuccess から呼び出される)
+ */
+function handleRouting() {
+    const hash = window.location.hash;
+    if (hash === '#page2') {
+        showPage(2);
+    } else {
+        navigateTo(1);
+    }
+}
+</script>

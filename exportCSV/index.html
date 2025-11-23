@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>入出庫記録 CSVエクスポート管理</title>
+
+  <style>
+    /* --- 変数定義 (Tailwindの色味を再現) --- */
+    :root {
+      --bg-gray-50: #f9fafb;
+      --bg-gray-100: #f3f4f6;
+      --bg-white: #ffffff;
+      --text-gray-800: #1f2937;
+      --text-gray-600: #4b5563;
+      --text-gray-500: #6b7280;
+      --text-gray-400: #9ca3af;
+      --bg-blue-600: #2563eb;
+      --bg-blue-700: #1d4ed8;
+      --bg-green-600: #16a34a;
+      --bg-green-700: #15803d;
+      --bg-yellow-50: #fefce8;
+      --bg-yellow-600: #ca8a04;
+      --bg-red-600: #dc2626;
+      --bg-red-700: #b91c1c;
+      --border-gray-300: #d1d5db;
+      --border-blue-300: #93c5fd;
+      --focus-ring-blue: rgba(59, 130, 246, 0.5);
+    }
+
+    /* --- 基本リセット --- */
+    body {
+      margin: 0;
+      font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      background-color: var(--bg-gray-50);
+      color: var(--text-gray-800);
+      padding: 1.5rem;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* --- コンテナ --- */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* --- カード --- */
+    .card {
+      background-color: var(--bg-white);
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      margin-bottom: 1.5rem;
+    }
+
+    /* --- タイトル --- */
+    h1 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem 0;
+      color: var(--text-gray-800);
+    }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      color: var(--text-gray-800);
+    }
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem 0;
+      color: var(--text-gray-600);
+    }
+    p.subtitle {
+      color: var(--text-gray-600);
+      margin: 0 0 1.5rem 0;
+    }
+
+    /* --- フォーム要素 --- */
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-gray-600);
+      margin-bottom: 0.5rem;
+    }
+
+    input[type="number"], select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-gray-300);
+      border-radius: 0.375rem;
+      font-size: 1rem;
+      outline: none;
+    }
+    input[type="number"]:focus, select:focus {
+      border-color: var(--bg-blue-600);
+      box-shadow: 0 0 0 3px var(--focus-ring-blue);
+    }
+
+    /* --- ボタン --- */
+    .btn {
+      padding: 0.625rem 1rem;
+      font-weight: 600;
+      border-radius: 0.375rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background-color 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background-color: var(--bg-blue-600);
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--bg-blue-700);
+    }
+    .btn-success {
+      background-color: var(--bg-green-600);
+      color: white;
+    }
+    .btn-success:hover:not(:disabled) {
+      background-color: var(--bg-green-700);
+    }
+    .btn-warning {
+      background-color: var(--bg-yellow-600);
+      color: white;
+    }
+    .btn-danger {
+      background-color: var(--bg-red-600);
+      color: white;
+    }
+    .btn-danger:hover:not(:disabled) {
+      background-color: var(--bg-red-700);
+    }
+    .btn-secondary {
+      background-color: var(--text-gray-500);
+      color: white;
+    }
+
+    /* --- グリッド --- */
+    .grid {
+      display: grid;
+      gap: 1rem;
+    }
+    .grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @media (max-width: 768px) {
+      .grid-cols-2, .grid-cols-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* --- ステータス表示 --- */
+    .status-box {
+      padding: 1rem;
+      border-radius: 0.375rem;
+      border-left: 4px solid;
+      margin-bottom: 1rem;
+    }
+    .status-info {
+      background-color: #eff6ff;
+      border-color: var(--bg-blue-600);
+      color: #1e40af;
+    }
+    .status-success {
+      background-color: #f0fdf4;
+      border-color: var(--bg-green-600);
+      color: #166534;
+    }
+    .status-warning {
+      background-color: var(--bg-yellow-50);
+      border-color: var(--bg-yellow-600);
+      color: #854d0e;
+    }
+
+    /* --- テーブル --- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th {
+      background-color: var(--bg-gray-100);
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border-gray-300);
+    }
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-gray-300);
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* --- ローディングスピナー --- */
+    .spinner {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- ログエリア --- */
+    #log-area {
+      background-color: #1f2937;
+      color: #e5e7eb;
+      padding: 1rem;
+      border-radius: 0.375rem;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    /* --- ヘルプセクション --- */
+    .help-section {
+      background-color: #eff6ff;
+      border: 1px solid var(--border-blue-300);
+      border-radius: 0.375rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .help-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+    }
+    .help-icon {
+      width: 1.25rem;
+      height: 1.25rem;
+      transition: transform 0.2s;
+    }
+
+    /* --- ユーティリティ --- */
+    .hidden { display: none; }
+    .mt-4 { margin-top: 1rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .text-sm { font-size: 0.875rem; }
+    .text-xs { font-size: 0.75rem; }
+    .font-semibold { font-weight: 600; }
+    .text-gray-600 { color: var(--text-gray-600); }
+    .text-blue-600 { color: var(--bg-blue-600); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- ヘッダー -->
+    <div class="card">
+      <h1>📊 入出庫記録 CSVエクスポート管理</h1>
+      <p class="subtitle">差分エクスポート機能でデータの重複を防ぎます</p>
+
+      <!-- 使い方ガイド -->
+      <div class="help-section">
+        <div class="help-title" onclick="toggleHelp()">
+          <span style="font-weight: 600; color: #1d4ed8; font-size: 0.875rem;">
+            💡 使い方ガイド
+          </span>
+          <svg id="help-toggle-icon" class="help-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#1d4ed8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <div id="help-content" style="display: none; font-size: 0.875rem; color: #374151; line-height: 1.6;">
+          <p style="margin: 0 0 0.5rem 0;"><strong>差分エクスポートについて</strong></p>
+          <p style="margin: 0 0 0.75rem 0;">前回エクスポート以降のデータのみを出力するため、同じ月に複数回実行しても重複しません。</p>
+
+          <p style="margin: 0 0 0.5rem 0;"><strong>基本的な使い方</strong></p>
+          <ol style="margin: 0 0 0.75rem 0; padding-left: 1.5rem;">
+            <li>「CSVエクスポート」セクションで年月を選択</li>
+            <li>「エクスポート実行」ボタンをクリック</li>
+            <li>完了後、生成されたCSVファイルをダウンロード</li>
+            <li>Excel VBAで順番にインポート</li>
+          </ol>
+
+          <p style="margin: 0 0 0.5rem 0;"><strong>エクスポート履歴管理</strong></p>
+          <p style="margin: 0 0 0.5rem 0;">・「履歴を確認」：過去のエクスポート日時を確認<br>
+          ・「履歴をリセット」：月初から再エクスポートしたい場合に使用</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- エクスポート履歴状態 -->
+    <div class="card">
+      <h2>📋 エクスポート履歴状態</h2>
+      <div id="history-status" class="status-box status-info">
+        <p style="margin: 0;">読み込み中...</p>
+      </div>
+      <button class="btn btn-secondary" onclick="loadHistory()">🔄 履歴を確認</button>
+    </div>
+
+    <!-- CSVエクスポート -->
+    <div class="card">
+      <h2>📤 CSVエクスポート</h2>
+      <form id="export-form">
+        <div class="grid grid-cols-3">
+          <div>
+            <label for="export-year">対象年</label>
+            <input type="number" id="export-year" min="2020" max="2099" required>
+          </div>
+          <div>
+            <label for="export-month">対象月</label>
+            <select id="export-month" required>
+              <option value="1">1月</option>
+              <option value="2">2月</option>
+              <option value="3">3月</option>
+              <option value="4">4月</option>
+              <option value="5">5月</option>
+              <option value="6">6月</option>
+              <option value="7">7月</option>
+              <option value="8">8月</option>
+              <option value="9">9月</option>
+              <option value="10">10月</option>
+              <option value="11">11月</option>
+              <option value="12">12月</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+              <span id="export-btn-text">▶️ エクスポート実行</span>
+              <span id="export-spinner" class="spinner hidden"></span>
+            </button>
+          </div>
+        </div>
+      </form>
+      <div id="export-result" class="mt-4"></div>
+    </div>
+
+    <!-- 履歴管理 -->
+    <div class="card">
+      <h2>🗂️ 履歴管理</h2>
+      <div class="grid grid-cols-2">
+        <div>
+          <h3>特定月をリセット</h3>
+          <div class="grid grid-cols-3">
+            <input type="number" id="reset-year" min="2020" max="2099" placeholder="年">
+            <input type="number" id="reset-month" min="1" max="12" placeholder="月">
+            <button class="btn btn-warning" onclick="resetMonth()">⚠️ リセット</button>
+          </div>
+        </div>
+        <div>
+          <h3>特定年の全月をリセット</h3>
+          <div class="grid grid-cols-2">
+            <input type="number" id="reset-year-all" min="2020" max="2099" placeholder="年">
+            <button class="btn btn-danger" onclick="resetYear()">🗑️ 全リセット</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ログ表示 -->
+    <div class="card">
+      <h2>📝 実行ログ</h2>
+      <div id="log-area"># ログがここに表示されます</div>
+      <button class="btn btn-secondary mt-4" onclick="clearLog()">🗑️ ログをクリア</button>
+    </div>
+  </div>
+
+  <script>
+    // 初期化
+    document.addEventListener('DOMContentLoaded', () => {
+      // 現在の年月を設定
+      const now = new Date();
+      document.getElementById('export-year').value = now.getFullYear();
+      document.getElementById('export-month').value = now.getMonth() + 1;
+
+      // 履歴を読み込み
+      loadHistory();
+
+      log('✅ 管理画面を初期化しました');
+    });
+
+    // ヘルプの表示切替
+    function toggleHelp() {
+      const content = document.getElementById('help-content');
+      const icon = document.getElementById('help-toggle-icon');
+      const isHidden = content.style.display === 'none';
+      content.style.display = isHidden ? 'block' : 'none';
+      icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    // CSVエクスポート
+    document.getElementById('export-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const year = parseInt(document.getElementById('export-year').value);
+      const month = parseInt(document.getElementById('export-month').value);
+
+      const btnText = document.getElementById('export-btn-text');
+      const spinner = document.getElementById('export-spinner');
+      const resultDiv = document.getElementById('export-result');
+
+      btnText.textContent = '処理中...';
+      spinner.classList.remove('hidden');
+      resultDiv.innerHTML = '';
+
+      log(`📤 エクスポート開始: ${year}年${month}月`);
+
+      try {
+        const result = await google.script.run
+          .withSuccessHandler(onExportSuccess)
+          .withFailureHandler(onExportFailure)
+          .exportCSV(year, month);
+      } catch (error) {
+        onExportFailure(error);
+      } finally {
+        btnText.textContent = '▶️ エクスポート実行';
+        spinner.classList.add('hidden');
+      }
+    });
+
+    function onExportSuccess(result) {
+      const resultDiv = document.getElementById('export-result');
+      resultDiv.innerHTML = `
+        <div class="status-box status-success">
+          <p style="margin: 0 0 0.5rem 0; font-weight: 600;">✅ エクスポート成功</p>
+          <p style="margin: 0; font-size: 0.875rem;">
+            ファイル名: ${result.fileName}<br>
+            エクスポート件数: ${result.count}件<br>
+            <a href="${result.fileUrl}" target="_blank" style="color: #166534; text-decoration: underline;">ファイルを開く</a>
+          </p>
+        </div>
+      `;
+      log(`✅ エクスポート成功: ${result.count}件`);
+      log(`📁 ファイル: ${result.fileName}`);
+      loadHistory(); // 履歴を再読み込み
+    }
+
+    function onExportFailure(error) {
+      const resultDiv = document.getElementById('export-result');
+      resultDiv.innerHTML = `
+        <div class="status-box" style="background-color: #fee; border-color: #dc2626; color: #991b1b;">
+          <p style="margin: 0; font-weight: 600;">❌ エラー</p>
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">${error.message || error}</p>
+        </div>
+      `;
+      log(`❌ エラー: ${error.message || error}`);
+    }
+
+    // 履歴読み込み
+    function loadHistory() {
+      log('🔍 エクスポート履歴を確認中...');
+      google.script.run
+        .withSuccessHandler(displayHistory)
+        .withFailureHandler((error) => {
+          log(`❌ 履歴読み込みエラー: ${error.message}`);
+        })
+        .getAllExportHistory();
+    }
+
+    function displayHistory(history) {
+      const statusDiv = document.getElementById('history-status');
+
+      if (!history || history.length === 0) {
+        statusDiv.className = 'status-box status-warning';
+        statusDiv.innerHTML = '<p style="margin: 0;">⚠️ エクスポート履歴がありません</p>';
+        log('📋 エクスポート履歴: なし');
+        return;
+      }
+
+      statusDiv.className = 'status-box status-success';
+      let html = '<p style="margin: 0 0 0.75rem 0; font-weight: 600;">✅ エクスポート履歴 (${history.length}件)</p>';
+      html += '<table><thead><tr><th>年月</th><th>最終エクスポート日時</th></tr></thead><tbody>';
+
+      history.forEach(item => {
+        html += `<tr><td>${item.yearMonth}</td><td>${item.dateTime}</td></tr>`;
+      });
+
+      html += '</tbody></table>';
+      statusDiv.innerHTML = html;
+      log(`📋 エクスポート履歴を表示: ${history.length}件`);
+    }
+
+    // 月リセット
+    function resetMonth() {
+      const year = parseInt(document.getElementById('reset-year').value);
+      const month = parseInt(document.getElementById('reset-month').value);
+
+      if (!year || !month) {
+        alert('年と月を入力してください');
+        return;
+      }
+
+      if (!confirm(`${year}年${month}月のエクスポート履歴をリセットしますか？\n次回は月初からの全データがエクスポートされます。`)) {
+        return;
+      }
+
+      log(`⚠️ 履歴リセット開始: ${year}年${month}月`);
+
+      google.script.run
+        .withSuccessHandler(() => {
+          log(`✅ 履歴リセット完了: ${year}年${month}月`);
+          loadHistory();
+        })
+        .withFailureHandler((error) => {
+          log(`❌ リセットエラー: ${error.message}`);
+        })
+        .resetExportHistory(year, month);
+    }
+
+    // 年リセット
+    function resetYear() {
+      const year = parseInt(document.getElementById('reset-year-all').value);
+
+      if (!year) {
+        alert('年を入力してください');
+        return;
+      }
+
+      if (!confirm(`${year}年の全月のエクスポート履歴をリセットしますか？\nこの操作は取り消せません。`)) {
+        return;
+      }
+
+      log(`⚠️ 年間履歴リセット開始: ${year}年`);
+
+      google.script.run
+        .withSuccessHandler(() => {
+          log(`✅ 年間履歴リセット完了: ${year}年`);
+          loadHistory();
+        })
+        .withFailureHandler((error) => {
+          log(`❌ リセットエラー: ${error.message}`);
+        })
+        .resetYearExportHistory(year);
+    }
+
+    // ログ出力
+    function log(message) {
+      const logArea = document.getElementById('log-area');
+      const timestamp = new Date().toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      logArea.textContent += `[${timestamp}] ${message}\n`;
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log-area').textContent = '# ログがクリアされました\n';
+      log('🗑️ ログをクリアしました');
+    }
+  </script>
+
+</body>
+</html>

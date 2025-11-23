@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= systemName || '管理者ダッシュボード' ?></title>
+
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* === Notion風テーマ === */
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text: #2c2c2c;
+      --accent: #5468ff;
+      --border: #e0e0e0;
+      --loader-color: #bbbbbb;
+    }
+
+    /* ★ ダークモードの配色 ★ */
+    [data-theme="dark"] {
+      --bg: #1e1f22;
+      --card-bg: #2a2b2f;
+      --text: #e2e2e2;
+      --accent: #9da4ff;
+      --border: #3a3a3a;
+      --loader-color: #555555;
+    }
+
+    /* --- 基本スタイル --- */
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Inter", "Noto Sans JP", sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    main {
+      flex: 1 0 auto;
+      padding: 1.5rem 1rem; /* スマホ用に左右パディングを少し減らす */
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    
+    @media (min-width: 601px) {
+      main {
+        padding: 2rem; /* PCでは元のパディング */
+      }
+    }
+
+    /* --- ナビゲーションバー --- */
+    nav {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      box-shadow: none;
+      transition: background-color 0.3s ease;
+    }
+    nav .brand-logo {
+      color: var(--text);
+      font-weight: 600;
+      padding-left: 16px;
+    }
+    nav a, nav .sidenav-trigger {
+      color: var(--text) !important; /* Materializeの上書き */
+      opacity: 0.85;
+    }
+    .sidenav {
+       background-color: var(--bg);
+    }
+    .sidenav li > a {
+       color: var(--text);
+       font-weight: 500;
+    }
+    .sidenav li > a > i.material-icons {
+       color: var(--text);
+       opacity: 0.7;
+    }
+
+    /* ★ テーマ切り替えボタン ★ */
+    .theme-toggle-btn {
+      color: var(--text);
+      opacity: 0.8;
+      transition: opacity 0.3s;
+      width: 64px; /* アイコンが中央に来るように */
+      text-align: center;
+    }
+    .theme-toggle-btn:hover {
+      opacity: 1;
+      background-color: transparent !important; /* ホバー背景を消す */
+    }
+
+    /* --- コンテンツカード --- */
+    .card-panel {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      margin-bottom: 1.5rem;
+    }
+    
+    [data-theme="dark"] .card-panel {
+       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .card-panel h5 {
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    /* --- タブ --- */
+    .tabs {
+      background-color: transparent; /* 背景を透明に */
+      margin-bottom: 1.5rem;
+    }
+    .tabs .tab a {
+      color: var(--text);
+      opacity: 0.7;
+      font-weight: 500;
+    }
+    .tabs .tab a:hover {
+      opacity: 1;
+    }
+    .tabs .tab a.active {
+      color: var(--accent);
+      font-weight: 600;
+      opacity: 1;
+    }
+    .tabs .indicator {
+      background-color: var(--accent);
+      height: 3px;
+    }
+    
+    /* --- Materialize コンポーネントの色上書き --- */
+    .btn, .btn:focus {
+      background-color: var(--accent);
+      color: white;
+      border-radius: 6px;
+      box-shadow: none;
+    }
+    .btn:hover {
+      background-color: color-mix(in srgb, var(--accent) 85%, #000);
+      box-shadow: none;
+    }
+    .btn.orange { background-color: #f57c00 !important; }
+    .btn.red { background-color: #d32f2f !important; }
+
+    /* モーダル */
+    .modal {
+      background-color: var(--card-bg);
+      color: var(--text);
+      border-radius: 12px;
+    }
+    .modal .modal-footer {
+      background-color: transparent;
+    }
+    .modal .modal-close {
+      color: var(--text);
+    }
+    
+    /* フォーム */
+    input[type=text]:not(.browser-default),
+    input[type=password]:not(.browser-default),
+    input[type=email]:not(.browser-default) {
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    input[type=text]:not(.browser-default):focus:not([readonly]),
+    input[type=password]:not(.browser-default):focus:not([readonly]),
+    input[type=email]:not(.browser-default):focus:not([readonly]) {
+      border-bottom: 2px solid var(--accent);
+      box-shadow: 0 1px 0 0 var(--accent);
+    }
+    label {
+      color: var(--text);
+      opacity: 0.8;
+    }
+    label.active {
+      color: var(--accent) !important;
+    }
+    
+    /* セレクト（プルダウン） */
+    .select-wrapper input.select-dropdown {
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+    .dropdown-content {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+    }
+    .dropdown-content li > span {
+      color: var(--accent);
+    }
+    .dropdown-content li.selected {
+      background-color: color-mix(in srgb, var(--accent) 10%, var(--card-bg));
+    }
+    
+    /* スイッチ */
+    .switch label input[type=checkbox]:checked+.lever {
+      background-color: color-mix(in srgb, var(--accent) 40%, #fff);
+    }
+    .switch label input[type=checkbox]:checked+.lever:after {
+      background-color: var(--accent);
+    }
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+    }
+    
+    /* テーブル */
+    table {
+      color: var(--text);
+    }
+    th {
+      font-weight: 600;
+    }
+    
+    /* ★ 修正: .truncate-text を削除し、#tableB 専用の改行設定を追加 */
+    #tableB th, #tableB td {
+      word-break: break-all; /* 文字があふれる場合は強制的に改行 */
+    }
+    
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+    }
+    
+    /* ローダー */
+    .preloader-wrapper.active .spinner-layer {
+      border-color: var(--loader-color);
+    }
+    [data-theme="dark"] .preloader-wrapper.active .spinner-layer.spinner-blue-only {
+       border-color: var(--accent); /* ダークモードのローダー色 */
+    }
+
+    /* フッター */
+    footer.page-footer {
+      background-color: transparent;
+      padding-top: 0;
+      margin-top: 2rem;
+    }
+    .footer-copyright {
+      background-color: var(--card-bg);
+      border-top: 1px solid var(--border);
+      color: var(--text);
+      opacity: 0.7;
+      padding: 1.5rem;
+    }
+    
+    /* エラーページ用 */
+    .error-card {
+      text-align: center;
+      padding: 2rem;
+    }
+    .error-card i {
+      font-size: 4rem;
+      color: #e57373;
+    }
+  </style>
+
+  <script>
+    // ページが描画される「前」に実行し、テーマのちらつきを防ぐ
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        // 保存された設定が 'dark'
+        // または、設定がなく OS が 'dark' の場合
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {
+        // localStorage が使えない場合などはデフォルト（ライト）のまま
+      }
+    })();
+  </script>
+
+</head>
+<body>
+
+  <nav>
+    <div class="nav-wrapper">
+      <a href="#" class="brand-logo"><?= systemName || 'ダッシュボード' ?></a>
+      <a href="#" data-target="slide-out" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+      
+      <ul class="right hide-on-med-and-down">
+        <li>
+          <a href="#!" class="theme-toggle-btn" onclick="toggleTheme(event)">
+            <i class="material-icons" id="theme-icon-desktop">brightness_7</i>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <ul id="slide-out" class="sidenav">
+    <li><a class="subheader">ダッシュボード</a></li>
+    <li><a class="sidenav-link" href="#pageA"><i class="material-icons">bar_chart</i>A: 入出庫記録</a></li>
+    <li><a class="sidenav-link" href="#pageB"><i class="material-icons">history</i>B: 実行ログ</a></li>
+    <li><div class="divider"></div></li>
+    <li><a class="subheader">管理</a></li>
+    <li><a class="sidenav-link" href="#pageC"><i class="material-icons">people</i>C: ユーザ管理</a></li>
+    <li><a class="sidenav-link" href="#pageD"><i class="material-icons">inventory_2</i>D: 物品マスター</a></li>
+    <li><a class="sidenav-link" href="#pageE"><i class="material-icons">visibility</i>E: UIパーツ設定</a></li>
+    <li><a class="sidenav-link" href="#pageF"><i class="material-icons">admin_panel_settings</i>F: 権限設定</a></li>
+    <li><a class="sidenav-link" href="#pageG"><i class="material-icons">check_circle_outline</i>G: 登録承認</a></li>
+    
+    <li><div class="divider"></div></li>
+    <li>
+      <a href="#!" class="theme-toggle-btn" onclick="toggleTheme(event)">
+        <i class="material-icons" id="theme-icon-mobile">brightness_7</i>
+        <span style="vertical-align: top; margin-left: 1rem;">テーマ切替</span>
+      </a>
+    </li>
+  </ul>
+
+  <main>
+    <div class="row">
+      <div class="col s12">
+        <ul class="tabs">
+              <li class="tab"><a class="active" href="#pageA">A: 記録</a></li>
+              <li class="tab"><a href="#pageB">B: ログ</a></li>
+              <li class="tab"><a href="#pageC">C: ユーザ</a></li>
+              <li class="tab"><a href="#pageD">D: マスター</a></li>
+              <li class="tab"><a href="#pageE">E: UI設定</a></li>
+              <li class="tab"><a href="#pageF">F: 権限設定</a></li>
+              <li class="tab"><a href="#pageG">G: 登録承認</a></li>
+        </ul>
+      </div>
+
+      <div id="pageA" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">bar_chart</i>入出庫記録 (最新500件)</h5>
+          <button class="btn" onclick="loadSheetData('入出庫記録', 'tableA')">
+            <i class="material-icons left">refresh</i>更新
+          </button>
+          <div id="loaderA" style="display: none; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          <div id="tableA_container" class="responsive-table" style="display: none; margin-top: 1rem;">
+            <table id="tableA" class="highlight"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="pageB" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">history</i>実行ログ (最新500件)</h5>
+          <button class="btn" onclick="loadSheetData('実行ログ', 'tableB')">
+            <i class="material-icons left">refresh</i>更新
+          </button>
+          <div id="loaderB" style="display: none; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          <div id="tableB_container" class="responsive-table" style="display: none; margin-top: 1rem;">
+            <table id="tableB" class="highlight" style="table-layout: fixed; width: 100%;"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="pageC" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">people</i>ユーザ管理</h5>
+          <button class="btn" onclick="loadSheetData('ユーザー管理', 'tableC')">
+            <i class="material-icons left">refresh</i>更新
+          </button>
+          <button class="btn green modal-trigger" href="#modalC" onclick="resetUserForm()">
+            <i class="material-icons left">add</i>新規
+          </button>
+          <div id="loaderC" style="display: none; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          <div id="tableC_container" class="responsive-table" style="display: none; margin-top: 1rem;">
+            <table id="tableC" class="highlight"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="pageD" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">inventory_2</i>物品マスター</h5>
+          <button class="btn" onclick="loadSheetData('マスター', 'tableD')">
+            <i class="material-icons left">refresh</i>更新
+          </button>
+          <button class="btn green modal-trigger" href="#modalD" onclick="resetMasterForm()">
+            <i class="material-icons left">add</i>新規
+          </button>
+          <div id="loaderD" style="display: none; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          <div id="tableD_container" class="responsive-table" style="display: none; margin-top: 1rem;">
+            <table id="tableD" class="highlight"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="pageE" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">visibility</i>UIパーツ設定</h5>
+          <div id="loaderE" style="display: block; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          <div id="uiSettingsContainer">
+            </div>
+          <button class="btn" style="margin-top: 1rem;" onclick="saveUiSettings()">
+            <i class="material-icons left">save</i>保存
+          </button>
+        </div>
+      </div>
+
+      <div id="pageF" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">admin_panel_settings</i>権限設定</h5>
+          <p class="grey-text text-darken-1">SuperAdminの権限は変更できません。</p>
+          <div id="loaderF" style="display: block; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          <div id="roleSettingsContainer" class="row">
+            </div>
+        </div>
+      </div>
+      <div id="pageG" class="col s12">
+        <div class="card-panel">
+          <h5><i class="material-icons left">check_circle_outline</i>物品マスター 登録承認</h5>
+          <p class="grey-text text-darken-1">
+            入出庫ツールから仮登録された物品（「一時作業」シート ）を承認し、正式な「マスター」に登録します。
+          </p>
+          <button class="btn" onclick="loadPendingData()">
+            <i class="material-icons left">refresh</i>承認待ちリストを更新
+          </button>
+          
+          <div id="loaderG" style="display: none; text-align: center; padding: 2rem;">
+            <div class="preloader-wrapper active spinner-blue-only">
+              <div class="spinner-layer"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+            </div>
+          </div>
+          
+          <div id="tableG_container" class="responsive-table" style="display: none; margin-top: 1rem;">
+            <table id="tableG" class="highlight">
+              </table>
+          </div>
+        </div>
+      </div>
+
+    </div></main>
+
+  <footer class="page-footer">
+    <div class="footer-copyright">
+      <div class="container">
+      © 2025 管理者ダッシュボード
+      </div>
+    </div>
+  </footer>
+
+  <div id="modalC" class="modal">
+    <div class="modal-content">
+      <h5 id="modalCTitle">新規ユーザ登録</h5>
+      <form id="formC" class="row">
+        <input type="hidden" id="editRowIndexC">
+        <div class="input-field col s12 m6">
+          <input id="c_name" type="text">
+          <label for="c_name">氏名 *</label>
+        </div>
+        <div class="input-field col s12 m6">
+          <input id="c_id" type="text">
+          <label for="c_id">ID *</label>
+        </div>
+        <div class="input-field col s12 m6">
+          <input id="c_pass" type="text">
+          <label for="c_pass">パスワード (新規登録時*)</label>
+        </div>
+        <div class="input-field col s12 m6">
+          <select id="c_role">
+            <option value="" disabled selected>役割を選択</option>
+            <option value="Admin">Admin</option>
+            <option value="User">User</option>
+          </select>
+          <label for="c_role">役割 *</label>
+        </div>
+        <div class="input-field col s12 m6">
+          <input id="c_status" type="text" value="Active">
+          <label for="c_status" class="active">状態 *</label>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <a href="#!" class="modal-close waves-effect btn-flat">キャンセル</a>
+      <button class="btn waves-effect" onclick="saveUserData()">保存</button>
+    </div>
+  </div>
+
+  <div id="modalD" class="modal">
+    <div class="modal-content">
+      <h5 id="modalDTitle">新規マスター登録</h5>
+      <form id="formD" class="row">
+        <input type="hidden" id="editRowIndexD">
+        <div class="input-field col s12 m6">
+          <input id="d_code" type="text">
+          <label for="d_code">商品コード *</label>
+        </div>
+        <div class="input-field col s12 m6">
+          <input id="d_name" type="text">
+          <label for="d_name">商品名 *</label>
+        </div>
+        
+        <div class="input-field col s12 m6">
+          <select id="d_category">
+            <option value="" selected>（カテゴリなし）</option>
+            <option value="劇薬薬品">A: 劇薬薬品</option>
+            <option value="普通薬品">B: 普通薬品</option>
+            <option value="治療用資材">C: 治療用資材</option>
+            <option value="繁殖用資材">D: 繁殖用資材</option>
+            <option value="点滴用資材">E: 点滴用資材</option>
+            <option value="飼料添加物">F: 飼料添加物</option>
+            <option value="消耗品">G: 消耗品</option>
+          </select>
+          <label for="d_category">カテゴリ</label>
+        </div>
+        <div class="input-field col s12 m6">
+          <input id="d_status" type="text" value="Active">
+          <label for="d_status" class="active">状態 *</label>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <a href="#!" class="modal-close waves-effect btn-flat">キャンセル</a>
+      <button class="btn waves-effect" onclick="saveMasterData()">保存</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  
+  <script>
+    // ★★★ 新規追加: サーバーから役割と権限設定を受け取る ★★★
+    const USER_ROLE = "<?= userRole || 'User' ?>";
+    const ALL_PERMISSIONS_JSON = <?= allPermissionsJson || '{}' ?>;
+    
+    // ★★★ 新規追加: サーバーから認証情報 (名前/ID) を受け取る ★★★
+    // (ログの「編集者名」としてサーバーに送り返すため)
+    const AUTH_INFO = (function() {
+      try {
+        return JSON.parse(<?= authInfoJson || '{}' ?>);
+      } catch (e) {
+        return { uid: 'unknown', name: 'unknown' };
+      }
+    })();
+    
+    let tabInstance;
+    let modalC_instance;
+    let modalD_instance;
+    
+    // ★ 1. スクリプトブロック実行開始ログ
+    console.log("スクリプトブロック 実行開始 (v2.1 / window.load)");
+  
+    window.addEventListener("load", () => {
+      // ★ 2. load イベント発火ログ
+      console.log("window 'load' イベント 発火");
+      
+      try {
+        // Sidenav
+        const sidenavElems = document.querySelectorAll(".sidenav");
+        const sidenavInstances = M.Sidenav.init(sidenavElems);
+        console.log("M.Sidenav.init 完了", { elemsFound: sidenavElems.length });
+  
+        // Tabs
+        const tabElems = document.querySelector(".tabs");
+        if (!tabElems) {
+            console.error("Error: <ul class'tabs'> が見つかりません。");
+            M.toast({ html: 'エラー: タブの初期化に失敗しました。', classes: 'red darken-1' });
+            return; 
+        }
+        tabInstance = M.Tabs.init(tabElems, {
+          onShow: (tabContent) => {
+            if (tabInstance) tabInstance.updateTabIndicator();
+          }
+        });
+        console.log("M.Tabs.init 完了", { instance: tabInstance });
+  
+        // Modal C 
+        const modalCElem = document.getElementById("modalC");
+        modalC_instance = M.Modal.init(modalCElem);
+        console.log("M.Modal.init (modalC) 完了");
+  
+        // Modal D 
+        const modalDElem = document.getElementById("modalD");
+        modalD_instance = M.Modal.init(modalDElem);
+        console.log("M.Modal.init (modalD) 完了");
+        
+        // Select (プルダウン)
+        const selectElems = document.querySelectorAll('select');
+        M.FormSelect.init(selectElems);
+        console.log("M.FormSelect.init 完了");
+  
+        console.log("Materialize コンポーネント同期初期化完了 (on window.load)");
+  
+        // 初期化後にセットアップ関数を実行
+        setupSidenavLinks();
+        
+        // ★★★ 修正: 権限適用後に、表示されているタブのデータを読み込む ★★★
+        const visibleTabs = applyPermissions(USER_ROLE, ALL_PERMISSIONS_JSON);
+
+        // 権限設定タブとUI設定タブは常時読み込む
+        if (visibleTabs.includes('pageE')) loadUiSettings();
+        if (visibleTabs.includes('pageF')) loadRoleSettings(); 
+        
+        if (visibleTabs.includes('pageG')) loadPendingData();
+
+        // ★★★ ページAとBの自動読み込みをトリガー ★★★
+        const hash = window.location.hash;
+        if (hash && visibleTabs.includes(hash.substring(1))) {
+           // URLハッシュが 'pageA' や 'pageB' で、それが見える権限がある場合
+           console.log(`URLハッシュ ${hash} に基づき、タブを選択・読み込みます。`);
+           tabInstance.select(hash.substring(1));
+           loadDataForTab(hash.substring(1)); // ★ 該当タブのデータのみ読み込む
+        }
+        else if (visibleTabs.length > 0) {
+           // ハッシュがないか無効な場合、表示可能な最初のタブを読み込む
+           console.log(`表示可能な最初のタブ ${visibleTabs[0]} のデータを読み込みます。`);
+           tabInstance.select(visibleTabs[0]); // UIを最初のタブに合わせる
+           loadDataForTab(visibleTabs[0]); // ★ 最初のタブのデータのみ読み込む
+        }
+  
+      } catch (initError) {
+        // ★ 初期化中のエラーログ
+        console.error("Materialize 初期化中に例外エラーが発生しました:", initError);
+        M.toast({ html: `初期化エラー: ${initError.message}`, classes: 'red darken-1' });
+      }
+    });
+    
+    // ======================================================
+    // ★★★ 新規追加: タブIDに基づいてデータを読み込む関数 ★★★
+    // ======================================================
+    function loadDataForTab(tabId) {
+       switch(tabId) {
+         case 'pageA':
+           loadSheetData('入出庫記録', 'tableA');
+           break;
+         case 'pageB':
+           loadSheetData('実行ログ', 'tableB');
+           break;
+         case 'pageC':
+           loadSheetData('ユーザー管理', 'tableC');
+           break;
+         case 'pageD':
+           loadSheetData('マスター', 'tableD');
+           break;
+         case 'pageG':
+           loadPendingData();
+           break;
+         // pageE, pageF はロード時に読み込み済み
+       }
+    }
+
+    // ======================================================
+    // ★★★ 新規追加: テーマ切り替えロジック ★★★
+    // ======================================================
+    
+    const themeIconDesktop = document.getElementById('theme-icon-desktop');
+    const themeIconMobile = document.getElementById('theme-icon-mobile');
+    
+    // 現在のテーマを 'dark' または 'light' で返す
+    function getCurrentTheme() {
+      return document.documentElement.getAttribute('data-theme') || 'light';
+    }
+
+    // ページロード時に正しいアイコンを設定
+    (function setInitialIcon() {
+      const currentTheme = getCurrentTheme();
+      const iconName = currentTheme === 'dark' ? 'brightness_4' : 'brightness_7';
+      if (themeIconDesktop) themeIconDesktop.innerText = iconName;
+      if (themeIconMobile) themeIconMobile.innerText = iconName;
+    })();
+    
+    // ボタンクリック時のグローバル関数
+    function toggleTheme(event) {
+      // ★★★ 修正: リンクのデフォルト動作（リロード）をキャンセル ★★★
+      if (event) {
+        event.preventDefault();
+      }
+      // ★★★ ここまで ★★★
+      
+      const currentTheme = getCurrentTheme();
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme); // 設定を保存
+      
+      // アイコンを更新
+      const newIconName = newTheme === 'dark' ? 'brightness_4' : 'brightness_7';
+      if (themeIconDesktop) themeIconDesktop.innerText = newIconName;
+      if (themeIconMobile) themeIconMobile.innerText = newIconName;
+      
+      console.log(`Theme changed to ${newTheme}`);
+    }
+
+    // ======================================================
+    // サイドナビ・タブ切り替え (★ 修正: e.preventDefault() を追加)
+    // ======================================================
+    function setupSidenavLinks() {
+      // ★ 5. セットアップログ
+      console.log("setupSidenavLinks 実行開始");
+      const sidenavLinks = document.querySelectorAll(".sidenav-link");
+      const sidenavElem = document.getElementById("slide-out");
+      if (!sidenavElem) {
+        console.error("setupSidenavLinks: #slide-out が見つかりません。");
+        return;
+      }
+      
+      const sidenavInstance = M.Sidenav.getInstance(sidenavElem);
+      console.log("setupSidenavLinks: Sidenavインスタンス取得結果", { instance: sidenavInstance });
+    
+      sidenavLinks.forEach((link) => {
+        link.addEventListener("click", (e) => {
+          
+          e.preventDefault(); // リンクのデフォルト動作 (URL遷移) をキャンセル
+          
+          // ★ 6. クリックログ
+          const tabId = link.getAttribute("href").substring(1);
+          console.log(`Sidenav リンククリック: ${tabId}`);
+          if (tabInstance) {
+             tabInstance.select(tabId);
+          }
+          if (sidenavInstance && sidenavInstance.isOpen && window.innerWidth < 993) {
+            sidenavInstance.close();
+          }
+        });
+      });
+      console.log(`setupSidenavLinks: ${sidenavLinks.length} 個のリンクにイベント設定完了`);
+    }
+    
+    // ======================================================
+    // ★★★ 新規追加: 権限設定をUIに適用 ★★★
+    // ======================================================
+    function applyPermissions(userRole, allPermissionsJson) {
+      console.log(`applyPermissions 実行: Role=${userRole}`);
+      const menuIds = ["pageA", "pageB", "pageC", "pageD", "pageE", "pageF", "pageG"];
+      
+      // SuperAdmin は常に全権限
+      if (userRole === 'SuperAdmin') {
+        console.log("SuperAdmin のため、全てのメニューを表示します。");
+        return menuIds; // 全てのIDを返す
+      }
+
+      let allPermissions;
+      try {
+        // allPermissions = allPermissionsJson; // GS側で既にJSON.stringifyされている
+        if (typeof allPermissionsJson === 'string') {
+           allPermissions = JSON.parse(allPermissionsJson);
+        } else {
+           allPermissions = allPermissionsJson; // 既にオブジェクトの場合
+        }
+      } catch(e) {
+        console.error("権限設定のJSONパースに失敗:", e.message);
+        allPermissions = {};
+      }
+
+      // 自分の役割の権限設定を取得 (例: { "pageA": true, "pageB": false, ... })
+      const myPermissions = allPermissions[userRole] || {};
+      console.log("My Permissions:", myPermissions);
+      
+      let firstVisibleTab = null; // 非表示後にアクティブにするタブ
+      const visibleTabs = []; // ★ 表示可能なタブを記録
+
+      menuIds.forEach(menuId => {
+        // 権限が false (または未設定) の場合、非表示にする
+        if (myPermissions[menuId] !== true) {
+          console.log(`非表示にします: ${menuId}`);
+          
+          // 1. 上部タブを非表示
+          const tabLink = document.querySelector(`.tabs a[href='#${menuId}']`);
+          if (tabLink && tabLink.parentElement) {
+            tabLink.parentElement.style.display = 'none';
+          }
+          
+          // 2. サイドメニューを非表示
+          const sidenavLink = document.querySelector(`.sidenav-link[href='#${menuId}']`);
+          if (sidenavLink && sidenavLink.parentElement) {
+            sidenavLink.parentElement.style.display = 'none';
+          }
+          
+          // 3. タブのコンテンツ本体を非表示 (念のため)
+          const content = document.getElementById(menuId);
+          if (content) {
+            content.style.display = 'none';
+          }
+        } else {
+          // 表示が許可されているタブのうち、最初のものを記録
+          if (!firstVisibleTab) {
+            firstVisibleTab = menuId;
+          }
+          visibleTabs.push(menuId); // ★ 表示可能リストに追加
+        }
+      });
+      
+      // もし、デフォルトでアクティブだった 'pageA' が非表示になった場合、
+      // 表示可能な最初のタブ (例: 'pageC') を強制的にアクティブにする
+      const activeTab = document.querySelector('.tabs .tab a.active');
+      if (activeTab && activeTab.getAttribute('href') !== `#${firstVisibleTab}`) {
+        if (firstVisibleTab && tabInstance) {
+          console.log(`デフォルトタブが非表示のため、 ${firstVisibleTab} をアクティブにします。`);
+          tabInstance.select(firstVisibleTab);
+          tabInstance.updateTabIndicator();
+        }
+      }
+      
+      return visibleTabs; // ★ 表示可能なタブのリストを返す
+    }
+
+    // ======================================================
+    // シートデータ読み込み (★修正: JSON.parse() を追加)
+    // ======================================================
+    function loadSheetData(sheetName, tableId) {
+      // ★ 7. データ読み込み開始ログ
+      console.log(`loadSheetData 実行: sheetName=${sheetName}, tableId=${tableId}`);
+      
+      const loaderId = tableId.replace("table", "loader");
+      const tableContainer = document.getElementById(tableId + "_container");
+      const loaderElem = document.getElementById(loaderId);
+      
+      if (!loaderElem || !tableContainer) {
+        console.error(`loadSheetData: DOMが見つかりません。 loaderId=${loaderId}, containerId=${tableId + "_container"}`);
+        return;
+      }
+  
+      loaderElem.style.display = "block";
+      tableContainer.style.display = "none";
+      document.getElementById(tableId).innerHTML = "";
+    
+      console.log(`loadSheetData: google.script.run.getSheetData('${sheetName}') を呼び出します...`);
+      google.script.run
+        .withSuccessHandler((jsonString) => { // ★名前を jsonString に変更
+          // ★ 8. 成功ログ
+          console.log(`loadSheetData Success (sheetName=${sheetName}): JSON文字列受信。`);
+          
+          let data;
+          try {
+            // ★★★ 修正: 受け取ったJSON文字列をパースする ★★★
+            data = JSON.parse(jsonString);
+          } catch (e) {
+            console.error(`JSON.parse 失敗 (getSheetData): ${e.message}`, jsonString);
+            data = [['エラー', 'サーバーから無効なJSONが返されました。']];
+          }
+          
+          if (data && data.length > 0) {
+            console.log("受信データ (パース後, 先頭5行):", JSON.parse(JSON.stringify(data.slice(0, 5))));
+          } else {
+            console.warn("受信データ (パース後): 空または null です。", data);
+          }
+          
+          displayData(data, tableId);
+          loaderElem.style.display = "none";
+          tableContainer.style.display = "block";
+        })
+        .withFailureHandler((error) => {
+          // ★ 9. 失敗ログ
+          console.error(`loadSheetData Failure (sheetName=${sheetName}):`, error);
+          M.toast({ html: `データ読み込み失敗: ${error.message}`, classes: "red darken-1" });
+          loaderElem.style.display = "none";
+        })
+        .getSheetData(sheetName);
+    }
+    
+    // ======================================================
+    // テーブル描画 (★ C: A/B/F列のみ, ID空欄は非表示, ★ A/B: 日付/レイアウト修正)
+    // ======================================================
+    function displayData(data, tableId) {
+      // ★ 10. 描画開始ログ
+      console.log(`displayData 実行: tableId=${tableId}`);
+      const table = document.getElementById(tableId);
+      
+      if (!table) {
+        console.error(`displayData: tableId=${tableId} のDOMが見つかりません。`);
+        return;
+      }
+  
+      if (!data || data.length <= 1) {
+        console.warn(`displayData: データが空か、ヘッダーのみです。 (Rows: ${data ? data.length : 'null'})`);
+        table.innerHTML = '<tbody><tr><td>データがありません。</td></tr></tbody>';
+        return;
+      }
+    
+      let html = "<thead><tr>";
+      const headers = data[0];
+      
+      // === ヘッダーの描画 ===
+      headers.forEach((header, index) => {
+        
+        // ★ 修正: tableB (ログ) の場合、列幅を指定 ★
+        if (tableId === 'tableB') {
+          if (index < 5) {
+            // 最初の5列: 均等 (13% * 5 = 65%)
+            html += `<th style="width: 13%;">${escapeHTML(header)}</th>`;
+          } else {
+            // 最後の1列 (メッセージ): 残り (35%)
+            html += `<th style="width: 35%;">${escapeHTML(header)}</th>`;
+          }
+        }
+        // ★ ここまで ★
+        
+        else if (tableId === 'tableC') {
+          // C:ユーザ管理 の場合、A(0), B(1), F(5) のみ表示
+          if (index === 0 || index === 1 || index === 5) {
+            html += `<th>${escapeHTML(header)}</th>`;
+          }
+        } else {
+          // 他
+          html += `<th>${escapeHTML(header)}</th>`;
+        }
+      });
+      
+      if (["tableC", "tableD"].includes(tableId)) html += "<th>操作</th>";
+      html += "</tr></thead><tbody>";
+    
+      // === ボディの描画 ===
+      for (let i = 1; i < data.length; i++) {
+        const rowData = data[i];
+        const rowIndex = i + 1;
+  
+        // ★ C: ユーザ管理 の場合、ID (B列 / index 1) をチェック
+        if (tableId === 'tableC') {
+          const idValue = rowData[1]; // B列(index 1) が ID
+          if (!idValue || String(idValue).trim() === "") {
+            continue; // IDが空欄ならこの行をスキップ
+          }
+        }
+  
+        html += "<tr>";
+    
+        // === セルの描画 ===
+        rowData.forEach((cell, index) => {
+          let cellValue = cell; // 1. 元の値を取得
+
+          // ★ 2. 日付フォーマットを適用 (①の対応)
+          if (tableId === 'tableA' && (index === 0 || index === 2)) { // A: タイムスタンプ(0), 記録日(2)
+            cellValue = formatDate(cellValue);
+          }
+          // ★ 修正: tableB (ログ) のタイムスタンプ(A列/index 0)にも適用
+          if (tableId === 'tableB' && index === 0) {
+            cellValue = formatDateTime(cellValue); // ★ 日時フォーマット関数に変更
+          }
+          
+          // 3. HTMLエスケープ
+          let displayCell = escapeHTML(cellValue);
+
+          // ★ 4. 長文省略を「削除」 (CSSで word-break: break-all を指定したため不要) ★
+          // if (tableId === 'tableB' && index === 5) { ... }
+
+          // 5. HTMLに追加
+          if (tableId === 'tableC') {
+            // C:ユーザ管理 の場合、A(0), B(1), F(5) のみ表示
+            if (index === 0 || index === 1 || index === 5) {
+               html += `<td>${displayCell}</td>`;
+            }
+          } else {
+            // 他のシートはそのまま
+            html += `<td>${displayCell}</td>`;
+          }
+        });
+    
+        // === 操作ボタンの描画 ===
+        if (tableId === "tableC") {
+          const safeData = [...rowData];
+          safeData[2] = ""; // パスワードを除外
+          const safeDataString = escapeHTML(JSON.stringify(safeData));
+          html += `
+            <td>
+              <button class="btn-small waves-effect orange" 
+                onclick='openUserModal(${rowIndex}, ${safeDataString})'>
+                <i class="material-icons">edit</i>
+              </button>
+              <button class="btn-small waves-effect red" 
+                onclick="deleteUser(${rowIndex}, ${safeDataString})">
+                <i class="material-icons">delete</i>
+              </button>
+            </td>`;
+        } 
+        else if (tableId === "tableD") {
+          const rowDataString = escapeHTML(JSON.stringify(rowData));
+          html += `
+            <td>
+              <button class="btn-small waves-effect orange" 
+                onclick='openMasterModal(${rowIndex}, ${rowDataString})'>
+                <i class="material-icons">edit</i>
+              </button>
+              <button class="btn-small waves-effect red" 
+                onclick="deleteMaster(${rowIndex}, ${rowDataString})">
+                <i class="material-icons">delete</i>
+              </button>
+            </td>`;
+        }
+        html += "</tr>";
+      }
+      html += "</tbody>";
+      
+      // ★ 11. 描画完了ログ
+      console.log(`displayData: tableId=${tableId} のHTMLを構築完了。`);
+      table.innerHTML = html;
+    }
+    // ( ... displayData(...) 関数の } の直後 ... )
+
+    // ======================================================
+    // (G) 承認待ちリストの読み込み
+    // ======================================================
+    function loadPendingData() {
+      console.log("loadPendingData 実行");
+      
+      const loaderElem = document.getElementById("loaderG");
+      const tableContainer = document.getElementById("tableG_container");
+      
+      if (!loaderElem || !tableContainer) {
+        console.error("loadPendingData: loaderG または tableG_container が見つかりません。");
+        return;
+      }
+  
+      loaderElem.style.display = "block";
+      tableContainer.style.display = "none";
+      document.getElementById("tableG").innerHTML = "";
+    
+      google.script.run
+        .withSuccessHandler((jsonString) => { 
+          console.log(`loadPendingData Success: JSON文字列受信。`);
+          
+          let data;
+          try {
+            data = JSON.parse(jsonString);
+          } catch (e) {
+            console.error(`JSON.parse 失敗 (getPendingItems): ${e.message}`, jsonString);
+            data = [['エラー', 'サーバーから無効なJSONが返されました。']];
+          }
+          
+          displayPendingData(data, "tableG"); // ★ 新しい描画関数を呼ぶ
+          loaderElem.style.display = "none";
+          tableContainer.style.display = "block";
+        })
+        .withFailureHandler((error) => {
+          console.error(`loadPendingData Failure:`, error);
+          M.toast({ html: `承認待ちリストの読み込み失敗: ${error.message}`, classes: "red darken-1" });
+          loaderElem.style.display = "none";
+        })
+        .getPendingItems(); // ★ Code.gs で新しく作った関数
+    }
+
+    /**
+     * (G) 承認待ちリスト専用のテーブル描画
+     */
+    function displayPendingData(data, tableId) {
+      console.log(`displayPendingData 実行: tableId=${tableId}`);
+      const table = document.getElementById(tableId);
+      
+      if (!table) {
+        console.error(`displayPendingData: tableId=${tableId} のDOMが見つかりません。`);
+        return;
+      }
+  
+      // データがヘッダーのみ、または「データなし」メッセージの場合
+      if (!data || data.length <= 1 || (data.length === 1 && data[0].length === 1)) {
+        console.warn(`displayPendingData: 承認待ちデータがありません。`);
+        const msg = (data && data[0]) ? escapeHTML(data[0][0]) : '承認待ちデータがありません。';
+        table.innerHTML = `<tbody><tr><td>${msg}</td></tr></tbody>`;
+        return;
+      }
+    
+      let html = "<thead><tr>";
+      const headers = data[0]; // [タイムスタンプ, JAN, 品名, カテゴリ, 登録者, 操作]
+      
+      headers.forEach((header) => {
+        html += `<th>${escapeHTML(header)}</th>`;
+      });
+      html += "</tr></thead><tbody>";
+    
+      // ボディの描画
+      for (let i = 1; i < data.length; i++) {
+        const rowData = data[i];
+        const rowNum = rowData[5]; // 元のシートの行番号 (getPendingItems で F列 に仕込んだもの)
+        
+        // 承認ボタンに渡すためのデータ
+        // [JAN(B列), 品名(C列), カテゴリ(D列)]
+        const itemData = {
+          code: rowData[1],
+          name: rowData[2],
+          category: rowData[3]
+        };
+        const itemDataString = escapeHTML(JSON.stringify(itemData));
+
+        html += "<tr>";
+        
+        // セルの描画 (A～E列)
+        for (let j = 0; j < 5; j++) {
+           let cellValue = rowData[j];
+           // A列(index 0) がタイムスタンプならフォーマット
+           if (j === 0) {
+             cellValue = formatDateTime(cellValue); // ★ 日時フォーマット関数に変更
+           }
+           html += `<td>${escapeHTML(cellValue)}</td>`;
+        }
+    
+        // 操作ボタンの描画 (F列)
+        html += `
+          <td>
+            <button class="btn-small waves-effect green" 
+              onclick='approveItem(${rowNum}, ${itemDataString})'>
+              <i class="material-icons">check</i>
+            </button>
+            <button class="btn-small waves-effect red" 
+              onclick="rejectItem(${rowNum}, ${itemDataString})">
+              <i class="material-icons">delete</i>
+            </button>
+          </td>`;
+        html += "</tr>";
+      }
+      html += "</tbody>";
+      table.innerHTML = html;
+    }
+    // ======================================================
+    // (G) 承認・拒否の実行 (★ ログ対応)
+    // ======================================================
+    
+    /**
+     * (G) 承認ボタンが押されたとき
+     */
+    function approveItem(rowNum, itemData) {
+      if (!confirm(`【承認】\n「${itemData.name}」をマスターに登録しますか？`)) {
+        return;
+      }
+      M.toast({ html: '承認処理中...', displayLength: 1000 });
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          M.toast({ html: result.message, classes: 'green darken-1' });
+          loadPendingData(); // リストを再読み込み
+        })
+        .withFailureHandler((error) => {
+          M.toast({ html: `エラー: ${error.message}`, classes: 'red darken-1' });
+        })
+        .approveItem(rowNum, itemData, AUTH_INFO); // ★ AUTH_INFO を追加
+    }
+    
+    /**
+     * (G) 拒否ボタンが押されたとき
+     */
+    function rejectItem(rowNum, itemData) { // ★ itemData を受け取る
+      if (!confirm(`【拒否】\n「${itemData.name}」(行番号 ${rowNum}) の仮登録を削除しますか？\nこの操作は元に戻せません。`)) {
+        return;
+      }
+      M.toast({ html: '削除処理中...', displayLength: 1000 });
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          M.toast({ html: result.message, classes: 'orange darken-1' });
+          loadPendingData(); // リストを再読み込み
+        })
+        .withFailureHandler((error) => {
+          M.toast({ html: `エラー: ${error.message}`, classes: 'red darken-1' });
+        })
+        .rejectItem(rowNum, itemData, AUTH_INFO); // ★ itemData, AUTH_INFO を追加
+    }
+    
+    // ======================================================
+      // 権限設定 (Fタブ) 用の関数 (★修正: loaderF を正しく参照)
+      // ======================================================
+      
+      // (F) 権限設定を読み込み、HTMLを構築する
+      function loadRoleSettings() {
+        console.log("loadRoleSettings 実行開始");
+        const container = document.getElementById("roleSettingsContainer");
+        
+        // ★★★ 修正 ★★★
+        const loader = document.getElementById("loaderF"); // <-- IDを "loaderF" に修正
+        // ★★★ ここまで ★★★
+
+        if (!loader || !container) {
+          console.error("loadRoleSettings: loaderF または roleSettingsContainer が見つかりません。");
+          return;
+        }
+
+        loader.style.display = "block";
+        container.innerHTML = "";
+        
+        google.script.run
+          .withSuccessHandler((jsonString) => { 
+            console.log("loadRoleSettings Success: JSON文字列受信。");
+            
+            let settings;
+            try {
+              settings = JSON.parse(jsonString);
+            } catch (e) {
+              console.error(`loadRoleSettings JSON.parse 失敗: ${e.message}`, jsonString);
+              settings = {};
+            }
+            console.log("loadRoleSettings: パース後のデータ", settings);
+            
+            // 表示するメニューの一覧
+            const menus = {
+              "pageA": "A: 入出庫記録",
+              "pageB": "B: 実行ログ",
+              "pageC": "C: ユーザ管理",
+              "pageD": "D: 物品マスター",
+              "pageE": "E: UIパーツ設定",
+              "pageF": "F: 権限設定",
+              "pageG": "G: 登録承認" // ★ Gを追加
+            };
+            
+            // SuperAdmin 以外の役割を取得
+            const roles = Object.keys(settings).filter(r => r !== 'SuperAdmin');
+            if (roles.length === 0) {
+              container.innerHTML = "<p>設定対象の役割（Admin, Userなど）がScriptPropertiesに見つかりません。</p>";
+            }
+
+            let html = '';
+            
+            // 役割ごとにカードを作成
+            roles.forEach(role => {
+              html += '<div class="col s12 m6">'; 
+              html += `<div class="card-panel"><h5>役割: ${escapeHTML(role)}</h5>`;
+              
+              const roleSettings = settings[role] || {};
+              
+              // メニューごとにスイッチを作成
+              Object.keys(menus).forEach(menuId => {
+                const menuName = menus[menuId];
+                const isChecked = roleSettings[menuId] === true;
+                
+                html += `
+                  <div class="setting-row">
+                    <span class="grey-text text-darken-2">${escapeHTML(menuName)}</span>
+                    <div class="switch">
+                      <label>
+                        Off
+                        <input type="checkbox" 
+                               id="role-${escapeHTML(role)}-${menuId}" 
+                               onchange="handleRoleSettingChange(this, '${escapeHTML(role)}', '${menuId}')"
+                               ${isChecked ? "checked" : ""}>
+                        <span class="lever"></span>
+                        On
+                      </label>
+                    </div>
+                  </div>`;
+              });
+              
+              html += '</div></div>'; // card-panel, col の閉じタグ
+            });
+            
+            container.innerHTML = html;
+            loader.style.display = "none";
+            
+          })
+          .withFailureHandler((error) => {
+            console.error("loadRoleSettings Failure:", error);
+            M.toast({ html: `権限設定の読み込み失敗: ${error.message}`, classes: "red darken-1" });
+            loader.style.display = "none";
+          })
+          .getRoleSettings();
+      }
+    
+    // (E) UI設定の保存 (★ ログ対応)
+    function saveUiSettings() {
+      const settings = {};
+      document.querySelectorAll("#uiSettingsContainer input[type='checkbox']").forEach((sw) => {
+        settings[sw.id] = sw.checked;
+      });
+      M.toast({ html: "設定を保存中..." });
+      google.script.run
+        .withSuccessHandler((message) =>
+          M.toast({ html: message, classes: "green darken-1" })
+        )
+        .withFailureHandler((error) =>
+          M.toast({ html: `保存失敗: ${error.message}`, classes: "red darken-1" })
+        )
+        .updateUiSettings(settings, AUTH_INFO); // ★ AUTH_INFO を追加
+    }
+    
+    // ======================================================
+    // モーダル操作（ユーザー / マスター） (★ ログ対応)
+    // ======================================================
+    function resetUserForm() {
+      console.log("resetUserForm 実行 (新規作成用)");
+      const form = document.getElementById("formC");
+      form.reset();
+      document.getElementById("modalCTitle").innerText = "新規ユーザ登録";
+      document.getElementById("editRowIndexC").value = "";
+      
+      // ★ 修正: ラベルを非アクティブに戻す
+      const labels = document.querySelectorAll("#formC label");
+      labels.forEach(label => {
+          // プルダウン(c_role)のラベルは "active" のままなので、それ以外を戻す
+          if (label.htmlFor !== 'c_role') {
+              label.classList.remove("active");
+          }
+      });
+      // プルダウンをリセット
+      M.FormSelect.init(document.getElementById('c_role'));
+    }
+    
+    function openUserModal(rowIndex, data) {
+      console.log(`openUserModal 実行 (編集用): rowIndex=${rowIndex}`);
+      resetUserForm(); // ここでタイトルが「新規」になる
+      document.getElementById("modalCTitle").innerText = "ユーザ情報編集"; // ★ここで「編集」に上書き
+      document.getElementById("editRowIndexC").value = rowIndex;
+      
+      // 値をセット
+      document.getElementById("c_name").value = data[0] || ""; // A列
+      document.getElementById("c_id").value = data[1] || ""; // B列
+      document.getElementById("c_role").value = data[5] || ""; // F列 (プルダウン)
+      document.getElementById("c_status").value = data[6] || ""; // G列
+      
+      // ★ 修正: 値をセットした input のラベルを active にする
+      const labels = document.querySelectorAll("#formC label");
+      labels.forEach(label => {
+        if (label.htmlFor === 'c_name' || label.htmlFor === 'c_id' || label.htmlFor === 'c_status') {
+           if (document.getElementById(label.htmlFor).value) {
+             label.classList.add("active");
+           }
+        }
+      });
+      // プルダウンを更新
+      M.FormSelect.init(document.getElementById('c_role'));
+  
+      if (modalC_instance) modalC_instance.open();
+    }
+    
+    function saveUserData() {
+      const rowIndex = document.getElementById("editRowIndexC").value;
+      const userData = {
+        name: document.getElementById("c_name").value,
+        id: document.getElementById("c_id").value,
+        pass: document.getElementById("c_pass").value,
+        role: document.getElementById("c_role").value, // F列
+        status: document.getElementById("c_status").value, // G列
+      };
+      if (!userData.name || !userData.id || !userData.role || !userData.status) {
+        M.toast({ html: "必須項目 (氏名, ID, 役割, 状態) を入力してください", classes: "red darken-1" });
+        return;
+      }
+      M.toast({ html: "保存中..." });
+      const handler = google.script.run
+        .withSuccessHandler((msg) => {
+          M.toast({ html: msg, classes: "green darken-1" });
+          if (modalC_instance) modalC_instance.close();
+          loadSheetData("ユーザー管理", "tableC");
+        })
+        .withFailureHandler((error) => {
+          M.toast({ html: `エラー: ${error.message}`, classes: "red darken-1" });
+        });
+      if (rowIndex) {
+        console.log(`saveUserData: updateUserData (rowIndex=${rowIndex}) を呼び出します`);
+        handler.updateUserData(parseInt(rowIndex), userData, AUTH_INFO); // ★ AUTH_INFO を追加
+      } else {
+        if (!userData.pass) {
+          M.toast({ html: "新規登録時はパスワードも入力してください", classes: "red darken-1" });
+          return;
+        }
+        console.log(`saveUserData: createUserData を呼び出します`);
+        handler.createUserData(userData, AUTH_INFO); // ★ AUTH_INFO を追加
+      }
+    }
+    
+    function deleteUser(rowIndex, rowData) { // ★ rowData を受け取る
+      const name = (rowData && rowData[0]) ? rowData[0] : `Row ${rowIndex}`;
+      if (!confirm(`「${name}」さんを削除します。よろしいですか？`)) return;
+      M.toast({ html: "削除中..." });
+      google.script.run
+        .withSuccessHandler((msg) => {
+          M.toast({ html: msg, classes: "green darken-1" });
+          loadSheetData("ユーザー管理", "tableC");
+        })
+        .withFailureHandler((error) => {
+          M.toast({ html: `エラー: ${error.message}`, classes: "red darken-1" });
+        })
+        .deleteUserData(parseInt(rowIndex), { name: name }, AUTH_INFO); // ★ rowData と AUTH_INFO を渡す
+    }
+    
+    // --- マスター ---
+    
+    // ▼▼▼ 修正: resetMasterForm (プルダウン初期化対応) ▼▼▼
+    function resetMasterForm() {
+      console.log("resetMasterForm 実行 (新規作成用)");
+      document.getElementById("formD").reset();
+      document.getElementById("modalDTitle").innerText = "新規マスター登録";
+      document.getElementById("editRowIndexD").value = "";
+      
+      // ★ 修正: ラベルを非アクティブに戻す
+      const labels = document.querySelectorAll("#formD label");
+      // ★ 修正: d_category のラベルは active のままなので、それ以外を戻す
+      labels.forEach(label => {
+          if (label.htmlFor !== 'd_category') {
+              label.classList.remove("active");
+          }
+      });
+      // ★ 修正: プルダウンをリセット
+      M.FormSelect.init(document.getElementById('d_category'));
+    }
+    // ▲▲▲ 修正ここまで ▲▲▲
+    
+    // ▼▼▼ 修正: openMasterModal (プルダウン初期化対応) ▼▼▼
+    function openMasterModal(rowIndex, data) {
+      console.log(`openMasterModal 実行 (編集用): rowIndex=${rowIndex}`);
+      resetMasterForm(); // ここでタイトルが「新規」になる
+      document.getElementById("modalDTitle").innerText = "物品マスター編集"; // ★ここで「編集」に上書き
+      document.getElementById("editRowIndexD").value = rowIndex;
+      
+      // 値をセット
+      document.getElementById("d_code").value = data[0] || "";
+      document.getElementById("d_name").value = data[1] || "";
+      document.getElementById("d_category").value = data[2] || ""; // ★ プルダウン
+      document.getElementById("d_status").value = data[3] || "";
+  
+      // ★ 修正: 値をセットした input のラベルを active にする
+      const labels = document.querySelectorAll("#formD label");
+      labels.forEach(label => {
+         // ★ 修正: d_category (プルダウン) は除外
+         if (label.htmlFor !== 'd_category') {
+           if (document.getElementById(label.htmlFor).value) {
+             label.classList.add("active");
+           }
+         }
+      });
+      // ★ 修正: プルダウンを更新
+      M.FormSelect.init(document.getElementById('d_category'));
+  
+      if (modalD_instance) modalD_instance.open();
+    }
+    // ▲▲▲ 修正ここまで ▲▲▲
+    
+    function saveMasterData() {
+      const rowIndex = document.getElementById("editRowIndexD").value;
+      const masterData = {
+        code: document.getElementById("d_code").value,
+        name: document.getElementById("d_name").value,
+        category: document.getElementById("d_category").value,
+        status: document.getElementById("d_status").value,
+      };
+      if (!masterData.code || !masterData.name || !masterData.status) {
+        M.toast({ html: "必須項目 (コード, 商品名, 状態) を入力してください", classes: "red darken-1" });
+        return;
+      }
+      M.toast({ html: "保存中..." });
+      const handler = google.script.run
+        .withSuccessHandler((msg) => {
+          M.toast({ html: msg, classes: "green darken-1" });
+          if (modalD_instance) modalD_instance.close();
+          loadSheetData("マスター", "tableD");
+        })
+        .withFailureHandler((error) => {
+          M.toast({ html: `エラー: ${error.message}`, classes: "red darken-1" });
+        });
+      if (rowIndex) {
+        handler.updateMasterData(parseInt(rowIndex), masterData, AUTH_INFO); // ★ AUTH_INFO を追加
+      } else {
+        handler.createMasterData(masterData, AUTH_INFO); // ★ AUTH_INFO を追加
+      }
+    }
+    
+    function deleteMaster(rowIndex, rowData) { // ★ rowData を受け取る
+      const name = (rowData && rowData[1]) ? rowData[1] : `Row ${rowIndex}`;
+      const code = (rowData && rowData[0]) ? rowData[0] : 'N/A';
+      if (!confirm(`商品「${name}」(コード: ${code}) を削除します。よろしいですか？`)) return;
+      M.toast({ html: "削除中..." });
+      google.script.run
+        .withSuccessHandler((msg) => {
+          M.toast({ html: msg, classes: "green darken-1" });
+          loadSheetData("マスター", "tableD");
+        })
+        .withFailureHandler((error) => {
+          M.toast({ html: `エラー: ${error.message}`, classes: "red darken-1" });
+        })
+        .deleteMasterData(parseInt(rowIndex), { name: name }, AUTH_INFO); // ★ rowData と AUTH_INFO を渡す
+    }
+
+    // ======================================================
+    // UI設定 (Eタブ) の読み込み処理 (★ 修正: ログ対応)
+    // ======================================================
+    function loadUiSettings() {
+      console.log("loadUiSettings 実行開始");
+
+      const container = document.getElementById("uiSettingsContainer");
+      const loader = document.getElementById("loaderE");
+      if (!container || !loader) {
+        console.error("loadUiSettings: uiSettingsContainer または loaderE が見つかりません。");
+        return;
+      }
+
+      loader.style.display = "block";
+      container.innerHTML = "";
+
+      google.script.run
+        .withSuccessHandler((jsonString) => {
+          console.log("loadUiSettings Success: JSON文字列受信。");
+          let settings;
+          try {
+            settings = JSON.parse(jsonString);
+          } catch (e) {
+            console.error(`loadUiSettings JSON.parse 失敗: ${e.message}`, jsonString);
+            settings = {};
+          }
+
+          let html = '';
+          const labels = {
+            ui_photo_upload_visible: "伝票写真 (任意)",
+            ui_voucher_number_visible: "伝票番号 (写真選択後に有効化)",
+            ui_registrant_visible: "担当者名",
+            ui_date_visible: "日付",
+            ui_toggle_mode_visible: "入庫/出庫 モード切替ボタン",
+            ui_item_add_visible: "品目追加 (品名・個数)",
+            ui_item_list_visible: "追加済みリスト"
+          };
+
+          Object.keys(settings).forEach((key) => {
+            const checked = settings[key] ? "checked" : "";
+            const labelText = labels[key] || key; // ラベルがあればそれを使う
+            html += `
+              <div class="setting-row">
+                <span class="grey-text text-darken-2">${escapeHTML(labelText)}</span>
+                <div class="switch">
+                  <label>
+                    Off
+                    <input type="checkbox" id="${escapeHTML(key)}" ${checked}>
+                    <span class="lever"></span>
+                    On
+                  </label>
+                </div>
+              </div>
+            `;
+          });
+
+          container.innerHTML = html;
+          loader.style.display = "none";
+        })
+        .withFailureHandler((error) => {
+          console.error("loadUiSettings Failure:", error);
+          M.toast({ html: `UI設定の読み込み失敗: ${error.message}`, classes: "red darken-1" });
+          loader.style.display = "none";
+        })
+        .getUiSettings(); // ★ Code.gs 側の getUiSettings() を呼び出す
+    }
+
+    
+    // (F) 権限設定のスイッチが変更されたときに呼ばれる (★ ログ対応)
+    function handleRoleSettingChange(checkbox, role, menuId) {
+      const isVisible = checkbox.checked;
+      console.log(`handleRoleSettingChange: ${role}, ${menuId}, ${isVisible}`);
+      
+      M.toast({html: '保存中...'});
+      
+      google.script.run
+        .withSuccessHandler((message) => {
+          console.log("saveRoleSettings Success:", message);
+          M.toast({html: message, classes: 'green darken-1'});
+        })
+        .withFailureHandler((error) => {
+          console.error("saveRoleSettings Failure:", error);
+          M.toast({html: `保存失敗: ${error.message}`, classes: 'red darken-1'});
+          // エラーが起きたらチェックボックスを元に戻す
+          checkbox.checked = !isVisible;
+        })
+        .saveRoleSettings(role, menuId, isVisible, AUTH_INFO); // ★ AUTH_INFO を追加
+    }
+
+    
+    // ======================================================
+    // ユーティリティ (★ yyyy-mm-dd hh:mm:ss フォーマット関数を追加)
+    // ======================================================
+    
+    /**
+     * (★新規追加★)
+     * 日付文字列またはDateオブジェクトを 'yyyy-mm-dd' 形式に変換
+     */
+    function formatDate(dateString) {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString; 
+        
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      } catch (e) {
+        return dateString; 
+      }
+    }
+    
+    /**
+     * (★新規追加★)
+     * 日付文字列またはDateオブジェクトを 'yyyy-mm-dd hh:mm:ss' 形式に変換 (ログ用)
+     */
+    function formatDateTime(dateString) {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString; 
+        
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const h = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const s = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${y}-${m}-${d} ${h}:${min}:${s}`;
+      } catch (e) {
+        return dateString; 
+      }
+    }
+
+    function escapeHTML(str) {
+      if (str == null) return "";
+      return str
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+  
+    // ======================================================
+      // ★重要★ onclick用関数をグローバルに公開
+      // ======================================================
+      console.log("onclick用関数をグローバルスコープ (window) に設定します。");
+      window.loadSheetData = loadSheetData;
+      window.saveUiSettings = saveUiSettings;
+      window.openUserModal = openUserModal;
+      window.saveUserData = saveUserData;
+      window.deleteUser = deleteUser;
+      window.openMasterModal = openMasterModal;
+      window.saveMasterData = saveMasterData;
+      window.deleteMaster = deleteMaster;
+      
+      // ★★★ 修正: 不足していた loadUiSettings を追加 ★★★
+      window.loadUiSettings = loadUiSettings;
+      // ★★★ ここまで ★★★
+
+      window.loadRoleSettings = loadRoleSettings; 
+      window.handleRoleSettingChange = handleRoleSettingChange;
+      window.toggleTheme = toggleTheme;
+
+      window.loadPendingData = loadPendingData;
+      window.approveItem = approveItem;
+      window.rejectItem = rejectItem;    
+      console.log("スクリプトブロック 実行完了");
+    </script>
+</body>
+</html>

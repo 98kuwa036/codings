@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>入出庫記録ツール</title>
+
+    <style>
+        /* --- 基本リセット & 変数 --- */
+        :root {
+            --bg-gray-50: #f9fafb;
+            --bg-gray-100: #f3f4f6;
+            --bg-gray-200: #e5e7eb;
+            --bg-gray-300: #d1d5db;
+            --bg-blue-50: #eff6ff;
+            --bg-blue-500: #3b82f6;
+            --bg-blue-600: #2563eb;
+            --bg-blue-700: #1d4ed8;
+            --bg-green-500: #22c55e;
+            --bg-green-600: #16a34a;
+            --bg-green-700: #15803d;
+            --bg-gray-500: #6b7280;
+            --bg-gray-600: #4b5563;
+            --text-gray-400: #9ca3af;
+            --text-gray-500: #6b7280;
+            --text-gray-600: #4b5563;
+            --text-gray-700: #374151;
+            --text-gray-800: #1f2937;
+            --text-blue-600: #2563eb;
+            --text-blue-700: #1d4ed8;
+            --border-gray-200: #e5e7eb;
+            --border-gray-300: #d1d5db;
+            --border-blue-300: #93c5fd;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-gray-50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 3rem 1rem;
+            box-sizing: border-box;
+            color: var(--text-gray-800);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
+        /* ★修正1: fieldsetの枠線を消す */
+        fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+        }
+
+        /* --- レイアウトユーティリティ --- */
+        .w-full { width: 100%; }
+        .max-w-lg { max-width: 32rem; }
+        .max-w-xs { max-width: 20rem; }
+        .h-full { height: 100%; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .mt-8 { margin-top: 2rem; }
+        .mr-1\.5 { margin-right: 0.375rem; }
+        .p-2 { padding: 0.5rem; }
+        .p-3 { padding: 0.75rem; }
+        .p-4 { padding: 1rem; }
+        .p-8 { padding: 2rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+
+        /* --- Flex & Grid --- */
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .flex-grow { flex-grow: 1; }
+        .flex-1 { flex: 1 1 0%; }
+        .flex-auto { flex: 1 1 auto; }
+        .gap-x-2 { column-gap: 0.5rem; }
+        .gap-x-4 { column-gap: 1rem; }
+        .gap-4 { gap: 1rem; }
+        
+        .grid { display: grid; }
+        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        .grid-cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+        .col-span-2 { grid-column: span 2 / span 2; }
+        .col-span-5 { grid-column: span 5 / span 5; }
+
+        @media (min-width: 768px) {
+            .md\:grid-cols-3, .md-grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .md\:col-span-2, .md-col-span-2 { grid-column: span 2 / span 2; }
+        }
+
+        /* --- スペーシング --- */
+        .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+        .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+        .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+        .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem; }
+        .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; }
+
+        /* --- コンポーネントスタイル --- */
+        .bg-white { background-color: white; }
+        .bg-gray-50 { background-color: var(--bg-gray-50); }
+        .bg-blue-50 { background-color: var(--bg-blue-50); }
+        
+        .rounded-md { border-radius: 0.375rem; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-full { border-radius: 9999px; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+
+        .border { border-width: 1px; border-style: solid; }
+        .border-t-2 { border-top-width: 2px; border-style: solid; }
+        .border-b { border-bottom-width: 1px; border-style: solid; }
+        .border-gray-200 { border-color: var(--border-gray-200); }
+        .border-gray-300 { border-color: var(--border-gray-300); }
+        .border-blue-300 { border-color: var(--border-blue-300); }
+
+        /* タイポグラフィ */
+        .text-center { text-align: center; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-md { font-size: 1rem; line-height: 1.5rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+        .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* テキストカラー */
+        /* ★修正2: 文字色の優先度を上げる (!important) */
+        .text-white { color: white !important; } 
+        .text-gray-400 { color: var(--text-gray-400); }
+        .text-gray-500 { color: var(--text-gray-500); }
+        .text-gray-600 { color: var(--text-gray-600); }
+        .text-gray-700 { color: var(--text-gray-700); }
+        .text-gray-800 { color: var(--text-gray-800); }
+        .text-blue-600 { color: var(--text-blue-600); }
+        .text-blue-700 { color: var(--text-blue-700); }
+        .text-green-500 { color: var(--bg-green-500); }
+
+        /* --- フォーム要素 --- */
+        input[type="text"], input[type="date"], input[type="number"], select, textarea {
+            display: block;
+            width: 100%;
+            border: 1px solid var(--border-gray-300);
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            font-size: 1.125rem;
+            background-color: white;
+            appearance: none; /* ブラウザデフォルトのスタイルを消す */
+        }
+        input:disabled {
+            background-color: var(--bg-gray-200);
+            cursor: not-allowed;
+        }
+
+        /* --- ボタン & 動的カラー --- */
+        button {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .bg-gray-100 { background-color: var(--bg-gray-100); }
+        .bg-gray-200 { background-color: var(--bg-gray-200); }
+        .bg-gray-300 { background-color: var(--bg-gray-300); }
+        
+        .bg-blue-500 { background-color: var(--bg-blue-500); }
+        .bg-blue-600 { background-color: var(--bg-blue-600); }
+        .bg-blue-600:hover:not(:disabled) { background-color: var(--bg-blue-700); }
+        
+        .bg-green-500 { background-color: var(--bg-green-500); }
+        .bg-green-600 { background-color: var(--bg-green-600); }
+        .bg-green-600:hover:not(:disabled) { background-color: var(--bg-green-700); }
+
+        .bg-gray-500 { background-color: var(--bg-gray-500); }
+        .bg-gray-500:hover:not(:disabled) { background-color: var(--bg-gray-600); }
+
+        /* --- ユーティリティ --- */
+        .hidden { display: none !important; }
+        .block { display: block; }
+        .opacity-0 { opacity: 0; }
+        .opacity-50 { opacity: 0.5; }
+        .transition-opacity { transition: opacity 0.3s ease-in-out; }
+        .duration-300 { transition-duration: 300ms; }
+        .duration-500 { transition-duration: 500ms; }
+        .ease-in-out { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* --- アニメーション --- */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* --- アイコンサイズ --- */
+        .w-5 { width: 1.25rem; }
+        .h-5 { height: 1.25rem; }
+        .w-6 { width: 1.5rem; }
+        .h-6 { height: 1.5rem; }
+        .w-8 { width: 2rem; }
+        .h-8 { height: 2rem; }
+        .w-16 { width: 4rem; }
+        .h-16 { height: 4rem; }
+        .w-20 { width: 5rem; }
+        .h-20 { height: 5rem; }
+        
+        .w-3\/4 { width: 75%; }
+        .w-1\/4 { width: 25%; }
+        .h-4 { height: 1rem; }
+        .h-5 { height: 1.25rem; }
+        .h-8 { height: 2rem; }
+        .h-10 { height: 2.5rem; }
+
+        /* --- 言語切り替えスイッチ --- */
+        .lang-switcher {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.125rem;
+            background-color: var(--bg-gray-100);
+            border-radius: 0.375rem;
+            padding: 0.125rem;
+        }
+        .lang-btn {
+            padding: 0.25rem 0.375rem;
+            font-size: 1.25rem;
+            line-height: 1;
+            background-color: transparent;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            opacity: 0.5;
+        }
+        .lang-btn:hover {
+            opacity: 0.8;
+        }
+        .lang-btn.active {
+            background-color: white;
+            opacity: 1;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen py-12">
+  <div class="w-full max-w-lg p-8 space-y-6 bg-white rounded-xl shadow-lg" style="position: relative;">
+
+    <!-- 言語切り替えスイッチ -->
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="ja" onclick="switchLanguage('ja')" title="日本語">🇯🇵</button>
+      <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')" title="English">🇬🇧</button>
+      <button class="lang-btn" data-lang="id" onclick="switchLanguage('id')" title="Indonesia">🇮🇩</button>
+    </div>
+    
+    <div id="status-message" class="space-y-6 py-4 animate-pulse transition-opacity duration-300 ease-in-out">
+      <div class="h-8 bg-gray-300 rounded-md w-3/4 mx-auto"></div>
+      <div class="flex items-center w-full mx-auto mt-6">
+        <div class="flex flex-col items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-300"></div>
+          <div class="h-4 bg-gray-300 rounded-md w-16 mt-1"></div>
+        </div>
+        <div class="flex-auto border-t-2 border-gray-200 mx-2"></div>
+        <div class="flex flex-col items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-300"></div>
+          <div class="h-4 bg-gray-300 rounded-md w-16 mt-1"></div>
+        </div>
+        <div class="flex-auto border-t-2 border-gray-200 mx-2"></div>
+        <div class="flex flex-col items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-300"></div>
+          <div class="h-4 bg-gray-300 rounded-md w-16 mt-1"></div>
+        </div>
+      </div>
+      <div class="space-y-5 mt-8">
+        <div>
+          <div class="h-5 bg-gray-300 rounded-md w-1/4 mb-2"></div>
+          <div class="h-10 bg-gray-300 rounded-md w-full"></div>
+        </div>
+        <div>
+          <div class="h-5 bg-gray-300 rounded-md w-1/4 mb-2"></div>
+          <div class="h-10 bg-gray-300 rounded-md w-full"></div>
+        </div>
+      </div>
+      <div class="pt-4 text-center">
+        <p id="loading-status-text" class="text-sm font-medium text-gray-500">
+          アプリを起動しています...
+        </p>
+      </div>
+    </div>
+        
+    <div id="main-content" style="display: none;" class="opacity-0 transition-opacity duration-500 ease-in-out">
+      <h1 id="main-title" class="text-2xl font-bold text-center text-gray-800">出庫登録ツール</h1>
+            
+      <div id="progress-bar" class="flex items-center w-full mx-auto mt-6">
+          <div class="flex flex-col items-center text-blue-600">
+              <div id="step1-circle" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">1</div>
+              <p class="text-sm font-semibold mt-1">情報入力</p>
+          </div>
+          <div id="progress-line1" class="flex-auto border-t-2 border-gray-300 transition-colors duration-500 mx-2"></div>
+          <div class="flex flex-col items-center text-gray-400">
+              <div id="step2-circle" class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center font-bold">2</div>
+              <p class="text-sm font-semibold mt-1">品目登録</p>
+          </div>
+          <div id="progress-line2" class="flex-auto border-t-2 border-gray-300 transition-colors duration-500 mx-2"></div>
+          <div class="flex flex-col items-center text-gray-400">
+              <div id="step3-circle" class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center font-bold">3</div>
+              <p class="text-sm font-semibold mt-1">内容確認</p>
+          </div>
+      </div>
+            
+      <div id="register-progress-info" class="hidden flex items-center justify-center w-full mx-auto mt-6 h-[68px] bg-gray-50 rounded-md border border-gray-200">
+        <p class="text-sm font-semibold text-gray-600 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+          </svg>
+          新規物品 仮登録モード
+        </p>
+      </div>
+            
+      <div id="page1">
+          <fieldset id="page1-fieldset">
+              <div style="margin-top: 0.5rem;">
+                  <div id="registrant-section">
+                      <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem;">担当者名</label>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                          <div id="registrant-display-container" style="flex-grow: 1; display: flex; align-items: center;">
+                              <p id="registrant-display" style="font-size: 1.125rem; padding: 0.75rem 1rem; background-color: #f3f4f6; border-radius: 0.375rem; width: 100%; margin: 0;">（読み込み中...）</p>
+                          </div>
+                          <select id="registrant-select" style="flex-grow: 1; display: none;"></select>
+                          <input type="hidden" id="registrant-name" value="">
+                          <button type="button" id="change-user-btn" style="display: none; padding: 0.75rem 1rem; background-color: #6b7280; color: white; font-weight: 600; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">変更</button>
+                      </div>
+                      <div id="admin-link-placeholder" style="margin: 0.5rem 0; font-size: 0.875rem;"></div>
+                  </div>
+                  <div id="date-section" style="margin-top: 1rem;">
+                      <label for="date-input" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem;">日付</label>
+                      <input type="date" id="date-input" style="width: 100%;" required>
+                  </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 5fr 2fr; gap: 1rem; margin-top: 2rem;">
+                  <button id="next-btn" style="width: 100%; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;" disabled>次へ進む</button>
+                  <button id="toggle-mode-button" type="button" style="width: 100%; padding: 0.75rem 1rem; background-color: #6b7280; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">入庫</button>
+              </div>
+          </fieldset>
+      </div>
+      
+      <div id="page2" style="display: none;">
+          <div style="margin-top: 2rem;">
+              <fieldset id="inbound-fields" style="display: none; border: 1px solid #93c5fd; background-color: #eff6ff; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+                  <legend style="font-size: 1.125rem; font-weight: 600; padding: 0 0.5rem; color: #1d4ed8;">入庫情報</legend>
+                  <div>
+                      <div id="photo-upload-section">
+                          <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">伝票写真 (任意)</label>
+                          <div style="display: flex; gap: 0.5rem;">
+                              <button type="button" id="select-file-btn" style="flex: 1; padding: 0.5rem 1rem; background-color: white; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600; color: #374151; cursor: pointer;">ファイルを選択</button>
+                              <button type="button" id="launch-camera-btn" style="display: none; flex: 1; padding: 0.5rem 1rem; background-color: #3b82f6; color: white; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer;">カメラを起動</button>
+                          </div>
+                          <p id="file-name-display" style="font-size: 0.875rem; color: #4b5563; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></p>
+                          <input type="file" id="voucher-photo-file" style="display: none;" accept="image/*">
+                          <input type="file" id="voucher-photo-camera" style="display: none;" accept="image/*" capture="environment">
+                      </div>
+                      <div id="voucher-number-input-group" style="margin-top: 1rem;">
+                          <label for="voucher-number" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">伝票番号 (写真選択後に有効化)</label>
+                          <input type="text" id="voucher-number" placeholder="ファイル名になります" style="width: 100%;" disabled>
+                      </div>
+                  </div>
+              </fieldset>
+              <fieldset id="item-add-section" style="border: 1px solid #d1d5db; padding: 1rem; border-radius: 0.375rem;">
+                  <legend id="item-section-legend" style="font-size: 1.125rem; font-weight: 600; padding: 0 0.5rem; color: #374151;">出庫品目</legend>
+                  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                      <div>
+                          <label for="item-name" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">品名</label>
+                          <input type="text" id="item-search" placeholder="品名を検索..." style="width: 100%; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                          <select id="item-name" style="width: 100%;">
+                              <option value="" disabled selected>-- 品名を選択 --</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label for="quantity" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">個数</label>
+                          <input type="number" id="quantity" placeholder="個数" style="width: 100%;">
+                      </div>
+                  </div>
+                  <button id="add-item-button" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: #22c55e; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;" disabled>品目を追加</button>
+              </fieldset>
+              <div id="added-items-container" style="margin-top: 1rem;">
+                  <h3 style="font-size: 1rem; font-weight: 600; color: #374151;">追加済みリスト</h3>
+                  <div id="added-items-list" style="margin-top: 0.5rem; padding: 0.75rem; background-color: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb; min-height: 50px;"></div>
+              </div>
+          </div>
+          <button id="confirm-button" type="button" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;" disabled>内容を確認する</button>
+          <button id="back-to-page1-btn" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: white; color: #374151; font-weight: 700; font-size: 1.125rem; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer;">戻る</button>
+      </div>
+      
+      <div id="page3" style="display: none;">
+          <div style="margin-top: 2rem;">
+              <h2 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; margin: 0 0 1rem 0;">確認画面</h2>
+              <div>
+                  <div style="margin-bottom: 0.75rem;">
+                      <p style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin: 0;">登録者名</p>
+                      <p id="confirm-registrant" style="font-size: 1.125rem; color: #1f2937; margin: 0.25rem 0 0 0;"></p>
+                  </div>
+                  <div style="margin-bottom: 0.75rem;">
+                      <p style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin: 0;">日付</p>
+                      <p id="confirm-date" style="font-size: 1.125rem; color: #1f2937; margin: 0.25rem 0 0 0;"></p>
+                  </div>
+                  <div>
+                      <p id="confirm-mode-label" style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin: 0;"></p>
+                      <div id="confirm-items-list" style="margin-top: 0.25rem; padding: 0.75rem; background-color: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb;"></div>
+                  </div>
+              </div>
+          </div>
+          <button id="register-btn" style="width: 100%; margin-top: 2rem; padding: 0.75rem 1rem; background-color: #16a34a; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">この内容で登録する</button>
+          <button id="back-to-page2-btn" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: white; color: #374151; font-weight: 700; font-size: 1.125rem; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer;">修正する</button>
+      </div>
+      
+      <div id="pageRegister" style="display: none;">
+          <fieldset id="pageRegister-fieldset" style="border: none; padding: 0; margin: 0;">
+              <div style="margin-top: 2rem;">
+                  <h2 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; margin: 0 0 1.25rem 0;">新規物品 仮登録</h2>
+                  <p style="font-size: 0.875rem; color: #4b5563; margin: 0 0 1.25rem 0;">ここで登録された物品は、管理者がPCの「管理者ページ」で承認するまでマスターには反映されません。</p>
+
+                  <div style="margin-bottom: 1.25rem;">
+                    <button type="button" id="launch-ocr-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.5rem; height: 1.5rem;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574v9.548c0 1.067.75 1.994 1.802 2.169a47.865 47.865 0 001.134.175 2.31 2.31 0 011.64 1.055l.822 1.594a2.083 2.083 0 003.487 0l.822-1.594a2.31 2.31 0 011.64-1.055 47.865 47.865 0 001.134-.175 2.31 2.31 0 011.802-2.17V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.594a2.083 2.083 0 00-3.487 0l-.822 1.594A2.31 2.31 0 016.827 6.175zM12 12.75a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                      </svg>
+                      <span>ラベルを撮影 (OCR)</span>
+                    </button>
+                  </div>
+
+                  <div style="margin-bottom: 1.25rem;">
+                      <label for="reg-name" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">品名</label>
+                      <textarea id="reg-name" placeholder="品名（OCRで読み取った後、編集してください）" rows="3" style="width: 100%;"></textarea>
+                  </div>
+                  <div>
+                    <label for="reg-category" style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem;">カテゴリ (必須)</label>
+                    <select id="reg-category" style="width: 100%;">
+                        <option value="" disabled selected>-- 分類を選択してください --</option>
+                        <option value="劇薬薬品">A: 劇薬薬品</option>
+                        <option value="普通薬品">B: 普通薬品</option>
+                        <option value="治療用資材">C: 治療用資材</option>
+                        <option value="繁殖用資材">D: 繁殖用資材</option>
+                        <option value="点滴用資材">E: 点滴用資材</option>
+                        <option value="飼料添加物">F: 飼料添加物</option>
+                        <option value="消耗品">G: 消耗品</option>
+                    </select>
+                  </div>
+              </div>
+              <button id="register-temp-btn" style="width: 100%; margin-top: 2rem; padding: 0.75rem 1rem; background-color: #16a34a; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">この内容で仮登録する</button>
+              <button id="back-to-page1-from-reg" type="button" style="width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; background-color: white; color: #374151; font-weight: 700; font-size: 1.125rem; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer;">戻る</button>
+          </fieldset>
+      </div>
+      
+      <div id="success-screen" style="display: none; text-align: center; padding: 2.5rem 0;">
+          <svg style="width: 4rem; height: 4rem; color: #22c55e; margin: 0 auto 1rem auto;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0;">登録完了</h2>
+          <p id="success-message" style="color: #4b5563; margin: 0 0 1.5rem 0;">データの登録が正常に完了しました。</p>
+          <button id="new-entry-btn" style="width: 100%; max-width: 20rem; margin: 0 auto; display: block; padding: 0.75rem 1rem; background-color: #2563eb; color: white; font-weight: 700; font-size: 1.125rem; border-radius: 0.375rem; border: none; cursor: pointer;">新しい記録を追加する</button>
+      </div>
+    </div>
+    
+    <input type="file" id="ocr-camera-input" style="display: none;" accept="image/*" capture="environment">
+
+    <script>
+        "use strict";
+
+        // --- ★ 多言語対応データ ★ ---
+        const TRANSLATIONS = {
+            ja: {
+                // ローディング
+                loading: 'アプリを起動しています...',
+                // メインタイトル
+                title_outbound: '出庫登録ツール',
+                title_inbound: '入庫登録ツール',
+                // プログレスバー
+                step1: '情報入力',
+                step2: '品目登録',
+                step3: '内容確認',
+                // Page 1
+                label_registrant: '担当者名',
+                label_date: '日付',
+                btn_next: '次へ進む',
+                btn_mode_outbound: '入庫',
+                btn_mode_inbound: '出庫',
+                // Page 2
+                legend_inbound: '入庫情報',
+                label_voucher_photo: '伝票写真 (任意)',
+                btn_select_file: 'ファイルを選択',
+                btn_launch_camera: 'カメラを起動',
+                label_voucher_number: '伝票番号 (写真選択後に有効化)',
+                placeholder_voucher_number: 'ファイル名になります',
+                legend_item_outbound: '出庫品目',
+                legend_item_inbound: '入庫品目',
+                label_item_name: '品名',
+                placeholder_item_search: '品名を検索...',
+                placeholder_item_select: '-- 品名を選択 --',
+                label_quantity: '個数',
+                placeholder_quantity: '個数',
+                btn_add_item: '品目を追加',
+                heading_added_items: '追加済みリスト',
+                btn_confirm: '内容を確認する',
+                btn_back: '戻る',
+                // Page 3
+                heading_confirmation: '確認画面',
+                label_confirm_registrant: '登録者名',
+                label_confirm_date: '日付',
+                label_confirm_mode_outbound: '出庫品目',
+                label_confirm_mode_inbound: '入庫品目',
+                btn_register: 'この内容で登録する',
+                btn_edit: '修正する',
+                // 成功画面
+                success_title: '登録完了',
+                success_message: 'データの登録が正常に完了しました。',
+                btn_new_entry: '新しい記録を追加する',
+                // 新規物品登録
+                temp_register_mode: '新規物品 仮登録モード',
+                page_register_title: '新規物品 仮登録',
+                page_register_desc: 'ここで登録された物品は、管理者がPCの「管理者ページ」で承認するまでマスターには反映されません。',
+                btn_launch_ocr: 'ラベルを撮影 (OCR)',
+                label_reg_name: '品名',
+                placeholder_reg_name: '品名（OCRで読み取った後、編集してください）',
+                label_reg_category: 'カテゴリ (必須)',
+                placeholder_reg_category: '-- 分類を選択してください --',
+                btn_temp_register: 'この内容で仮登録する',
+                // エラーメッセージ
+                error_fatal: 'エラー: ',
+                error_unknown: '不明なエラー',
+                error_loading: '読み込みエラー',
+                error_app_start_failed: 'アプリの起動に失敗しました。',
+                error_occurred: 'エラーが発生しました: ',
+                btn_reload: '再読み込み',
+                // 動的メッセージ
+                msg_no_items_added: '品目が追加されていません。',
+                msg_no_match: '-- 該当なし --',
+                msg_voucher_placeholder_active: '伝票番号を入力 (必須)',
+                msg_quantity_unit: '個',
+                msg_voucher: '伝票',
+                msg_mode_change: '変更',
+                msg_mode_confirm: '確定',
+                // 登録処理
+                msg_registering: '登録処理中...',
+                msg_getting_upload_url: 'URL取得中...',
+                msg_registering_data: '記録を登録中...',
+                msg_uploading_photo: '写真アップロード中...',
+                msg_finalizing: '最終処理中...',
+                msg_temp_registering: '仮登録中...',
+                // 仮登録エラー
+                error_name_required: '「品名」は必ず入力してください。',
+                error_category_required: '「カテゴリ」を必ず選択してください。',
+                // OCR関連
+                error_ocr_camera_not_found: 'エラー: OCRカメラの入力要素が見つかりません。',
+                msg_ocr_file_size_warning: '警告: 画像サイズが{size}MBと大きいです。処理に時間がかかる場合があります。',
+                msg_ocr_reading: '読み取り中...',
+                msg_ocr_success: 'テキストを抽出しました。\n品名欄を編集してください。',
+                msg_ocr_no_text: 'テキストが検出されませんでした。\n\n改善のヒント:\n・画像を明るい場所で撮影してください\n・テキストにピントを合わせてください\n・カメラを近づけすぎないようにしてください',
+                error_ocr: 'OCRエラーが発生しました。',
+                error_ocr_api_key: 'Vision APIの設定エラーです。\n管理者に連絡してください。',
+                error_ocr_403: 'Vision APIの権限エラーです。\nAPIキーが無効か、APIが有効化されていません。\n管理者に連絡してください。',
+                error_ocr_400: 'リクエストが無効です。\n画像形式が正しくない可能性があります。',
+                error_ocr_429: 'API呼び出し制限を超えました。\nしばらく待ってから再試行してください。',
+                error_ocr_with_msg: 'OCRエラー: '
+            },
+            en: {
+                // Loading
+                loading: 'Starting application...',
+                // Main title
+                title_outbound: 'Inventory Release Tool',
+                title_inbound: 'Inventory Receipt Tool',
+                // Progress bar
+                step1: 'Info Input',
+                step2: 'Items Entry',
+                step3: 'Confirm',
+                // Page 1
+                label_registrant: 'Person in Charge',
+                label_date: 'Date',
+                btn_next: 'Next',
+                btn_mode_outbound: 'Inbound',
+                btn_mode_inbound: 'Outbound',
+                // Page 2
+                legend_inbound: 'Inbound Information',
+                label_voucher_photo: 'Voucher Photo (Optional)',
+                btn_select_file: 'Select File',
+                btn_launch_camera: 'Launch Camera',
+                label_voucher_number: 'Voucher Number (enabled after photo)',
+                placeholder_voucher_number: 'Will be the filename',
+                legend_item_outbound: 'Outbound Items',
+                legend_item_inbound: 'Inbound Items',
+                label_item_name: 'Item Name',
+                placeholder_item_search: 'Search item name...',
+                placeholder_item_select: '-- Select item --',
+                label_quantity: 'Quantity',
+                placeholder_quantity: 'Quantity',
+                btn_add_item: 'Add Item',
+                heading_added_items: 'Added List',
+                btn_confirm: 'Confirm',
+                btn_back: 'Back',
+                // Page 3
+                heading_confirmation: 'Confirmation',
+                label_confirm_registrant: 'Registered By',
+                label_confirm_date: 'Date',
+                label_confirm_mode_outbound: 'Outbound Items',
+                label_confirm_mode_inbound: 'Inbound Items',
+                btn_register: 'Register',
+                btn_edit: 'Edit',
+                // Success screen
+                success_title: 'Registration Complete',
+                success_message: 'Data has been registered successfully.',
+                btn_new_entry: 'Add New Record',
+                // Temporary item registration
+                temp_register_mode: 'New Item Temp Registration Mode',
+                page_register_title: 'New Item Temporary Registration',
+                page_register_desc: 'Items registered here will not be reflected in the master until approved by the administrator on the PC "Admin Page".',
+                btn_launch_ocr: 'Capture Label (OCR)',
+                label_reg_name: 'Item Name',
+                placeholder_reg_name: 'Item name (edit after OCR scan)',
+                label_reg_category: 'Category (Required)',
+                placeholder_reg_category: '-- Select category --',
+                btn_temp_register: 'Register Temporarily',
+                // Error messages
+                error_fatal: 'Error: ',
+                error_unknown: 'Unknown error',
+                error_loading: 'Loading Error',
+                error_app_start_failed: 'Failed to start application.',
+                error_occurred: 'An error occurred: ',
+                btn_reload: 'Reload',
+                // Dynamic messages
+                msg_no_items_added: 'No items added.',
+                msg_no_match: '-- No match --',
+                msg_voucher_placeholder_active: 'Enter voucher number (required)',
+                msg_quantity_unit: 'pcs',
+                msg_voucher: 'Voucher',
+                msg_mode_change: 'Change',
+                msg_mode_confirm: 'Confirm',
+                // Registration process
+                msg_registering: 'Registering...',
+                msg_getting_upload_url: 'Getting upload URL...',
+                msg_registering_data: 'Registering data...',
+                msg_uploading_photo: 'Uploading photo...',
+                msg_finalizing: 'Finalizing...',
+                msg_temp_registering: 'Temp registering...',
+                // Temp registration errors
+                error_name_required: 'Item name is required.',
+                error_category_required: 'Category must be selected.',
+                // OCR related
+                error_ocr_camera_not_found: 'Error: OCR camera input element not found.',
+                msg_ocr_file_size_warning: 'Warning: Image size is {size}MB. Processing may take some time.',
+                msg_ocr_reading: 'Reading...',
+                msg_ocr_success: 'Text extracted.\nPlease edit the item name field.',
+                msg_ocr_no_text: 'No text detected.\n\nTips for improvement:\n・Take photo in bright lighting\n・Focus on the text\n・Don\'t get too close with camera',
+                error_ocr: 'OCR error occurred.',
+                error_ocr_api_key: 'Vision API configuration error.\nPlease contact administrator.',
+                error_ocr_403: 'Vision API permission error.\nAPI key is invalid or API is not enabled.\nPlease contact administrator.',
+                error_ocr_400: 'Invalid request.\nImage format may be incorrect.',
+                error_ocr_429: 'API call limit exceeded.\nPlease wait and try again.',
+                error_ocr_with_msg: 'OCR Error: '
+            },
+            id: {
+                // Loading
+                loading: 'Memulai aplikasi...',
+                // Main title
+                title_outbound: 'Alat Pencatatan Pengeluaran',
+                title_inbound: 'Alat Pencatatan Penerimaan',
+                // Progress bar
+                step1: 'Input Info',
+                step2: 'Daftar Item',
+                step3: 'Konfirmasi',
+                // Page 1
+                label_registrant: 'Penanggung Jawab',
+                label_date: 'Tanggal',
+                btn_next: 'Lanjut',
+                btn_mode_outbound: 'Masuk',
+                btn_mode_inbound: 'Keluar',
+                // Page 2
+                legend_inbound: 'Informasi Penerimaan',
+                label_voucher_photo: 'Foto Dokumen (Opsional)',
+                btn_select_file: 'Pilih File',
+                btn_launch_camera: 'Buka Kamera',
+                label_voucher_number: 'Nomor Dokumen (aktif setelah foto)',
+                placeholder_voucher_number: 'Akan menjadi nama file',
+                legend_item_outbound: 'Item Keluar',
+                legend_item_inbound: 'Item Masuk',
+                label_item_name: 'Nama Item',
+                placeholder_item_search: 'Cari nama item...',
+                placeholder_item_select: '-- Pilih item --',
+                label_quantity: 'Jumlah',
+                placeholder_quantity: 'Jumlah',
+                btn_add_item: 'Tambah Item',
+                heading_added_items: 'Daftar Ditambahkan',
+                btn_confirm: 'Konfirmasi',
+                btn_back: 'Kembali',
+                // Page 3
+                heading_confirmation: 'Konfirmasi',
+                label_confirm_registrant: 'Didaftarkan Oleh',
+                label_confirm_date: 'Tanggal',
+                label_confirm_mode_outbound: 'Item Keluar',
+                label_confirm_mode_inbound: 'Item Masuk',
+                btn_register: 'Daftarkan',
+                btn_edit: 'Edit',
+                // Success screen
+                success_title: 'Pendaftaran Selesai',
+                success_message: 'Data telah berhasil didaftarkan.',
+                btn_new_entry: 'Tambah Catatan Baru',
+                // Temporary item registration
+                temp_register_mode: 'Mode Pendaftaran Sementara Item Baru',
+                page_register_title: 'Pendaftaran Sementara Item Baru',
+                page_register_desc: 'Item yang didaftarkan di sini tidak akan tercermin dalam master sampai disetujui oleh administrator di "Halaman Admin" PC.',
+                btn_launch_ocr: 'Tangkap Label (OCR)',
+                label_reg_name: 'Nama Item',
+                placeholder_reg_name: 'Nama item (edit setelah scan OCR)',
+                label_reg_category: 'Kategori (Wajib)',
+                placeholder_reg_category: '-- Pilih kategori --',
+                btn_temp_register: 'Daftarkan Sementara',
+                // Pesan kesalahan
+                error_fatal: 'Kesalahan: ',
+                error_unknown: 'Kesalahan tidak dikenal',
+                error_loading: 'Kesalahan Pemuatan',
+                error_app_start_failed: 'Gagal memulai aplikasi.',
+                error_occurred: 'Terjadi kesalahan: ',
+                btn_reload: 'Muat Ulang',
+                // Pesan dinamis
+                msg_no_items_added: 'Tidak ada item yang ditambahkan.',
+                msg_no_match: '-- Tidak ada yang cocok --',
+                msg_voucher_placeholder_active: 'Masukkan nomor dokumen (wajib)',
+                msg_quantity_unit: 'buah',
+                msg_voucher: 'Dokumen',
+                msg_mode_change: 'Ubah',
+                msg_mode_confirm: 'Konfirmasi',
+                // Proses pendaftaran
+                msg_registering: 'Mendaftarkan...',
+                msg_getting_upload_url: 'Mendapatkan URL upload...',
+                msg_registering_data: 'Mendaftarkan data...',
+                msg_uploading_photo: 'Mengunggah foto...',
+                msg_finalizing: 'Menyelesaikan...',
+                msg_temp_registering: 'Mendaftarkan sementara...',
+                // Kesalahan pendaftaran sementara
+                error_name_required: 'Nama item wajib diisi.',
+                error_category_required: 'Kategori harus dipilih.',
+                // Terkait OCR
+                error_ocr_camera_not_found: 'Kesalahan: Elemen input kamera OCR tidak ditemukan.',
+                msg_ocr_file_size_warning: 'Peringatan: Ukuran gambar {size}MB. Pemrosesan mungkin memakan waktu.',
+                msg_ocr_reading: 'Membaca...',
+                msg_ocr_success: 'Teks berhasil diekstrak.\nSilakan edit bidang nama item.',
+                msg_ocr_no_text: 'Tidak ada teks terdeteksi.\n\nTips untuk perbaikan:\n・Ambil foto dengan pencahayaan terang\n・Fokuskan pada teks\n・Jangan terlalu dekat dengan kamera',
+                error_ocr: 'Terjadi kesalahan OCR.',
+                error_ocr_api_key: 'Kesalahan konfigurasi Vision API.\nHubungi administrator.',
+                error_ocr_403: 'Kesalahan izin Vision API.\nKunci API tidak valid atau API tidak diaktifkan.\nHubungi administrator.',
+                error_ocr_400: 'Permintaan tidak valid.\nFormat gambar mungkin salah.',
+                error_ocr_429: 'Batas panggilan API terlampaui.\nSilakan tunggu dan coba lagi.',
+                error_ocr_with_msg: 'Kesalahan OCR: '
+            }
+        };
+
+        // 現在の言語（ページアクセス時は必ず日本語から開始）
+        let currentLang = 'ja';
+
+        // --- ★ 言語切り替え関数 ★ ---
+        function switchLanguage(lang) {
+            currentLang = lang;
+
+            // ボタンのアクティブ状態を更新
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // テキストを更新
+            updateUILanguage();
+        }
+
+        // --- ★ UI言語更新関数 ★ ---
+        function updateUILanguage() {
+            const t = TRANSLATIONS[currentLang];
+
+            // 言語ボタンの状態を同期
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === currentLang) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // ローディング
+            const loadingText = document.getElementById('loading-status-text');
+            if (loadingText) loadingText.textContent = t.loading;
+
+            // メインタイトル（モードに応じて）
+            const mainTitle = document.getElementById('main-title');
+            if (mainTitle) {
+                mainTitle.textContent = state.mode === 'outbound' ? t.title_outbound : t.title_inbound;
+            }
+
+            // プログレスバー
+            const progressSteps = document.querySelectorAll('#progress-bar p.text-sm');
+            if (progressSteps.length === 3) {
+                progressSteps[0].textContent = t.step1;
+                progressSteps[1].textContent = t.step2;
+                progressSteps[2].textContent = t.step3;
+            }
+
+            // 新規物品仮登録モード
+            const registerProgressInfo = document.querySelector('#register-progress-info p');
+            if (registerProgressInfo) registerProgressInfo.childNodes[2].textContent = t.temp_register_mode;
+
+            // Page 1ラベル
+            const labels = {
+                'registrant-section label': t.label_registrant,
+                'date-section label': t.label_date
+            };
+            Object.keys(labels).forEach(selector => {
+                const elem = document.querySelector(`#${selector.replace(' label', '')} label`);
+                if (elem) elem.textContent = labels[selector];
+            });
+
+            // Page 1ボタン
+            const nextBtn = document.getElementById('next-btn');
+            if (nextBtn) nextBtn.textContent = t.btn_next;
+
+            const toggleModeBtn = document.getElementById('toggle-mode-button');
+            if (toggleModeBtn) {
+                toggleModeBtn.textContent = state.mode === 'outbound' ? t.btn_mode_outbound : t.btn_mode_inbound;
+            }
+
+            // Page 2
+            const inboundFieldsLegend = document.querySelector('#inbound-fields legend');
+            if (inboundFieldsLegend) inboundFieldsLegend.textContent = t.legend_inbound;
+
+            const voucherPhotoLabel = document.querySelector('#photo-upload-section label');
+            if (voucherPhotoLabel) voucherPhotoLabel.textContent = t.label_voucher_photo;
+
+            const selectFileBtn = document.getElementById('select-file-btn');
+            if (selectFileBtn) selectFileBtn.textContent = t.btn_select_file;
+
+            const launchCameraBtn = document.getElementById('launch-camera-btn');
+            if (launchCameraBtn) launchCameraBtn.textContent = t.btn_launch_camera;
+
+            const voucherNumberLabel = document.querySelector('#voucher-number-input-group label');
+            if (voucherNumberLabel) voucherNumberLabel.textContent = t.label_voucher_number;
+
+            const voucherNumberInput = document.getElementById('voucher-number');
+            if (voucherNumberInput) voucherNumberInput.placeholder = t.placeholder_voucher_number;
+
+            const itemSectionLegend = document.getElementById('item-section-legend');
+            if (itemSectionLegend) {
+                itemSectionLegend.textContent = state.mode === 'outbound' ? t.legend_item_outbound : t.legend_item_inbound;
+            }
+
+            const itemNameLabel = document.querySelector('#item-add-section label[for="item-name"]');
+            if (itemNameLabel) itemNameLabel.textContent = t.label_item_name;
+
+            const itemSearchInput = document.getElementById('item-search');
+            if (itemSearchInput) itemSearchInput.placeholder = t.placeholder_item_search;
+
+            const itemNameSelect = document.getElementById('item-name');
+            if (itemNameSelect && itemNameSelect.options.length > 0) {
+                itemNameSelect.options[0].textContent = t.placeholder_item_select;
+            }
+
+            const quantityLabel = document.querySelector('#item-add-section label[for="quantity"]');
+            if (quantityLabel) quantityLabel.textContent = t.label_quantity;
+
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) quantityInput.placeholder = t.placeholder_quantity;
+
+            const addItemBtn = document.getElementById('add-item-button');
+            if (addItemBtn) addItemBtn.textContent = t.btn_add_item;
+
+            const addedItemsHeading = document.querySelector('#added-items-container h3');
+            if (addedItemsHeading) addedItemsHeading.textContent = t.heading_added_items;
+
+            const confirmBtn = document.getElementById('confirm-button');
+            if (confirmBtn) confirmBtn.textContent = t.btn_confirm;
+
+            const backToPage1Btn = document.getElementById('back-to-page1-btn');
+            if (backToPage1Btn) backToPage1Btn.textContent = t.btn_back;
+
+            // Page 3
+            const confirmationHeading = document.querySelector('#page3 h2');
+            if (confirmationHeading) confirmationHeading.textContent = t.heading_confirmation;
+
+            const confirmLabels = document.querySelectorAll('#page3 p.text-gray-500');
+            if (confirmLabels.length >= 3) {
+                confirmLabels[0].textContent = t.label_confirm_registrant;
+                confirmLabels[1].textContent = t.label_confirm_date;
+            }
+
+            const confirmModeLabel = document.getElementById('confirm-mode-label');
+            if (confirmModeLabel) {
+                confirmModeLabel.textContent = state.mode === 'outbound' ? t.label_confirm_mode_outbound : t.label_confirm_mode_inbound;
+            }
+
+            const registerBtn = document.getElementById('register-btn');
+            if (registerBtn) registerBtn.textContent = t.btn_register;
+
+            const backToPage2Btn = document.getElementById('back-to-page2-btn');
+            if (backToPage2Btn) backToPage2Btn.textContent = t.btn_edit;
+
+            // 成功画面
+            const successTitle = document.querySelector('#success-screen h2');
+            if (successTitle) successTitle.textContent = t.success_title;
+
+            const successMessage = document.getElementById('success-message');
+            if (successMessage) successMessage.textContent = t.success_message;
+
+            const newEntryBtn = document.getElementById('new-entry-btn');
+            if (newEntryBtn) newEntryBtn.textContent = t.btn_new_entry;
+
+            // 新規物品登録ページ
+            const pageRegisterHeading = document.querySelector('#pageRegister h2');
+            if (pageRegisterHeading) pageRegisterHeading.textContent = t.page_register_title;
+
+            const pageRegisterDesc = document.querySelector('#pageRegister p.text-sm');
+            if (pageRegisterDesc) pageRegisterDesc.textContent = t.page_register_desc;
+
+            const launchOcrBtn = document.getElementById('launch-ocr-btn');
+            if (launchOcrBtn) {
+                const span = launchOcrBtn.querySelector('span');
+                if (span) span.textContent = t.btn_launch_ocr;
+            }
+
+            const regNameLabel = document.querySelector('label[for="reg-name"]');
+            if (regNameLabel) regNameLabel.textContent = t.label_reg_name;
+
+            const regNameTextarea = document.getElementById('reg-name');
+            if (regNameTextarea) regNameTextarea.placeholder = t.placeholder_reg_name;
+
+            const regCategoryLabel = document.querySelector('label[for="reg-category"]');
+            if (regCategoryLabel) regCategoryLabel.textContent = t.label_reg_category;
+
+            const regCategorySelect = document.getElementById('reg-category');
+            if (regCategorySelect && regCategorySelect.options.length > 0) {
+                regCategorySelect.options[0].textContent = t.placeholder_reg_category;
+            }
+
+            const registerTempBtn = document.getElementById('register-temp-btn');
+            if (registerTempBtn) registerTempBtn.textContent = t.btn_temp_register;
+
+            const backToPage1FromReg = document.getElementById('back-to-page1-from-reg');
+            if (backToPage1FromReg) backToPage1FromReg.textContent = t.btn_back;
+        }
+
+        // --- ★ 認証データ（サーバーから埋め込み・安全化） ★ ---
+        // サーバー側で文字列化されている場合も、オブジェクトの場合も対応できるように処理
+        const rawAuth = <?= typeof initialAuthData !== 'undefined' ? JSON.stringify(initialAuthData) : 'null' ?>;
+        const AUTH_DATA = rawAuth ? ((typeof rawAuth === 'string') ? JSON.parse(rawAuth) : rawAuth) : null;
+
+        // --- ★ グローバル変数 (状態管理) ★ ---
+        const state = {
+            mode: 'outbound', 
+            items: [],
+            currentUser: null,
+            file: null, 
+            appData: null,
+            originalUrl: null,
+            updateInterval: null 
+        };
+        // --- ★ DOM要素のキャッシュ ★ ---
+        const $ = (id) => document.getElementById(id);
+        const dom = {
+            mainContent: $('main-content'), statusMessage: $('status-message'), successScreen: $('success-screen'),
+            page1: $('page1'), page2: $('page2'), page3: $('page3'), mainTitle: $('main-title'),
+            step1: $('step1-circle'), step2: $('step2-circle'), step3: $('step3-circle'),
+            line1: $('progress-line1'), line2: $('progress-line2'),
+            registrantSection: $('registrant-section'), registrantDisplay: $('registrant-display'), registrantSelect: $('registrant-select'),
+            registrantDisplayContainer: $('registrant-display-container'), registrantNameHidden: $('registrant-name'),
+            changeUserBtn: $('change-user-btn'), adminLink: $('admin-link-placeholder'),
+            dateSection: $('date-section'), dateInput: $('date-input'), nextBtn: $('next-btn'),
+            toggleModeBtn: $('toggle-mode-button'), inboundFields: $('inbound-fields'),
+            photoSection: $('photo-upload-section'), selectFileBtn: $('select-file-btn'),
+            launchCameraBtn: $('launch-camera-btn'),
+            fileNameDisplay: $('file-name-display'),
+            voucherFileInput: $('voucher-photo-file'), voucherCameraInput: $('voucher-photo-camera'),
+            voucherNumberInputGroup: $('voucher-number-input-group'), voucherNumber: $('voucher-number'),
+            itemAddSection: $('item-add-section'), itemSectionLegend: $('item-section-legend'),
+            itemSearch: $('item-search'), itemName: $('item-name'), quantity: $('quantity'), addItemBtn: $('add-item-button'),
+            addedItemsContainer: $('added-items-container'), addedItemsList: $('added-items-list'),
+            confirmBtn: $('confirm-button'), backToPage1Btn: $('back-to-page1-btn'),
+            confirmRegistrant: $('confirm-registrant'), confirmDate: $('confirm-date'),
+            confirmModeLabel: $('confirm-mode-label'), confirmItemsList: $('confirm-items-list'),
+            registerBtn: $('register-btn'), backToPage2Btn: $('back-to-page2-btn'),
+            successMessage: $('success-message'), newEntryBtn: $('new-entry-btn'),
+            pageRegister: $('pageRegister'),
+            regName: $('reg-name'),
+            regCategory: $('reg-category'),
+            launchOcrBtn: $('launch-ocr-btn'),
+            registerTempBtn: $('register-temp-btn'),
+            backToPage1FromReg: $('back-to-page1-from-reg'),
+            ocrCameraInput: $('ocr-camera-input'),
+            loadingStatusText: $('loading-status-text') 
+        };
+    </script>
+
+    <?!= HtmlService.createHtmlOutputFromFile('JavaScript_Api').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('JavaScript_UI').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('JavaScript_Main').getContent(); ?>
+    
+    <script>
+        window.addEventListener('load', () => {
+            console.log("All scripts loaded. Executing initialize()...");
+
+            // ページアクセス時は必ず日本語から開始
+            currentLang = 'ja';
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === 'ja') {
+                    btn.classList.add('active');
+                }
+            });
+
+            if (typeof initialize === 'function') {
+                initialize();
+                // 初期化後に言語を適用
+                setTimeout(() => {
+                    updateUILanguage();
+                }, 500);
+            } else {
+                console.error("Main.js is not loaded or initialize() is missing.");
+            }
+        });
+    </script>
+    
+</body>
+</html>

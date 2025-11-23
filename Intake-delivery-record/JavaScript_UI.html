@@ -1,0 +1,901 @@
+<script>
+// ===============================================================
+// [ JavaScript_UI.html ]
+// UI操作・イベントハンドリング・データ送信
+// ===============================================================
+console.log("[Loaded] JavaScript_UI");
+
+// ===============================================================
+// --- ページナビゲーション ---
+// ===============================================================
+
+/**
+ * ローディングステータスのテキストを更新します。
+ * (Main.js の initialize から呼び出される)
+ */
+function updateLoadingStatus(message) {
+    if (dom.loadingStatusText) {
+        dom.loadingStatusText.textContent = message;
+    }
+}
+
+/**
+ * ローディング画面を非表示にし、メインコンテンツを表示します（フェード効果付き）。
+ * (Main.js の initialize から呼び出される)
+ */
+function showMainContent() {
+    if (dom.statusMessage && dom.mainContent) {
+        dom.statusMessage.classList.remove('animate-pulse');
+        dom.statusMessage.classList.add('opacity-0');
+        
+        setTimeout(() => {
+            dom.statusMessage.style.display = 'none';
+            dom.mainContent.style.display = 'block';
+            
+            requestAnimationFrame(() => {
+                dom.mainContent.classList.remove('opacity-0');
+            });
+            
+        }, 300);
+    }
+}
+
+/**
+ * (★ 新規追加)
+ * Main.js の initialize で致命的なエラーが発生したときに呼び出される
+ */
+function showFatalError(error) {
+  const t = TRANSLATIONS[currentLang];
+  console.error('Initialization failed:', error);
+  updateLoadingStatus(`${t.error_fatal}${error.message || t.error_unknown}`);
+
+  if(dom.statusMessage) {
+    dom.statusMessage.classList.remove('animate-pulse');
+    dom.statusMessage.innerHTML = `
+    <div class="space-y-4 py-4">
+      <div class="flex justify-center">
+          <svg class="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      </div>
+      <div class="text-center space-y-2">
+          <h2 class="text-xl font-semibold text-gray-800">${t.error_loading}</h2>
+          <p class="text-gray-600">${t.error_app_start_failed}</p>
+          <p class="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">${error.message || t.error_unknown}</p>
+          <button
+              onclick="location.reload()"
+              class="mt-4 py-2 px-4 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">
+              ${t.btn_reload}
+          </button>
+      </div>
+    </div>`;
+    dom.statusMessage.style.display = 'block';
+  }
+  if(dom.mainContent) dom.mainContent.style.display = 'none';
+}
+
+/**
+ * (★ 新規追加)
+ * 汎用的なAPIエラーをアラート表示する
+ */
+function showApiError(error) {
+  const t = TRANSLATIONS[currentLang];
+  console.error("API Error:", error);
+  alert(`${t.error_occurred}${error.message || t.error_unknown}`);
+}
+
+
+/**
+ * 指定されたページを表示し、他を非表示にする
+ */
+function showPage(pageNumber) {
+  dom.page1.style.display = 'none'; dom.page2.style.display = 'none'; dom.page3.style.display = 'none'; dom.pageRegister.style.display = 'none';
+  const isRegisterMode = state.mode === 'register';
+  
+  const progressBar = document.getElementById('progress-bar');
+  const registerInfoBar = document.getElementById('register-progress-info'); 
+
+  if (isRegisterMode) {
+    if (progressBar) progressBar.classList.add('hidden');
+    if (registerInfoBar) registerInfoBar.classList.remove('hidden');
+  } else {
+    if (progressBar) progressBar.classList.remove('hidden');
+    if (registerInfoBar) registerInfoBar.classList.add('hidden');
+  }
+
+  [dom.step1, dom.step2, dom.step3].forEach((step, i) => {
+    const isActive = !isRegisterMode && (i + 1 <= pageNumber); 
+    step.classList.toggle('bg-blue-600', isActive); step.classList.toggle('text-white', isActive);
+    step.classList.toggle('bg-gray-300', !isActive); step.classList.toggle('text-gray-500', !isActive);
+    step.closest('div').classList.toggle('text-blue-600', isActive);
+    step.closest('div').classList.toggle('text-gray-400', !isActive);
+  });
+  dom.line1.classList.toggle('border-blue-600', !isRegisterMode && pageNumber >= 2); dom.line1.classList.toggle('border-gray-300', isRegisterMode || pageNumber < 2);
+  dom.line2.classList.toggle('border-blue-600', !isRegisterMode && pageNumber >= 3); dom.line2.classList.toggle('border-gray-300', isRegisterMode || pageNumber < 3);
+  if (pageNumber === 1) dom.page1.style.display = 'block';
+  if (pageNumber === 2) dom.page2.style.display = 'block';
+  if (pageNumber === 3) dom.page3.style.display = 'block';
+  if (pageNumber === 'register') dom.pageRegister.style.display = 'block'; 
+}
+
+function navigateTo(pageNumber) {
+  showPage(pageNumber); 
+  const newHash = '#page' + pageNumber;
+  try {
+    if (window.location.hash !== newHash) {
+      history.replaceState(null, null, newHash);
+    }
+  } catch (e) {
+    window.location.hash = newHash;
+  }
+}
+
+// ===============================================================
+// --- イベントリスナー (UI) ---
+// ===============================================================
+
+/**
+ * (★ 修正: 登録ボタンのリスナーを Api.js ではなく、UI.js の関数に向ける)
+ */
+function setupEventListeners() {
+  
+  dom.nextBtn.addEventListener('click', () => {
+    if (state.mode === 'register') {
+      navigateTo('register'); 
+    } else {
+      navigateTo(2); 
+    }
+  });
+  dom.toggleModeBtn.addEventListener('click', () => toggleMode(false)); 
+  dom.dateInput.addEventListener('input', validatePage1);
+  dom.registrantSelect.addEventListener('change', (e) => {
+    dom.registrantNameHidden.value = e.target.value;
+    validatePage1();
+  });
+  dom.changeUserBtn.addEventListener('click', toggleUserEdit);
+  dom.backToPage1Btn.addEventListener('click', () => navigateTo(1));
+  dom.confirmBtn.addEventListener('click', showConfirmationPage); 
+  dom.addItemBtn.addEventListener('click', addItem);
+  dom.itemName.addEventListener('input', validateItemAdd);
+  dom.quantity.addEventListener('input', validateItemAdd);
+  dom.itemSearch.addEventListener('input', filterItems);
+  dom.selectFileBtn.addEventListener('click', () => dom.voucherFileInput.click());
+  dom.launchCameraBtn.addEventListener('click', () => dom.voucherCameraInput.click());
+  dom.voucherFileInput.addEventListener('change', handleFileSelect);
+  dom.voucherCameraInput.addEventListener('change', handleFileSelect);
+  dom.voucherNumber.addEventListener('input', validatePage2);
+  dom.backToPage2Btn.addEventListener('click', () => navigateTo(2));
+  
+  // ★ 修正: Api.js の submitRegistration ではなく、
+  //         UI.js の handleSubmitRegistration を呼び出す
+  dom.registerBtn.addEventListener('click', handleSubmitRegistration);
+  
+  dom.newEntryBtn.addEventListener('click', resetForNewEntry);
+  
+  // 新規登録フォーム (pageRegister)
+  dom.launchOcrBtn.addEventListener('click', launchOcrCamera);
+  
+  // ★ 修正: Api.js の submitTemporaryRegistration ではなく、
+  //         UI.js の handleSubmitTemporaryRegistration を呼び出す
+  dom.registerTempBtn.addEventListener('click', handleSubmitTemporaryRegistration);
+  
+  dom.backToPage1FromReg.addEventListener('click', () => toggleMode(false));
+  dom.ocrCameraInput.addEventListener('change', handleOcrImageSelect); 
+}
+
+// ===============================================================
+// --- メイン処理 (UI) ---
+// ===============================================================
+
+/**
+ * (★ 修正: Main.js のタイポに合わせて onGetInitialDataSuccess に変更)
+ * 初期データ取得成功時のコールバック
+ */
+function onGetInitialDataSuccess(data) {
+  console.log("onGetInitialDataSuccess: Initial data received.", data);
+
+  // --- 1. グローバル状態へ格納 ---
+  state.appData = data;
+
+  const {
+    users,
+    items,
+    adminLink,
+    currentUserInfo,
+    settings
+  } = data;
+
+  // 現在のユーザー名
+  state.currentUser = currentUserInfo?.name || "不明ユーザー";
+
+  // --- 2. ユーザー名表示 ---
+  dom.registrantDisplay.textContent = state.currentUser;
+  dom.registrantNameHidden.value = state.currentUser;
+
+  // --- 3. 初期ドロップダウン構築 ---
+  applyDropdownUpdates({ users, items });
+
+  // --- 4. 管理者リンク表示 ---
+  dom.changeUserBtn.style.display = 'block';
+
+  if (adminLink) {
+    dom.adminLink.innerHTML =
+      `<a href="${adminLink}" target="_blank"
+          class="text-blue-600 hover:underline">管理者設定</a>`;
+  }
+
+  // --- 5. UI設定適用 ---
+  applyUISettings(settings);
+
+  // --- 6. モード制御（初期処理フラグ付き） ---
+  toggleMode(true);
+
+  // --- 7. バリデーション ---
+  validatePage1();
+
+  // --- 8. ページルーティング（page1/page2） ---
+  handleRouting();
+
+  // --- 9. Webhook方式のためポーリング無効 ---
+  console.log("Polling is disabled (Webhook mode). No setInterval will be used.");
+}
+
+
+/**
+ * (★ 新規追加)
+ * Api.js の onDropdownUpdated から呼び出される
+ */
+function applyDropdownUpdates(newData) {
+  const t = TRANSLATIONS[currentLang];
+  if (newData.users) {
+     const currentName = dom.registrantNameHidden.value || state.currentUser; // 現在選択中の名前を維持
+     dom.registrantSelect.innerHTML = '';
+     newData.users.forEach(user => {
+       const option = new Option(user.name, user.name);
+       if (user.name === currentName) option.selected = true;
+       dom.registrantSelect.appendChild(option);
+     });
+  }
+  if (newData.items) {
+    // 全品目を保存（フィルタリング用）
+    state.allItems = newData.items;
+    dom.itemName.innerHTML = `<option value="" disabled selected>${t.placeholder_item_select}</option>`;
+    newData.items.forEach(item => {
+      dom.itemName.appendChild(new Option(item, item));
+    });
+    // 検索フィールドをクリア
+    if (dom.itemSearch) {
+      dom.itemSearch.value = '';
+    }
+  }
+}
+
+/**
+ * 品名検索フィルター
+ * 検索文字列に基づいてitem-nameのオプションをフィルタリングする
+ */
+function filterItems() {
+  const t = TRANSLATIONS[currentLang];
+  const searchTerm = dom.itemSearch.value.toLowerCase().trim();
+  const items = state.allItems || [];
+
+  // 現在の選択値を保存
+  const currentValue = dom.itemName.value;
+
+  // オプションを再構築
+  dom.itemName.innerHTML = `<option value="" disabled selected>${t.placeholder_item_select}</option>`;
+
+  let matchCount = 0;
+  items.forEach(item => {
+    // 検索語が空、または品名に検索語が含まれる場合に表示
+    if (!searchTerm || item.toLowerCase().includes(searchTerm)) {
+      const option = new Option(item, item);
+      if (item === currentValue) option.selected = true;
+      dom.itemName.appendChild(option);
+      matchCount++;
+    }
+  });
+
+  // 検索結果がない場合のメッセージ
+  if (matchCount === 0 && searchTerm) {
+    dom.itemName.innerHTML = `<option value="" disabled selected>${t.msg_no_match}</option>`;
+  }
+
+  validateItemAdd();
+}
+
+// ===============================================================
+// --- UIヘルパー関数 (UI) ---
+// ===============================================================
+
+function validatePage1() {
+  const date = dom.dateInput.value;
+  const registrant = dom.registrantNameHidden.value;
+  dom.nextBtn.disabled = !(date && registrant);
+}
+function validateItemAdd() {
+  const item = dom.itemName.value;
+  const qty = parseInt(dom.quantity.value, 10);
+  dom.addItemBtn.disabled = !(item && qty > 0);
+}
+function validatePage2() {
+  if (state.mode === 'inbound' && state.file && !dom.voucherNumber.value.trim()) {
+    dom.confirmBtn.disabled = true;
+    return;
+  }
+  dom.confirmBtn.disabled = state.items.length === 0;
+}
+function resetForNewEntry() {
+  const t = TRANSLATIONS[currentLang];
+  state.items = []; state.file = null;
+  dom.fileNameDisplay.textContent = '';
+  dom.voucherNumber.disabled = true; dom.voucherNumber.value = '';
+  dom.voucherNumber.placeholder = t.placeholder_voucher_number;
+  dom.voucherFileInput.value = null; dom.voucherCameraInput.value = null;
+  dom.itemName.value = ''; dom.quantity.value = '';
+  dom.itemSearch.value = ''; // 検索フィールドをクリア
+  // 品名リストを全件表示に戻す
+  if (state.allItems) {
+    dom.itemName.innerHTML = `<option value="" disabled selected>${t.placeholder_item_select}</option>`;
+    state.allItems.forEach(item => {
+      dom.itemName.appendChild(new Option(item, item));
+    });
+  }
+  dom.addItemBtn.disabled = true;
+  renderAddedItems();
+  validatePage2();
+  dom.successScreen.style.display = 'none';
+  dom.mainContent.style.display = 'block';
+  navigateTo(1);
+}
+
+function toggleMode(isInit = false) {
+  // ( ... 変更なし ... )
+  const userRole = state.appData?.currentUserInfo?.role || 'User'; 
+  const isAdmin = (userRole === 'SuperAdmin' || userRole === 'Admin');
+  if (!isInit) {
+    if (isAdmin) {
+      if (state.mode === 'outbound') {
+        state.mode = 'register';
+      } else if (state.mode === 'register') {
+        state.mode = 'inbound';
+      } else { 
+        state.mode = 'outbound'; 
+      }
+    } else {
+      state.mode = state.mode === 'outbound' ? 'inbound' : 'outbound';
+    }
+  }
+  if (!state.appData || !state.appData.settings) {
+    console.warn("toggleMode: appData.settings not found. Using defaults.");
+    if (!state.appData) state.appData = {};
+    state.appData.settings = {}; 
+  }
+  const settings = state.appData.settings; 
+  let buttonText = '';
+  
+  dom.nextBtn.style.display = ''; 
+
+  const t = TRANSLATIONS[currentLang];
+  if (state.mode === 'inbound') {
+    dom.mainTitle.textContent = t.title_inbound;
+    buttonText = isAdmin ? t.btn_mode_inbound : t.btn_mode_inbound;
+  } else if (state.mode === 'outbound') {
+    dom.mainTitle.textContent = t.title_outbound;
+    buttonText = isAdmin ? t.temp_register_mode.split(' ')[0] + 'へ' : t.btn_mode_outbound;
+  } else if (state.mode === 'register') {
+    dom.mainTitle.textContent = t.page_register_title;
+    buttonText = t.btn_mode_outbound;
+  }
+  
+  dom.toggleModeBtn.textContent = buttonText;
+
+  if (!isInit) {
+    navigateTo(1);
+  }
+  
+  if (state.mode === 'inbound') {
+    dom.itemSectionLegend.textContent = t.legend_item_inbound;
+    const hideInboundSection = !settings.ui_photo_upload_visible && !settings.ui_voucher_number_visible;
+    if (hideInboundSection) { dom.inboundFields.classList.add('hidden'); }
+    else { dom.inboundFields.classList.remove('hidden'); }
+  } else {
+    dom.itemSectionLegend.textContent = t.legend_item_outbound;
+    dom.inboundFields.classList.add('hidden');
+    if (!isInit) resetFileInput();
+  }
+  
+  if (!isInit && state.mode !== 'register') validatePage2();
+}
+
+function toggleUserEdit() {
+  const t = TRANSLATIONS[currentLang];
+  const isEditing = dom.registrantSelect.classList.contains('hidden');
+  dom.registrantSelect.classList.toggle('hidden', !isEditing);
+  dom.registrantDisplayContainer.classList.toggle('hidden', isEditing);
+  if (isEditing) {
+    dom.changeUserBtn.textContent = t.msg_mode_confirm;
+    dom.registrantSelect.value = dom.registrantNameHidden.value;
+  } else {
+    dom.changeUserBtn.textContent = t.msg_mode_change;
+    const newName = dom.registrantSelect.value;
+    dom.registrantDisplay.textContent = newName;
+    dom.registrantNameHidden.value = newName;
+  }
+  validatePage1();
+}
+function handleFileSelect(event) {
+  const t = TRANSLATIONS[currentLang];
+  const file = event.target.files[0];
+  if (!file) {
+    state.file = null;
+    resetFileInput();
+    return;
+  }
+  state.file = file;
+  dom.fileNameDisplay.textContent = file.name;
+  dom.voucherNumber.disabled = false;
+  dom.voucherNumber.placeholder = t.msg_voucher_placeholder_active;
+  validatePage2();
+}
+function resetFileInput() {
+  const t = TRANSLATIONS[currentLang];
+  state.file = null;
+  dom.fileNameDisplay.textContent = '';
+  dom.voucherNumber.disabled = true;
+  dom.voucherNumber.value = '';
+  dom.voucherNumber.placeholder = t.placeholder_voucher_number;
+  dom.voucherFileInput.value = null;
+  dom.voucherCameraInput.value = null;
+  validatePage2();
+}
+function applyUISettings(settings) {
+  // ( ... 変更なし ... )
+  if (!settings) { 
+    console.warn("applyUISettings: UI settings not found, using defaults."); 
+    settings = {}; 
+  }
+  const setVisibility = (element, isVisible) => {
+    if (element) {
+      if (isVisible !== false) { 
+        element.style.display = ''; 
+      } else {
+        element.style.display = 'none';
+      }
+    }
+  };
+  setVisibility(dom.registrantSection, settings.ui_registrant_visible);
+  setVisibility(dom.dateSection, settings.ui_date_visible);
+  setVisibility(dom.toggleModeBtn, settings.ui_toggle_mode_visible);
+  setVisibility(dom.photoSection, settings.ui_photo_upload_visible);
+  setVisibility(dom.voucherNumberInputGroup, settings.ui_voucher_number_visible);
+  setVisibility(dom.itemAddSection, settings.ui_item_add_visible);
+  setVisibility(dom.addedItemsContainer, settings.ui_item_list_visible);
+  
+  if (settings.ui_toggle_mode_visible === false && dom.nextBtn.classList.contains('col-span-5')) {
+    dom.nextBtn.classList.remove('col-span-5');
+    dom.nextBtn.classList.add('col-span-7');
+  } else if (settings.ui_toggle_mode_visible !== false && dom.nextBtn.classList.contains('col-span-7')) {
+    dom.nextBtn.classList.remove('col-span-7');
+    dom.nextBtn.classList.add('col-span-5');
+  }
+}
+function addItem() {
+  // ( ... 変更なし ... )
+  const itemName = dom.itemName.value;
+  const quantity = parseInt(dom.quantity.value, 10);
+  const absQuantity = Math.abs(quantity); 
+  if (!itemName || !(absQuantity > 0)) return;
+  const existingItem = state.items.find(item => item.name === itemName);
+  if (existingItem) {
+    existingItem.quantity += absQuantity;
+  } else {
+    state.items.push({ name: itemName, quantity: absQuantity });
+  }
+  renderAddedItems();
+  dom.itemName.value = ''; dom.quantity.value = '';
+  dom.addItemBtn.disabled = true;
+  validatePage2();
+}
+function renderAddedItems() {
+  const t = TRANSLATIONS[currentLang];
+  dom.addedItemsList.innerHTML = '';
+  if (state.items.length === 0) {
+    dom.addedItemsList.innerHTML = `<p class="text-gray-500">${t.msg_no_items_added}</p>`;
+    return;
+  }
+  state.items.forEach((item, index) => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'flex justify-between items-center p-2 bg-white rounded border';
+    itemEl.innerHTML = `
+      <span>${item.name} <span class="text-gray-600">x ${item.quantity}</span></span>
+      <button type="button" data-index="${index}" class="remove-item-btn text-red-500 hover:text-red-700 font-bold text-lg">&times;</button>
+    `;
+    dom.addedItemsList.appendChild(itemEl);
+  });
+  document.querySelectorAll('.remove-item-btn').forEach(btn => {
+    btn.addEventListener('click', removeItem);
+  });
+}
+function removeItem(event) {
+  // ( ... 変更なし ... )
+  const index = parseInt(event.target.dataset.index, 10);
+  state.items.splice(index, 1);
+  renderAddedItems();
+  validatePage2();
+}
+function showConfirmationPage() {
+  const t = TRANSLATIONS[currentLang];
+  dom.confirmRegistrant.textContent = dom.registrantNameHidden.value;
+  dom.confirmDate.textContent = dom.dateInput.value;
+  const modeLabel = state.mode === 'inbound' ? t.label_confirm_mode_inbound : t.label_confirm_mode_outbound;
+  dom.confirmModeLabel.textContent = modeLabel;
+  dom.confirmItemsList.innerHTML = '';
+  state.items.forEach(item => {
+    const p = document.createElement('p');
+    p.className = 'text-gray-800';
+    p.textContent = `${item.name} ( ${item.quantity} ${t.msg_quantity_unit} )`;
+    dom.confirmItemsList.appendChild(p);
+  });
+  if (state.mode === 'inbound' && state.file) {
+    const p = document.createElement('p');
+    p.className = 'text-gray-800 mt-2 border-t pt-2';
+    const voucherDisplay = dom.voucherNumber.value.trim() || state.file.name;
+    p.textContent = `${t.msg_voucher} (${voucherDisplay})`;
+    dom.confirmItemsList.appendChild(p);
+  }
+  navigateTo(3);
+}
+
+// ===============================================================
+// --- ★ 新規追加: UI.js がデータ送信ロジックを担当 ---
+// ===============================================================
+
+/**
+ * (★ 移管) メイン登録ボタンのローディング状態を更新
+ */
+function setRegistrationLoading(isLoading, message) {
+  const t = TRANSLATIONS[currentLang];
+  if (isLoading) {
+    dom.registerBtn.disabled = true;
+    dom.registerBtn.innerHTML = `<span class="loader inline-block mr-2"></span> ${message || t.msg_registering}`;
+  } else {
+    dom.registerBtn.disabled = false;
+    dom.registerBtn.innerHTML = t.btn_register;
+  }
+}
+// (Api.js から削除された resetRegisterButton の代わり)
+
+/**
+ * (★ 移管) メイン登録フォームからデータを収集
+ */
+function getRegistrationData() {
+  return {
+    registrant: dom.registrantNameHidden.value,
+    date: dom.dateInput.value,
+    mode: state.mode,
+    items: state.items,
+    voucherNumber: dom.voucherNumber.value.trim() 
+  };
+}
+
+/**
+ * (★ 移管) メイン登録処理 (Api.js の submitRegistration から移管)
+ */
+async function handleSubmitRegistration() {
+  const t = TRANSLATIONS[currentLang];
+  const formData = getRegistrationData();
+  setRegistrationLoading(true, t.msg_registering);
+  let uploadedFileId = null;
+
+  try {
+    if (state.mode === 'inbound' && state.file) {
+      // (ファイルあり)
+      setRegistrationLoading(true, t.msg_getting_upload_url);
+      const fileInfo = { fileName: state.file.name, mimeType: state.file.type };
+
+      const { uploadUrl, fileId } = await api.getResumableUploadUrl(fileInfo.fileName, fileInfo.mimeType);
+
+      if (!uploadUrl || !fileId) throw new Error("Upload URL or FileID retrieval failed.");
+
+      uploadedFileId = fileId;
+      setRegistrationLoading(true, t.msg_registering_data);
+
+      const textResult = await api.acceptRegistrationData(formData, null);
+
+      if (!textResult.success) {
+         throw new Error(`Text data registration failed: ${textResult.message}`);
+      }
+
+      setRegistrationLoading(true, t.msg_uploading_photo);
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": fileInfo.mimeType, },
+        body: state.file,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`File upload failed (HTTP ${response.status}): ${errText}`);
+      }
+
+      setRegistrationLoading(true, t.msg_finalizing);
+      const queueFormData = { ...formData, items: [] };
+
+      const finalResult = await api.acceptRegistrationData(queueFormData, uploadedFileId);
+      // ★ 成功ハンドラを直接呼び出し
+      dom.successMessage.textContent = finalResult.message;
+      dom.mainContent.style.display = 'none';
+      dom.successScreen.style.display = 'block';
+      navigateTo(1);
+
+    } else {
+      // (ファイルなしの場合) テキストデータのみ送信
+      const result = await api.acceptRegistrationData(formData, null);
+
+      // ★ 成功ハンドラを直接呼び出し
+      dom.successMessage.textContent = result.message;
+      dom.mainContent.style.display = 'none';
+      dom.successScreen.style.display = 'block';
+      navigateTo(1);
+    }
+  } catch (error) {
+    // ★ 失敗ハンドラを直接呼び出し
+    showApiError(error);
+    setRegistrationLoading(false); // ボタンを元に戻す
+    showPage(3); // 確認画面に戻る
+  }
+}
+
+/**
+ * (★ 移管) 仮登録ボタンのローディング状態を更新
+ */
+function setTempRegisterLoading(isLoading) {
+  const t = TRANSLATIONS[currentLang];
+  if (isLoading) {
+    dom.registerTempBtn.disabled = true;
+    dom.registerTempBtn.innerHTML = `<span class="loader inline-block mr-2"></span> ${t.msg_temp_registering}`;
+  } else {
+    dom.registerTempBtn.disabled = false;
+    dom.registerTempBtn.innerHTML = t.btn_temp_register;
+  }
+}
+// (Api.js から削除された resetTempRegisterButton の代わり)
+
+/**
+ * (★ 移管) 仮登録フォームからデータを収集
+ */
+function getTemporaryRegistrationData() {
+  return {
+    code: '', // (JANは廃止、空文字を送る)
+    name: dom.regName.value.trim(),
+    category: dom.regCategory.value.trim(),
+    registrant: state.currentUser
+  };
+}
+
+/**
+ * (★ 移管) 仮登録フォームをリセット
+ */
+function resetRegisterForm() {
+  dom.regName.value = '';
+  dom.regCategory.value = '';
+  // (もし Materialize なら M.FormSelect.init(dom.regCategory); も必要)
+}
+
+/**
+ * (★ 移管) 新規物品 仮登録 (Api.js の submitTemporaryRegistration から移管)
+ */
+async function handleSubmitTemporaryRegistration() {
+  const t = TRANSLATIONS[currentLang];
+  const itemData = getTemporaryRegistrationData();
+
+  // バリデーション
+  if (!itemData.name) {
+    alert(t.error_name_required);
+    return;
+  }
+  if (!itemData.category) {
+    alert(t.error_category_required);
+    return;
+  }
+
+  setTempRegisterLoading(true);
+
+  try {
+    const result = await api.saveTemporaryItem(itemData);
+
+    // 成功時
+    alert(result.message);
+    resetRegisterForm();
+    setTempRegisterLoading(false);
+    toggleMode(false); // page1 に戻る
+
+  } catch (error) {
+    // 失敗時
+    setTempRegisterLoading(false);
+    showApiError(error);
+  }
+}
+
+// ===============================================================
+// --- OCR（Vision API）関連 (UI) ---
+// ===============================================================
+
+function launchOcrCamera() {
+  const t = TRANSLATIONS[currentLang];
+  if (dom.ocrCameraInput) {
+    dom.ocrCameraInput.click();
+  } else {
+    alert(t.error_ocr_camera_not_found);
+  }
+}
+
+function handleOcrImageSelect(event) {
+  const t = TRANSLATIONS[currentLang];
+  const file = event.target.files[0];
+  if (!file) {
+    return;
+  }
+
+  // ファイルサイズチェック（10MB以上は警告）
+  const fileSizeMB = file.size / (1024 * 1024);
+  console.log(`選択された画像: ${file.name}, サイズ: ${fileSizeMB.toFixed(2)}MB`);
+
+  if (fileSizeMB > 10) {
+    alert(t.msg_ocr_file_size_warning.replace('{size}', fileSizeMB.toFixed(1)));
+  }
+
+  const btn = dom.launchOcrBtn;
+  btn.disabled = true;
+  btn.innerHTML = `
+    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    <span>${t.msg_ocr_reading}</span>`;
+
+  imageToBase64(file)
+    .then(base64String => {
+      console.log(`画像のBase64変換完了: ${(base64String.length / 1024).toFixed(0)}KB`);
+      google.script.run
+        .withSuccessHandler(onOcrSuccess)
+        .withFailureHandler(onOcrFailure)
+        .runOCR(base64String);
+    })
+    .catch(err => {
+      console.error('画像変換エラー:', err);
+      onOcrFailure(err);
+    });
+
+  event.target.value = null;
+}
+
+function onOcrSuccess(extractedText) {
+  const t = TRANSLATIONS[currentLang];
+  console.log("OCR Success:", extractedText);
+
+  if (extractedText && extractedText !== "（テキストは検出されませんでした）" && !extractedText.includes("検出されませんでした") && !extractedText.includes("No text detected")) {
+    alert(t.msg_ocr_success);
+    dom.regName.value = extractedText.replace(/\n/g, ' ');
+  } else {
+    alert(t.msg_ocr_no_text);
+  }
+
+  resetOcrButton();
+}
+
+function onOcrFailure(error) {
+  const t = TRANSLATIONS[currentLang];
+  console.error("OCR Failure:", error);
+
+  let errorMsg = t.error_ocr;
+
+  if (error.message) {
+    // エラーメッセージからユーザーフレンドリーなメッセージを生成
+    if (error.message.includes("APIキー") || error.message.includes("API key")) {
+      errorMsg = t.error_ocr_api_key;
+    } else if (error.message.includes("HTTP 403") || error.message.includes("403")) {
+      errorMsg = t.error_ocr_403;
+    } else if (error.message.includes("HTTP 400") || error.message.includes("400")) {
+      errorMsg = t.error_ocr_400;
+    } else if (error.message.includes("HTTP 429") || error.message.includes("429")) {
+      errorMsg = t.error_ocr_429;
+    } else {
+      errorMsg = `${t.error_ocr_with_msg}${error.message}`;
+    }
+  }
+
+  console.error("詳細なエラー情報:", error);
+  alert(errorMsg);
+  resetOcrButton();
+}
+
+function resetOcrButton() {
+  const t = TRANSLATIONS[currentLang];
+  const btn = dom.launchOcrBtn;
+  btn.disabled = false;
+  btn.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574v9.548c0 1.067.75 1.994 1.802 2.169a47.865 47.865 0 001.134.175 2.31 2.31 0 011.64 1.055l.822 1.594a2.083 2.083 0 003.487 0l.822-1.594a2.31 2.31 0 011.64-1.055 47.865 47.865 0 001.134-.175 2.31 2.31 0 011.802-2.17V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.594a2.083 2.083 0 00-3.487 0l-.822 1.594A2.31 2.31 0 016.827 6.175zM12 12.75a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+    </svg>
+    <span>${t.btn_launch_ocr}</span>`;
+}
+
+function imageToBase64(file, maxWidth = 1600) {
+  // 画像を圧縮してからBase64に変換（OCRの精度向上とサイズ削減）
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const img = new Image();
+
+      img.onload = () => {
+        // Canvas で画像をリサイズ
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // 最大幅を超える場合は縮小
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // JPEG形式で圧縮（品質90%）
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+
+        console.log(`画像圧縮完了: ${img.width}x${img.height} → ${width}x${height}`);
+        resolve(compressedBase64);
+      };
+
+      img.onerror = (error) => {
+        console.error('画像の読み込みエラー:', error);
+        reject(new Error('画像の読み込みに失敗しました'));
+      };
+
+      img.src = e.target.result;
+    };
+
+    reader.onerror = (error) => {
+      console.error('ファイル読み込みエラー:', error);
+      reject(error);
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+/**
+ * (★ 新規追加・Main.js から移管)
+ * フォームの初期値（日付やカメラボタン）を設定する
+ * (initialize から呼び出される)
+ */
+function initializeFormDefaults() {
+  // UAチェックとカメラボタン表示制御
+  const ua = navigator.userAgent.toLowerCase();
+  const isMobile = /iphone|ipod|ipad|android/.test(ua);
+  if (isMobile) {
+    dom.launchCameraBtn.style.display = 'block'; 
+  } else {
+    dom.launchCameraBtn.style.display = 'none'; 
+  }
+
+  // 日付の初期値設定
+  dom.dateInput.value = getFormattedDate(new Date());
+}
+
+/**
+ * (★ 新規追加・Main.js から移管)
+ * 日付フォーマッタ
+ */
+function getFormattedDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+</script>
