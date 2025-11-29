@@ -1,0 +1,31 @@
+# IDE settings
+.cursor/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Office temporary files
+~$*.xlsx
+~$*.xlsm
+~$*.docx
+~$*.pptx
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+.env.local
