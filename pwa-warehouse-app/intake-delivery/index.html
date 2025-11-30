@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="入出庫記録ツール - オフライン対応">
+    <title>入出庫記録ツール</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- アイコン -->
+    <link rel="icon" type="image/svg+xml" href="../shared/icons/warehouse-icon.svg">
+    <link rel="apple-touch-icon" href="../shared/icons/warehouse-icon.svg">
+
+    <!-- スタイルシート（インライン） -->
+    <style>
+        /* --- 基本リセット & 変数 --- */
+        :root {
+            --bg-gray-50: #f9fafb;
+            --bg-gray-100: #f3f4f6;
+            --bg-gray-200: #e5e7eb;
+            --bg-gray-300: #d1d5db;
+            --bg-blue-50: #eff6ff;
+            --bg-blue-500: #3b82f6;
+            --bg-blue-600: #2563eb;
+            --bg-blue-700: #1d4ed8;
+            --bg-green-500: #22c55e;
+            --bg-green-600: #16a34a;
+            --bg-green-700: #15803d;
+            --bg-gray-500: #6b7280;
+            --bg-gray-600: #4b5563;
+            --text-gray-400: #9ca3af;
+            --text-gray-500: #6b7280;
+            --text-gray-600: #4b5563;
+            --text-gray-700: #374151;
+            --text-gray-800: #1f2937;
+            --text-blue-600: #2563eb;
+            --text-blue-700: #1d4ed8;
+            --border-gray-200: #e5e7eb;
+            --border-gray-300: #d1d5db;
+            --border-blue-300: #93c5fd;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-gray-50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 3rem 1rem;
+            box-sizing: border-box;
+            color: var(--text-gray-800);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+        }
+
+        /* --- ユーティリティ --- */
+        .w-full { width: 100%; }
+        .max-w-lg { max-w-width: 32rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .p-8 { padding: 2rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .gap-4 { gap: 1rem; }
+        .hidden { display: none !important; }
+
+        .bg-white { background-color: white; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+
+        .text-center { text-align: center; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+
+        .text-gray-500 { color: var(--text-gray-500); }
+        .text-gray-700 { color: var(--text-gray-700); }
+        .text-gray-800 { color: var(--text-gray-800); }
+        .text-blue-600 { color: var(--text-blue-600); }
+        .text-green-500 { color: var(--bg-green-500); }
+
+        input[type="text"], input[type="date"], input[type="number"], select, textarea {
+            display: block;
+            width: 100%;
+            border: 1px solid var(--border-gray-300);
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            font-size: 1.125rem;
+            background-color: white;
+            appearance: none;
+        }
+
+        input:disabled {
+            background-color: var(--bg-gray-200);
+            cursor: not-allowed;
+        }
+
+        button {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .bg-blue-500 { background-color: var(--bg-blue-500); }
+        .bg-blue-600 { background-color: var(--bg-blue-600); }
+        .bg-blue-600:hover:not(:disabled) { background-color: var(--bg-blue-700); }
+
+        .bg-green-500 { background-color: var(--bg-green-500); }
+        .bg-green-600 { background-color: var(--bg-green-600); }
+        .bg-green-600:hover:not(:disabled) { background-color: var(--bg-green-700); }
+
+        .bg-gray-500 { background-color: var(--bg-gray-500); }
+        .bg-gray-500:hover:not(:disabled) { background-color: var(--bg-gray-600); }
+
+        .text-white { color: white !important; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* --- 言語切り替えスイッチ --- */
+        .lang-switcher {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.125rem;
+            background-color: var(--bg-gray-100);
+            border-radius: 0.375rem;
+            padding: 0.125rem;
+        }
+
+        .lang-btn {
+            padding: 0.25rem 0.375rem;
+            font-size: 1.25rem;
+            line-height: 1;
+            background-color: transparent;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            opacity: 0.5;
+        }
+
+        .lang-btn:hover {
+            opacity: 0.8;
+        }
+
+        .lang-btn.active {
+            background-color: white;
+            opacity: 1;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ネットワーク状態インジケーター */
+        .network-status {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #f59e0b;
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .network-status.show {
+            transform: translateY(0);
+        }
+
+        .network-status.offline {
+            background-color: #ef4444;
+        }
+
+        .network-status.online {
+            background-color: #22c55e;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen py-12">
+
+  <!-- ネットワーク状態インジケーター -->
+  <div id="network-status" class="network-status hidden">
+    <span id="network-status-text">オフライン</span>
+  </div>
+
+  <div class="w-full max-w-lg p-8 bg-white rounded-xl shadow-lg" style="position: relative; max-width: 32rem;">
+
+    <!-- 言語切り替えスイッチ -->
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="ja" onclick="switchLanguage('ja')" title="日本語">🇯🇵</button>
+      <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')" title="English">🇬🇧</button>
+      <button class="lang-btn" data-lang="id" onclick="switchLanguage('id')" title="Indonesia">🇮🇩</button>
+    </div>
+
+    <div id="status-message" class="py-4 animate-pulse">
+      <div class="text-center">
+        <p id="loading-status-text" class="text-sm font-medium text-gray-500">
+          アプリを起動しています...
+        </p>
+      </div>
+    </div>
+
+    <div id="main-content" style="display: none;" class="opacity-0" style="transition: opacity 0.5s ease-in-out;">
+      <h1 id="main-title" class="text-2xl font-bold text-center text-gray-800 mb-6">入出庫記録ツール</h1>
+
+      <!-- Page 1: 基本情報入力 -->
+      <div id="page1">
+        <fieldset>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">担当者名</label>
+            <input type="text" id="registrant-name" class="w-full" placeholder="担当者名を入力">
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">日付</label>
+            <input type="date" id="date-input" class="w-full" required>
+          </div>
+
+          <div class="flex gap-4 mt-6">
+            <button id="next-btn" class="flex-1 py-3 px-4 bg-blue-600 text-white font-bold text-lg rounded-lg">
+              次へ進む
+            </button>
+            <button id="toggle-mode-button" type="button" class="py-3 px-4 bg-gray-500 text-white font-bold text-lg rounded-lg">
+              入庫
+            </button>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- Page 2: 品目入力 -->
+      <div id="page2" style="display: none;">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">品名</label>
+          <input type="text" id="item-name" class="w-full" placeholder="品名を入力">
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">個数</label>
+          <input type="number" id="quantity" class="w-full" placeholder="個数" min="1">
+        </div>
+
+        <button id="add-item-button" type="button" class="w-full py-3 px-4 bg-green-600 text-white font-bold text-lg rounded-lg mb-4">
+          品目を追加
+        </button>
+
+        <div id="added-items-container" class="mb-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">追加済みリスト</h3>
+          <div id="added-items-list" class="p-3 bg-gray-50 rounded-lg border border-gray-200 min-h-[50px]"></div>
+        </div>
+
+        <button id="confirm-button" type="button" class="w-full py-3 px-4 bg-blue-600 text-white font-bold text-lg rounded-lg mb-2">
+          内容を確認する
+        </button>
+
+        <button id="back-to-page1-btn" type="button" class="w-full py-3 px-4 bg-white text-gray-700 font-bold text-lg rounded-lg border border-gray-300">
+          戻る
+        </button>
+      </div>
+
+      <!-- Page 3: 確認 -->
+      <div id="page3" style="display: none;">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">確認画面</h2>
+
+        <div class="mb-4">
+          <p class="text-sm font-medium text-gray-500">登録者名</p>
+          <p id="confirm-registrant" class="text-lg text-gray-800"></p>
+        </div>
+
+        <div class="mb-4">
+          <p class="text-sm font-medium text-gray-500">日付</p>
+          <p id="confirm-date" class="text-lg text-gray-800"></p>
+        </div>
+
+        <div class="mb-4">
+          <p class="text-sm font-medium text-gray-500">品目</p>
+          <div id="confirm-items-list" class="p-3 bg-gray-50 rounded-lg border border-gray-200"></div>
+        </div>
+
+        <button id="register-btn" class="w-full py-3 px-4 bg-green-600 text-white font-bold text-lg rounded-lg mb-2">
+          この内容で登録する
+        </button>
+
+        <button id="back-to-page2-btn" type="button" class="w-full py-3 px-4 bg-white text-gray-700 font-bold text-lg rounded-lg border border-gray-300">
+          修正する
+        </button>
+      </div>
+
+      <!-- 成功画面 -->
+      <div id="success-screen" style="display: none;" class="text-center py-10">
+        <svg class="w-16 h-16 text-green-500 mx-auto mb-4" style="width: 4rem; height: 4rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">登録完了</h2>
+        <p class="text-gray-600 mb-6">データの登録が正常に完了しました。</p>
+        <button id="new-entry-btn" class="py-3 px-4 bg-blue-600 text-white font-bold text-lg rounded-lg" style="max-width: 20rem; margin: 0 auto; display: block;">
+          新しい記録を追加する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 共有モジュール -->
+  <script src="../shared/js/offline-db.js"></script>
+  <script src="../shared/js/network-status.js"></script>
+  <script src="../shared/js/sync-manager.js"></script>
+  <script src="../shared/js/ocr-helper.js"></script>
+
+  <!-- Tesseract.js for Offline OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+  <!-- アプリケーションロジック -->
+  <script src="js/app.js"></script>
+
+  <!-- Service Worker登録 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('sw.js');
+          console.log('Service Worker registered:', registration.scope);
+        } catch (error) {
+          console.error('Service Worker registration failed:', error);
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>

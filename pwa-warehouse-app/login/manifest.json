@@ -1,0 +1,22 @@
+{
+  "name": "倉庫管理 - ログイン",
+  "short_name": "ログイン",
+  "description": "倉庫管理システム認証アプリケーション",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "../shared/icons/warehouse-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "lang": "ja",
+  "dir": "auto"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "倉庫管理 - 入出庫記録ツール",
+  "short_name": "入出庫記録",
+  "description": "オフライン対応の入出庫記録管理アプリケーション",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "../shared/icons/warehouse-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "lang": "ja",
+  "dir": "auto"
+}

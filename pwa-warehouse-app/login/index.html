@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="description" content="倉庫管理システム ログイン">
+  <title>ログイン - 倉庫管理システム</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- アイコン -->
+  <link rel="icon" type="image/svg+xml" href="../shared/icons/warehouse-icon.svg">
+  <link rel="apple-touch-icon" href="../shared/icons/warehouse-icon.svg">
+
+  <!-- スタイルシート -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ネットワーク状態インジケーター -->
+  <div id="network-status" class="network-status hidden">
+    <span id="network-status-text">オフライン</span>
+  </div>
+
+  <!-- ログインセクション -->
+  <div id="login-section" class="relative bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+
+    <!-- 言語切り替えボタン -->
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="ja" onclick="switchLanguage('ja')" title="日本語">🇯🇵</button>
+      <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')" title="English">🇬🇧</button>
+      <button class="lang-btn" data-lang="id" onclick="switchLanguage('id')" title="Indonesia">🇮🇩</button>
+    </div>
+
+    <a href="https://script.google.com/macros/s/AKfycbyWZxKFSfB75lk9VgOKZDoth1XXszTNT7zWOY4BMsIzKXbsXhCfWTIrl8oilRf0K10j0w/exec"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="absolute top-4 right-4 text-xs font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200"
+       id="inventory-link">
+      棚卸ツールへ &rarr;
+    </a>
+
+    <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">倉庫管理システム</h1>
+
+    <form id="login-form" novalidate>
+      <a id="redirect-btn" href="#" target="_top"
+         class="w-full block text-center bg-gray-400 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-300 pointer-events-none">
+        <span id="redirect-btn-text">入出庫登録へ</span>
+      </a>
+
+      <hr class="my-6">
+
+      <div class="mb-5">
+        <label for="login-id" class="block text-gray-700 text-sm font-bold mb-2" id="label-login-id">ID</label>
+        <input type="text" id="login-id" class="shadow-sm" inputmode="latin" autocomplete="username">
+        <p id="login-id-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+
+      <div class="mb-6">
+        <label for="login-password" class="block text-gray-700 text-sm font-bold mb-2" id="label-login-password">パスワード</label>
+        <input type="password" id="login-password" class="shadow-sm" inputmode="latin" autocomplete="current-password">
+        <p id="login-password-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+
+      <div class="flex gap-4">
+        <button type="button" id="show-register-btn" class="flex-1 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-300">
+          <span id="show-register-btn-text">利用者情報編集</span>
+        </button>
+
+        <input type="hidden" id="redirect-flag" value="intake">
+
+        <button type="submit" id="login-btn" class="flex-1 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-300 flex items-center justify-center">
+          <span id="login-button-text">ログイン</span>
+          <div id="login-loader" class="loader hidden ml-2"></div>
+        </button>
+      </div>
+      <p id="login-error-message" class="text-center text-sm mt-4 h-5"></p>
+    </form>
+  </div>
+
+  <!-- 利用者情報編集セクション -->
+  <div id="register-section" class="hidden bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center text-gray-800" id="register-title">利用者情報編集</h1>
+    <form id="register-form" novalidate>
+      <div class="mb-5">
+        <label for="action" class="block text-gray-700 text-sm font-bold mb-2" id="label-action">操作種別</label>
+        <select id="action" name="action" class="block w-full text-gray-700 py-3 px-4">
+          <option value="登録" id="option-register">ID新規登録・紐付け</option>
+          <option value="パスワード変更" id="change-password-option" disabled>パスワード変更</option>
+          <option value="削除" id="option-delete">ID削除</option>
+        </select>
+        <p class="text-xs text-gray-500 mt-1" id="password-change-note">パスワード変更はIDを入力すると選択できます。</p>
+      </div>
+      <div id="name-select-container" class="mb-5">
+        <label for="register-name-select" class="block text-gray-700 text-sm font-bold mb-2" id="label-register-name">担当者名 (紐付け対象)</label>
+        <select id="register-name-select" name="name" class="block w-full text-gray-700 py-3 px-4">
+          <option value="">-- 読込中... --</option>
+        </select>
+      </div>
+      <div class="mb-5">
+        <label for="register-id" class="block text-gray-700 text-sm font-bold mb-2" id="label-register-id">ID</label>
+        <input type="text" id="register-id" name="id" class="shadow-sm" required>
+        <p id="register-id-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+      <div id="password-container" class="mb-8">
+        <label for="register-password" class="block text-gray-700 text-sm font-bold mb-2" id="label-register-password">パスワード</label>
+        <input type="password" id="register-password" name="password" class="shadow-sm" required>
+        <p id="register-password-error" class="text-red-500 text-xs mt-1 h-3"></p>
+      </div>
+      <div class="flex flex-col items-center justify-center">
+        <button type="submit" id="register-submit-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg w-full flex items-center justify-center transition-colors duration-300">
+          <span id="register-button-text">実行</span>
+          <div id="register-loader" class="loader hidden ml-2"></div>
+        </button>
+        <button type="button" id="back-to-login-btn" class="mt-4 w-1/2 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors duration-300">
+          <span id="back-to-login-btn-text">ログイン画面へ</span>
+        </button>
+      </div>
+    </form>
+    <div id="register-result-message" class="mt-6 text-center text-sm font-medium h-5"></div>
+  </div>
+
+  <!-- 共有モジュール -->
+  <script src="../shared/js/offline-db.js"></script>
+  <script src="../shared/js/network-status.js"></script>
+
+  <!-- アプリケーションロジック -->
+  <script src="js/app.js"></script>
+
+  <!-- Service Worker登録 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('sw.js');
+          console.log('Service Worker registered:', registration.scope);
+        } catch (error) {
+          console.error('Service Worker registration failed:', error);
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
