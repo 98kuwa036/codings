@@ -55,8 +55,8 @@ function getMasterItems() {
 }
 
 /**
- * スプレッドシートから物品リストを取得
- * @returns {Array<string>} 物品リスト
+ * スプレッドシートから物品リストを取得（荷姿情報含む）
+ * @returns {Array<Object>} 物品リスト [{name, minUnit, packUnit, packQuantity}, ...]
  */
 function fetchItemsFromSheet() {
   Logger.log('スプレッドシートからデータを取得しています...');
@@ -73,13 +73,23 @@ function fetchItemsFromSheet() {
     return [];
   }
 
-  const range = sheet.getRange(`B2:B${lastRow}`);
-  const values = range.getValues().flat();
-  const items = values.filter(item =>
-    typeof item === 'string' &&
-    item.trim() !== '' &&
-    !/---.*---/.test(item)
-  );
+  // B列（物品名）、C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）を取得
+  const range = sheet.getRange(`B2:E${lastRow}`);
+  const values = range.getValues();
+
+  const items = values
+    .filter(row => {
+      const itemName = row[0];
+      return typeof itemName === 'string' &&
+             itemName.trim() !== '' &&
+             !/---.*---/.test(itemName);
+    })
+    .map(row => ({
+      name: row[0],
+      minUnit: row[1] || '',        // C列: 最小単位
+      packUnit: row[2] || '',       // D列: 荷姿単位
+      packQuantity: row[3] || 0     // E列: 荷姿入数
+    }));
 
   return items;
 }
@@ -100,7 +110,7 @@ function clearCache() {
 
 /**
  * 棚卸データをスプレッドシートに書き込み、CSVエクスポート、クリアを実行
- * @param {Array<Object>} data - [{name: string, quantity: number}, ...]
+ * @param {Array<Object>} data - [{name, quantity, packUnits?, remainder?, packQuantity?}, ...]
  * @returns {Object} {success: boolean, message?: string, error?: string}
  */
 function writeInventoryData(data) {
@@ -148,11 +158,21 @@ function appendDataToSheet(sheet, data, formattedDate) {
     return;
   }
 
-  const rows = data.map(item => [
-    formattedDate,
-    item.name,
-    item.quantity
-  ]);
+  const rows = data.map(item => {
+    // 荷姿単位モードの場合は、最小単位に変換
+    let totalQuantity = item.quantity;
+
+    if (item.packUnits !== undefined && item.remainder !== undefined && item.packQuantity) {
+      // 荷姿単位 × 荷姿入数 + 端数 = 最小単位での総数
+      totalQuantity = (item.packUnits * item.packQuantity) + item.remainder;
+    }
+
+    return [
+      formattedDate,
+      item.name,
+      totalQuantity
+    ];
+  });
 
   const startRow = sheet.getLastRow() + 1;
   sheet.getRange(startRow, 1, rows.length, 3).setValues(rows);

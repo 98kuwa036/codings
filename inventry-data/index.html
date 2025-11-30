@@ -107,9 +107,22 @@
       align-items: center;
     }
 
+    .item-row-pack {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
     .item-label {
       font-size: 0.875rem;
       font-weight: 500;
+    }
+
+    .item-label-small {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.125rem;
     }
 
     .input-number {
@@ -122,6 +135,40 @@
     }
 
     .input-number:focus {
+      outline: none;
+      ring: 2px;
+      ring-color: #3b82f6;
+      border-color: transparent;
+    }
+
+    .pack-inputs {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .pack-input-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .pack-input-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    .input-pack {
+      width: 4rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+    }
+
+    .input-pack:focus {
       outline: none;
       ring: 2px;
       ring-color: #3b82f6;
@@ -177,6 +224,27 @@
       color: #ffffff;
     }
 
+    .btn-toggle {
+      background-color: #f59e0b;
+      color: #ffffff;
+    }
+
+    .btn-toggle:hover:not(:disabled) {
+      background-color: #d97706;
+    }
+
+    .mode-indicator {
+      text-align: center;
+      padding: 0.5rem;
+      background-color: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #92400e;
+      margin-bottom: 1rem;
+    }
+
     .section-title {
       font-size: 1.25rem;
       font-weight: 700;
@@ -223,6 +291,10 @@
 
     .mt-6 {
       margin-top: 1.5rem;
+    }
+
+    .mb-4 {
+      margin-bottom: 1rem;
     }
 
     .grid-2 {
@@ -300,6 +372,12 @@
       <main class="loading-state">
         <div id="page1">
           <form id="inventoryForm" class="card">
+            <div id="modeIndicator" class="mode-indicator hidden">
+              現在の入力モード: <span id="currentMode"></span>
+            </div>
+            <div class="mb-4">
+              <button type="button" id="toggleModeBtn" class="btn btn-toggle hidden">入力モードを切り替える</button>
+            </div>
             <div id="itemList" class="space-y-4">
               <div class="skeleton space-y-4">
                 <div class="item-row">
@@ -353,13 +431,19 @@
   // 定数
   // ========================================
   const SESSION_STORAGE_KEY = 'inventoryFormData';
+  const MODE_STORAGE_KEY = 'inventoryInputMode';
+  const INPUT_MODE = {
+    SIMPLE: 'simple',      // 既存方式（最小単位のみ）
+    PACKAGING: 'packaging' // 新方式（荷姿単位+端数）
+  };
 
   // ========================================
   // 状態管理
   // ========================================
   const state = {
     masterItems: [],
-    isLoading: false
+    isLoading: false,
+    inputMode: INPUT_MODE.SIMPLE
   };
 
   // ========================================
@@ -367,7 +451,7 @@
   // ========================================
   const elements = {
     app: document.getElementById('app'),
-    pcBlocker: document.getElementById('pc-blocker'), // ★ 追加
+    pcBlocker: document.getElementById('pc-blocker'),
     pageTitle: document.getElementById('pageTitle'),
     mainContent: document.querySelector('main'),
     loadingOverlay: document.getElementById('loadingOverlay'),
@@ -380,7 +464,10 @@
     itemList: document.getElementById('itemList'),
     confirmationList: document.getElementById('confirmationList'),
     missingListContainer: document.getElementById('missingListContainer'),
-    missingList: document.getElementById('missingList')
+    missingList: document.getElementById('missingList'),
+    toggleModeBtn: document.getElementById('toggleModeBtn'),
+    modeIndicator: document.getElementById('modeIndicator'),
+    currentMode: document.getElementById('currentMode')
   };
 
   // ========================================
@@ -398,6 +485,59 @@
   // ========================================
   // ユーティリティ
   // ========================================
+
+  /**
+   * 入力モードを取得
+   */
+  function loadInputMode() {
+    try {
+      const savedMode = sessionStorage.getItem(MODE_STORAGE_KEY);
+      if (savedMode && Object.values(INPUT_MODE).includes(savedMode)) {
+        state.inputMode = savedMode;
+      }
+    } catch (e) {
+      console.error('モード読み込みエラー:', e);
+    }
+  }
+
+  /**
+   * 入力モードを保存
+   */
+  function saveInputMode() {
+    try {
+      sessionStorage.setItem(MODE_STORAGE_KEY, state.inputMode);
+    } catch (e) {
+      console.error('モード保存エラー:', e);
+    }
+  }
+
+  /**
+   * 入力モードを切り替え
+   */
+  function toggleInputMode() {
+    if (state.inputMode === INPUT_MODE.SIMPLE) {
+      state.inputMode = INPUT_MODE.PACKAGING;
+    } else {
+      state.inputMode = INPUT_MODE.SIMPLE;
+    }
+    saveInputMode();
+    clearFormData();
+    elements.inventoryForm.reset();
+    renderItemList(state.masterItems);
+    updateModeIndicator();
+    updateButtonState();
+  }
+
+  /**
+   * モード表示を更新
+   */
+  function updateModeIndicator() {
+    if (state.inputMode === INPUT_MODE.SIMPLE) {
+      elements.currentMode.textContent = '最小単位のみ入力';
+    } else {
+      elements.currentMode.textContent = '荷姿単位 + 端数入力';
+    }
+  }
 
   /**
    * ローディング表示切替
@@ -499,12 +639,60 @@
       return;
     }
 
-    const html = items.map(item => `
-      <div class="item-row">
-        <label class="item-label">${item}</label>
-        <input type="number" name="${item}" placeholder="数量" min="0" class="input-number">
-      </div>
-    `).join('');
+    let html;
+
+    if (state.inputMode === INPUT_MODE.SIMPLE) {
+      // 既存方式: 最小単位のみ入力
+      html = items.map(item => `
+        <div class="item-row">
+          <div>
+            <div class="item-label">${item.name}</div>
+            ${item.minUnit ? `<div class="item-label-small">単位: ${item.minUnit}</div>` : ''}
+          </div>
+          <input type="number" name="${item.name}" placeholder="数量" min="0" class="input-number">
+        </div>
+      `).join('');
+    } else {
+      // 新方式: 荷姿単位 + 端数入力
+      html = items.map(item => {
+        const hasPackaging = item.packUnit && item.packQuantity > 0;
+
+        if (hasPackaging) {
+          return `
+            <div class="item-row-pack">
+              <div>
+                <div class="item-label">${item.name}</div>
+                <div class="item-label-small">
+                  ${item.minUnit ? `最小単位: ${item.minUnit}` : ''}
+                  ${item.packUnit ? ` / 荷姿: ${item.packUnit} (${item.packQuantity}${item.minUnit || '個'})` : ''}
+                </div>
+              </div>
+              <div class="pack-inputs">
+                <div class="pack-input-wrapper">
+                  <span class="pack-input-label">${item.packUnit || '荷姿'}</span>
+                  <input type="number" name="pack_${item.name}" placeholder="0" min="0" class="input-pack" data-pack-quantity="${item.packQuantity}">
+                </div>
+                <div class="pack-input-wrapper">
+                  <span class="pack-input-label">${item.minUnit || '端数'}</span>
+                  <input type="number" name="rem_${item.name}" placeholder="0" min="0" class="input-pack">
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // 荷姿情報がない場合は最小単位のみ
+          return `
+            <div class="item-row">
+              <div>
+                <div class="item-label">${item.name}</div>
+                ${item.minUnit ? `<div class="item-label-small">単位: ${item.minUnit}</div>` : ''}
+              </div>
+              <input type="number" name="${item.name}" placeholder="数量" min="0" class="input-number">
+            </div>
+          `;
+        }
+      }).join('');
+    }
 
     elements.itemList.innerHTML = html;
   }
@@ -519,17 +707,52 @@
     let filledCount = 0;
     const missingItems = [];
 
-    state.masterItems.forEach(itemName => {
-      const input = elements.inventoryForm.elements[itemName];
-      const valueStr = input ? input.value.trim() : '';
-      const valueNum = parseInt(valueStr, 10);
+    state.masterItems.forEach(item => {
+      const itemName = item.name;
+      let valueNum = 0;
+      let hasInput = false;
+      let displayText = '';
 
-      if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
+      if (state.inputMode === INPUT_MODE.SIMPLE) {
+        // 既存方式
+        const input = elements.inventoryForm.elements[itemName];
+        const valueStr = input ? input.value.trim() : '';
+        valueNum = parseInt(valueStr, 10);
+        hasInput = valueStr !== '' && !isNaN(valueNum) && valueNum >= 0;
+        displayText = valueNum.toString();
+      } else {
+        // 荷姿単位モード
+        const packInput = elements.inventoryForm.elements[`pack_${itemName}`];
+        const remInput = elements.inventoryForm.elements[`rem_${itemName}`];
+
+        const packStr = packInput ? packInput.value.trim() : '';
+        const remStr = remInput ? remInput.value.trim() : '';
+
+        const packNum = parseInt(packStr, 10) || 0;
+        const remNum = parseInt(remStr, 10) || 0;
+
+        hasInput = (packStr !== '' || remStr !== '') && (packNum > 0 || remNum > 0);
+
+        if (hasInput) {
+          // 最小単位に変換
+          if (item.packQuantity > 0) {
+            valueNum = (packNum * item.packQuantity) + remNum;
+            displayText = `${packNum}${item.packUnit || '荷姿'} + ${remNum}${item.minUnit || '個'} = ${valueNum}${item.minUnit || '個'}`;
+          } else {
+            // 荷姿入数がない場合
+            const totalInput = packInput || remInput;
+            valueNum = parseInt(totalInput.value.trim(), 10) || 0;
+            displayText = valueNum.toString();
+          }
+        }
+      }
+
+      if (hasInput) {
         // 入力あり
         elements.confirmationList.innerHTML += `
           <div class="confirmation-row">
             <span class="confirmation-name">${itemName}</span>
-            <span class="confirmation-value">${valueNum}</span>
+            <span class="confirmation-value">${displayText}</span>
           </div>
         `;
         filledCount++;
@@ -580,22 +803,36 @@
     elements.submitBtn.disabled = true;
     elements.submitBtn.textContent = '送信中...';
 
-    const inputValues = {};
-    state.masterItems.forEach(itemName => {
-      const input = elements.inventoryForm.elements[itemName];
-      if (input) {
-        const valueStr = input.value.trim();
-        const valueNum = parseInt(valueStr, 10);
-        if (valueStr !== '' && !isNaN(valueNum) && valueNum >= 0) {
-          inputValues[itemName] = valueNum;
-        }
+    const dataToWrite = state.masterItems.map(item => {
+      const itemName = item.name;
+
+      if (state.inputMode === INPUT_MODE.SIMPLE) {
+        // 既存方式
+        const input = elements.inventoryForm.elements[itemName];
+        const valueStr = input ? input.value.trim() : '';
+        const valueNum = parseInt(valueStr, 10) || 0;
+
+        return {
+          name: itemName,
+          quantity: valueNum
+        };
+      } else {
+        // 荷姿単位モード
+        const packInput = elements.inventoryForm.elements[`pack_${itemName}`];
+        const remInput = elements.inventoryForm.elements[`rem_${itemName}`];
+
+        const packNum = packInput ? (parseInt(packInput.value.trim(), 10) || 0) : 0;
+        const remNum = remInput ? (parseInt(remInput.value.trim(), 10) || 0) : 0;
+
+        return {
+          name: itemName,
+          quantity: 0, // CSV出力時に変換されるため初期値
+          packUnits: packNum,
+          remainder: remNum,
+          packQuantity: item.packQuantity || 0
+        };
       }
     });
-
-    const dataToWrite = state.masterItems.map(itemName => ({
-      name: itemName,
-      quantity: inputValues[itemName] || 0
-    }));
 
     google.script.run
       .withSuccessHandler(onWriteSuccess)
@@ -641,6 +878,18 @@
     }
 
     state.masterItems = items;
+
+    // 荷姿単位情報があるかチェック
+    const hasPackagingInfo = items.some(item => item.packUnit && item.packQuantity > 0);
+
+    // 荷姿情報がある場合のみモード切り替えボタンを表示
+    if (hasPackagingInfo) {
+      elements.toggleModeBtn.classList.remove('hidden');
+      elements.modeIndicator.classList.remove('hidden');
+      loadInputMode();
+      updateModeIndicator();
+    }
+
     renderItemList(items);
 
     // イベントリスナー設定
@@ -667,6 +916,7 @@
     elements.toConfirmBtn.addEventListener('click', showPage2);
     elements.backBtn.addEventListener('click', showPage1);
     elements.submitBtn.addEventListener('click', submitData);
+    elements.toggleModeBtn.addEventListener('click', toggleInputMode);
   }
 
   // ========================================
