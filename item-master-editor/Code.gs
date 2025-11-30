@@ -107,7 +107,7 @@ function updateItemMasterData(items) {
     // キャッシュをクリア（inventry-dataのキャッシュもクリア）
     const cache = CacheService.getScriptCache();
     cache.remove(CONFIG.CACHE_KEY);
-    cache.remove('master_items_v1'); // inventry-dataのキャッシュキー
+    cache.remove('master_items_v2'); // inventry-dataのキャッシュキー（v2に更新）
 
     Logger.log(`${items.length}件のデータを更新しました。`);
 
@@ -151,7 +151,7 @@ function updateSingleItem(item) {
     // キャッシュをクリア
     const cache = CacheService.getScriptCache();
     cache.remove(CONFIG.CACHE_KEY);
-    cache.remove('master_items_v1');
+    cache.remove('master_items_v2'); // inventry-dataのキャッシュキー（v2に更新）
 
     Logger.log(`行${item.rowIndex}のデータを更新しました。`);
 

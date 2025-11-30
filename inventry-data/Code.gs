@@ -5,7 +5,7 @@ const CONFIG = {
   SOURCE_ID: '13IsEoCgT9v0-J5TAaCAb_vZyyDMjzv_yXaI5khqvFnY',
   DEST_ID: '1ZlkOr0n8Cc8ISwuyGUtZIoHoS2AutZ9uPmI9JcVxeaQ',
   MASTER_SHEET_NAME: 'マスター',
-  CACHE_KEY: 'master_items_v1',
+  CACHE_KEY: 'master_items_v2', // 荷姿単位対応のため v2 に変更
   CACHE_DURATION: 21600, // 6時間（秒）
   DATE_FORMAT: 'yyyy-MM-dd',
   CSV_MIME_TYPE: MimeType.CSV
