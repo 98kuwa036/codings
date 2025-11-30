@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>物品マスター編集ツール</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+      background-color: #f3f4f6;
+      color: #1f2937;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    header {
+      background-color: #ffffff;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 0.5rem;
+    }
+
+    .description {
+      color: #6b7280;
+      font-size: 0.875rem;
+    }
+
+    .card {
+      background-color: #ffffff;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #3b82f6;
+      color: #1f2937;
+    }
+
+    .item-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+
+    .item-table thead {
+      background-color: #f9fafb;
+    }
+
+    .item-table th {
+      padding: 0.75rem;
+      text-align: left;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .item-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 0.875rem;
+    }
+
+    .item-table tbody tr:hover {
+      background-color: #f9fafb;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .input-text {
+      width: 100%;
+      max-width: 150px;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .input-text:focus {
+      outline: none;
+      border-color: #3b82f6;
+      ring: 2px;
+      ring-color: #3b82f6;
+    }
+
+    .input-number {
+      width: 100%;
+      max-width: 100px;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+    }
+
+    .input-number:focus {
+      outline: none;
+      border-color: #3b82f6;
+      ring: 2px;
+      ring-color: #3b82f6;
+    }
+
+    .btn {
+      font-weight: 700;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background-color 0.2s;
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .btn-primary {
+      background-color: #3b82f6;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: #2563eb;
+    }
+
+    .btn-success {
+      background-color: #10b981;
+      color: #ffffff;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background-color: #059669;
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(255, 255, 255, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 4px solid #3b82f6;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .error-box {
+      padding: 1rem;
+      background-color: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+    }
+
+    .error-title {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .success-box {
+      padding: 1rem;
+      background-color: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+    }
+
+    .info-box {
+      padding: 1rem;
+      background-color: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-gray {
+      color: #6b7280;
+    }
+
+    .mt-4 {
+      margin-top: 1rem;
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      .item-table {
+        font-size: 0.75rem;
+      }
+
+      .item-table th,
+      .item-table td {
+        padding: 0.5rem;
+      }
+
+      .input-text,
+      .input-number {
+        font-size: 0.75rem;
+        padding: 0.375rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .btn-container {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loader"></div>
+    <p>データを読み込んでいます...</p>
+  </div>
+
+  <div class="container">
+    <header>
+      <h1>物品マスター編集ツール</h1>
+      <p class="description">在庫管理システムで使用する物品の単位情報を編集します</p>
+    </header>
+
+    <div id="messageContainer"></div>
+
+    <div class="card">
+      <div class="info-box">
+        <strong>使い方：</strong><br>
+        • 各物品の最小単位、荷姿単位、荷姿入数を入力してください<br>
+        • 例：ビールの場合 → 最小単位: 本、荷姿単位: ダース、荷姿入数: 12<br>
+        • 入力後「すべて保存」ボタンで一括保存されます
+      </div>
+
+      <h2 class="section-title">物品一覧</h2>
+
+      <div id="tableContainer">
+        <table class="item-table" id="itemTable">
+          <thead>
+            <tr>
+              <th style="width: 5%;">No.</th>
+              <th style="width: 25%;">物品名</th>
+              <th style="width: 20%;">最小単位</th>
+              <th style="width: 20%;">荷姿単位</th>
+              <th style="width: 15%;">荷姿入数</th>
+            </tr>
+          </thead>
+          <tbody id="itemTableBody">
+            <tr>
+              <td colspan="5" class="text-center text-gray">読み込み中...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="btn-container">
+        <button type="button" id="reloadBtn" class="btn btn-primary">データを再読み込み</button>
+        <button type="button" id="saveAllBtn" class="btn btn-success">すべて保存</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ========================================
+  // 状態管理
+  // ========================================
+  const state = {
+    items: [],
+    isLoading: false
+  };
+
+  // ========================================
+  // DOM要素
+  // ========================================
+  const elements = {
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    messageContainer: document.getElementById('messageContainer'),
+    itemTableBody: document.getElementById('itemTableBody'),
+    reloadBtn: document.getElementById('reloadBtn'),
+    saveAllBtn: document.getElementById('saveAllBtn')
+  };
+
+  // ========================================
+  // ユーティリティ
+  // ========================================
+
+  function setLoading(isLoading) {
+    state.isLoading = isLoading;
+    if (isLoading) {
+      elements.loadingOverlay.classList.remove('hidden');
+      elements.saveAllBtn.disabled = true;
+      elements.reloadBtn.disabled = true;
+    } else {
+      elements.loadingOverlay.classList.add('hidden');
+      elements.saveAllBtn.disabled = false;
+      elements.reloadBtn.disabled = false;
+    }
+  }
+
+  function showMessage(type, message) {
+    const className = type === 'error' ? 'error-box' : 'success-box';
+    elements.messageContainer.innerHTML = `
+      <div class="${className}">
+        ${message}
+      </div>
+    `;
+
+    // 3秒後に自動的に消す
+    setTimeout(() => {
+      elements.messageContainer.innerHTML = '';
+    }, 5000);
+  }
+
+  function showError(error) {
+    showMessage('error', `エラー: ${error.toString()}`);
+  }
+
+  // ========================================
+  // UI更新
+  // ========================================
+
+  function renderItemTable(items) {
+    if (items.length === 0) {
+      elements.itemTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-gray">物品マスターがありません。</td>
+        </tr>
+      `;
+      return;
+    }
+
+    const html = items.map((item, index) => `
+      <tr data-row-index="${item.rowIndex}">
+        <td class="text-center">${item.itemNo || index + 1}</td>
+        <td class="item-name">${item.name}</td>
+        <td>
+          <input type="text"
+                 class="input-text"
+                 data-field="minUnit"
+                 value="${item.minUnit || ''}"
+                 placeholder="例: 本">
+        </td>
+        <td>
+          <input type="text"
+                 class="input-text"
+                 data-field="packUnit"
+                 value="${item.packUnit || ''}"
+                 placeholder="例: ダース">
+        </td>
+        <td>
+          <input type="number"
+                 class="input-number"
+                 data-field="packQuantity"
+                 value="${item.packQuantity || ''}"
+                 placeholder="0"
+                 min="0">
+        </td>
+      </tr>
+    `).join('');
+
+    elements.itemTableBody.innerHTML = html;
+
+    // 入力フィールドのイベントリスナーを設定
+    setupInputListeners();
+  }
+
+  function setupInputListeners() {
+    const inputs = elements.itemTableBody.querySelectorAll('input');
+    inputs.forEach(input => {
+      input.addEventListener('change', handleInputChange);
+    });
+  }
+
+  function handleInputChange(event) {
+    const input = event.target;
+    const row = input.closest('tr');
+    const rowIndex = parseInt(row.dataset.rowIndex);
+    const field = input.dataset.field;
+    const value = input.value;
+
+    // state内のアイテムデータを更新
+    const item = state.items.find(item => item.rowIndex === rowIndex);
+    if (item) {
+      item[field] = value;
+    }
+  }
+
+  // ========================================
+  // データ取得
+  // ========================================
+
+  function fetchData() {
+    setLoading(true);
+
+    google.script.run
+      .withSuccessHandler(onDataSuccess)
+      .withFailureHandler(onDataFailure)
+      .getItemMasterData();
+  }
+
+  function onDataSuccess(items) {
+    if (items.error) {
+      onDataFailure(items.error);
+      return;
+    }
+
+    state.items = items;
+    renderItemTable(items);
+    setLoading(false);
+  }
+
+  function onDataFailure(error) {
+    setLoading(false);
+    showError(error);
+  }
+
+  // ========================================
+  // データ保存
+  // ========================================
+
+  function saveAllData() {
+    // 入力値を収集
+    const rows = elements.itemTableBody.querySelectorAll('tr');
+    const updateData = [];
+
+    rows.forEach(row => {
+      const rowIndex = parseInt(row.dataset.rowIndex);
+      if (!rowIndex) return;
+
+      const minUnitInput = row.querySelector('[data-field="minUnit"]');
+      const packUnitInput = row.querySelector('[data-field="packUnit"]');
+      const packQuantityInput = row.querySelector('[data-field="packQuantity"]');
+
+      const minUnit = minUnitInput ? minUnitInput.value.trim() : '';
+      const packUnit = packUnitInput ? packUnitInput.value.trim() : '';
+      const packQuantity = packQuantityInput ? (parseInt(packQuantityInput.value, 10) || 0) : 0;
+
+      updateData.push({
+        rowIndex: rowIndex,
+        minUnit: minUnit,
+        packUnit: packUnit,
+        packQuantity: packQuantity
+      });
+    });
+
+    if (updateData.length === 0) {
+      showMessage('error', '保存するデータがありません。');
+      return;
+    }
+
+    setLoading(true);
+
+    google.script.run
+      .withSuccessHandler(onSaveSuccess)
+      .withFailureHandler(onSaveFailure)
+      .updateItemMasterData(updateData);
+  }
+
+  function onSaveSuccess(response) {
+    if (response.success) {
+      showMessage('success', response.message);
+      // データを再読み込み
+      fetchData();
+    } else {
+      onSaveFailure(response.error || '保存に失敗しました。');
+    }
+  }
+
+  function onSaveFailure(error) {
+    setLoading(false);
+    showError(error);
+  }
+
+  // ========================================
+  // イベントリスナー
+  // ========================================
+
+  function setupEventListeners() {
+    elements.reloadBtn.addEventListener('click', fetchData);
+    elements.saveAllBtn.addEventListener('click', saveAllData);
+  }
+
+  // ========================================
+  // 初期化
+  // ========================================
+
+  function init() {
+    setupEventListeners();
+    fetchData();
+  }
+
+  // ========================================
+  // アプリ起動
+  // ========================================
+
+  document.addEventListener('DOMContentLoaded', init);
+
+})();
+</script>
+</body>
+</html>
