@@ -44,8 +44,8 @@ function getItemMasterData() {
       return [];
     }
 
-    // A列（行番号）、B列（物品名）、C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）を取得
-    const range = sheet.getRange(`A2:E${lastRow}`);
+    // A列（行番号）、B列（物品名）、C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）、F列（発注点）を取得
+    const range = sheet.getRange(`A2:F${lastRow}`);
     const values = range.getValues();
 
     const items = values
@@ -55,7 +55,8 @@ function getItemMasterData() {
         name: row[1] || '',
         minUnit: row[2] || '',
         packUnit: row[3] || '',
-        packQuantity: row[4] || 0
+        packQuantity: row[4] || 0,
+        reorderPoint: row[5] || 0  // F列: 発注点
       }))
       .filter(item => {
         // 物品名が空でなく、区切り線（---...---）でないものをフィルタ
@@ -94,12 +95,13 @@ function updateItemMasterData(items) {
     // 各アイテムを更新
     items.forEach(item => {
       if (item.rowIndex) {
-        // C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）を更新
-        const range = sheet.getRange(`C${item.rowIndex}:E${item.rowIndex}`);
+        // C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）、F列（発注点）を更新
+        const range = sheet.getRange(`C${item.rowIndex}:F${item.rowIndex}`);
         range.setValues([[
           item.minUnit || '',
           item.packUnit || '',
-          item.packQuantity || 0
+          item.packQuantity || 0,
+          item.reorderPoint || 0
         ]]);
       }
     });
@@ -124,7 +126,7 @@ function updateItemMasterData(items) {
 
 /**
  * 単一アイテムの更新
- * @param {Object} item - 更新する物品データ {rowIndex, minUnit, packUnit, packQuantity}
+ * @param {Object} item - 更新する物品データ {rowIndex, minUnit, packUnit, packQuantity, reorderPoint}
  * @returns {Object} {success: boolean, message?: string, error?: string}
  */
 function updateSingleItem(item) {
@@ -140,12 +142,13 @@ function updateSingleItem(item) {
       throw new Error(`シート「${CONFIG.MASTER_SHEET_NAME}」が見つかりません。`);
     }
 
-    // C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）を更新
-    const range = sheet.getRange(`C${item.rowIndex}:E${item.rowIndex}`);
+    // C列（最小単位）、D列（荷姿単位）、E列（荷姿入数）、F列（発注点）を更新
+    const range = sheet.getRange(`C${item.rowIndex}:F${item.rowIndex}`);
     range.setValues([[
       item.minUnit || '',
       item.packUnit || '',
-      item.packQuantity || 0
+      item.packQuantity || 0,
+      item.reorderPoint || 0
     ]]);
 
     // キャッシュをクリア

@@ -293,8 +293,9 @@
     <div class="card">
       <div class="info-box">
         <strong>使い方：</strong><br>
-        • 各物品の最小単位、荷姿単位、荷姿入数を入力してください<br>
-        • 例：ビールの場合 → 最小単位: 本、荷姿単位: ダース、荷姿入数: 12<br>
+        • 各物品の最小単位、荷姿単位、荷姿入数、発注点を入力してください<br>
+        • 例：ビールの場合 → 最小単位: 本、荷姿単位: ダース、荷姿入数: 12、発注点: 24<br>
+        • 発注点：在庫がこの数量を下回ったら発注が必要な基準値<br>
         • 入力後「すべて保存」ボタンで一括保存されます
       </div>
 
@@ -305,15 +306,16 @@
           <thead>
             <tr>
               <th style="width: 5%;">No.</th>
-              <th style="width: 25%;">物品名</th>
-              <th style="width: 20%;">最小単位</th>
-              <th style="width: 20%;">荷姿単位</th>
-              <th style="width: 15%;">荷姿入数</th>
+              <th style="width: 22%;">物品名</th>
+              <th style="width: 15%;">最小単位</th>
+              <th style="width: 15%;">荷姿単位</th>
+              <th style="width: 13%;">荷姿入数</th>
+              <th style="width: 15%;">発注点</th>
             </tr>
           </thead>
           <tbody id="itemTableBody">
             <tr>
-              <td colspan="5" class="text-center text-gray">読み込み中...</td>
+              <td colspan="6" class="text-center text-gray">読み込み中...</td>
             </tr>
           </tbody>
         </table>
@@ -392,7 +394,7 @@
     if (items.length === 0) {
       elements.itemTableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="text-center text-gray">物品マスターがありません。</td>
+          <td colspan="6" class="text-center text-gray">物品マスターがありません。</td>
         </tr>
       `;
       return;
@@ -421,6 +423,14 @@
                  class="input-number"
                  data-field="packQuantity"
                  value="${item.packQuantity || ''}"
+                 placeholder="0"
+                 min="0">
+        </td>
+        <td>
+          <input type="number"
+                 class="input-number"
+                 data-field="reorderPoint"
+                 value="${item.reorderPoint || ''}"
                  placeholder="0"
                  min="0">
         </td>
@@ -499,16 +509,19 @@
       const minUnitInput = row.querySelector('[data-field="minUnit"]');
       const packUnitInput = row.querySelector('[data-field="packUnit"]');
       const packQuantityInput = row.querySelector('[data-field="packQuantity"]');
+      const reorderPointInput = row.querySelector('[data-field="reorderPoint"]');
 
       const minUnit = minUnitInput ? minUnitInput.value.trim() : '';
       const packUnit = packUnitInput ? packUnitInput.value.trim() : '';
       const packQuantity = packQuantityInput ? (parseInt(packQuantityInput.value, 10) || 0) : 0;
+      const reorderPoint = reorderPointInput ? (parseInt(reorderPointInput.value, 10) || 0) : 0;
 
       updateData.push({
         rowIndex: rowIndex,
         minUnit: minUnit,
         packUnit: packUnit,
-        packQuantity: packQuantity
+        packQuantity: packQuantity,
+        reorderPoint: reorderPoint
       });
     });
 
