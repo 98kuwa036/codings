@@ -168,3 +168,88 @@ function updateSingleItem(item) {
     return { success: false, error: e.toString() };
   }
 }
+
+// ========================================
+// 発注点データコピー機能
+// ========================================
+
+/**
+ * B列とH列が同一の値の場合、I列の値をF列にコピー
+ * @returns {Object} {success: boolean, message?: string, copiedCount?: number, error?: string}
+ */
+function copyReorderPointFromHI() {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.SOURCE_ID);
+    const sheet = ss.getSheetByName(CONFIG.MASTER_SHEET_NAME);
+
+    if (!sheet) {
+      throw new Error(`シート「${CONFIG.MASTER_SHEET_NAME}」が見つかりません。`);
+    }
+
+    const lastRow = sheet.getLastRow();
+
+    if (lastRow < 2) {
+      return {
+        success: true,
+        message: 'データが見つかりません。',
+        copiedCount: 0
+      };
+    }
+
+    // B、F、H、I列のデータを取得
+    const dataRange = sheet.getRange(`A2:I${lastRow}`);
+    const values = dataRange.getValues();
+
+    let copiedCount = 0;
+    const updates = [];
+
+    // 2行目から順に処理
+    for (let i = 0; i < values.length; i++) {
+      const rowNum = i + 2; // 実際の行番号（1始まり、ヘッダー分+1）
+      const itemNameB = values[i][1]; // B列（インデックス1）
+      const currentReorderPoint = values[i][5]; // F列（インデックス5）
+      const itemNameH = values[i][7]; // H列（インデックス7）
+      const reorderPointI = values[i][8]; // I列（インデックス8）
+
+      // B列とH列が同一の値かチェック（両方とも文字列として比較）
+      if (itemNameB && itemNameH &&
+          String(itemNameB).trim() === String(itemNameH).trim()) {
+
+        // I列の値をF列にコピー（値がある場合）
+        if (reorderPointI !== undefined && reorderPointI !== null && reorderPointI !== '') {
+          updates.push({
+            row: rowNum,
+            value: reorderPointI
+          });
+          copiedCount++;
+
+          Logger.log(`行${rowNum}: ${itemNameB} - 発注点 ${reorderPointI} をコピー`);
+        }
+      }
+    }
+
+    // 一括更新
+    if (updates.length > 0) {
+      updates.forEach(update => {
+        sheet.getRange(`F${update.row}`).setValue(update.value);
+      });
+
+      // キャッシュをクリア
+      const cache = CacheService.getScriptCache();
+      cache.remove(CONFIG.CACHE_KEY);
+      cache.remove('master_items_v2');
+    }
+
+    Logger.log(`発注点コピー完了: ${copiedCount}件`);
+
+    return {
+      success: true,
+      message: `${copiedCount}件の発注点をコピーしました。`,
+      copiedCount: copiedCount
+    };
+
+  } catch (e) {
+    Logger.log(`copyReorderPointFromHI エラー: ${e.toString()}`);
+    return { success: false, error: e.toString() };
+  }
+}
