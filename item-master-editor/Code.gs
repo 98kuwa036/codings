@@ -174,7 +174,7 @@ function updateSingleItem(item) {
 // ========================================
 
 /**
- * B列とH列が同一の値の場合、I列の値をF列にコピー
+ * B列の各値をH列全体から検索し、一致した行のI列の値をF列にコピー
  * @returns {Object} {success: boolean, message?: string, copiedCount?: number, error?: string}
  */
 function copyReorderPointFromHI() {
@@ -200,30 +200,51 @@ function copyReorderPointFromHI() {
     const dataRange = sheet.getRange(`A2:I${lastRow}`);
     const values = dataRange.getValues();
 
-    let copiedCount = 0;
-    const updates = [];
+    // H列とI列のマップを作成（検索用）
+    const hColumnMap = new Map(); // key: H列の値, value: I列の値
 
-    // 2行目から順に処理
     for (let i = 0; i < values.length; i++) {
-      const rowNum = i + 2; // 実際の行番号（1始まり、ヘッダー分+1）
-      const itemNameB = values[i][1]; // B列（インデックス1）
-      const currentReorderPoint = values[i][5]; // F列（インデックス5）
       const itemNameH = values[i][7]; // H列（インデックス7）
       const reorderPointI = values[i][8]; // I列（インデックス8）
 
-      // B列とH列が同一の値かチェック（両方とも文字列として比較）
-      if (itemNameB && itemNameH &&
-          String(itemNameB).trim() === String(itemNameH).trim()) {
+      // H列に値があり、I列にも値がある場合のみマップに追加
+      if (itemNameH && String(itemNameH).trim() !== '' &&
+          reorderPointI !== undefined && reorderPointI !== null && reorderPointI !== '') {
+        const key = String(itemNameH).trim();
+        // 同じ物品名が複数ある場合は最初の値を使用
+        if (!hColumnMap.has(key)) {
+          hColumnMap.set(key, reorderPointI);
+          Logger.log(`H列マップ追加: ${key} → ${reorderPointI}`);
+        }
+      }
+    }
 
-        // I列の値をF列にコピー（値がある場合）
-        if (reorderPointI !== undefined && reorderPointI !== null && reorderPointI !== '') {
+    let copiedCount = 0;
+    const updates = [];
+
+    // B列の各行を処理
+    for (let i = 0; i < values.length; i++) {
+      const rowNum = i + 2; // 実際の行番号（1始まり、ヘッダー分+1）
+      const itemNameB = values[i][1]; // B列（インデックス1）
+
+      // B列に値がある場合のみ処理
+      if (itemNameB && String(itemNameB).trim() !== '') {
+        const searchKey = String(itemNameB).trim();
+
+        // H列マップから一致する値を検索
+        if (hColumnMap.has(searchKey)) {
+          const reorderPoint = hColumnMap.get(searchKey);
+
           updates.push({
             row: rowNum,
-            value: reorderPointI
+            value: reorderPoint,
+            itemName: itemNameB
           });
           copiedCount++;
 
-          Logger.log(`行${rowNum}: ${itemNameB} - 発注点 ${reorderPointI} をコピー`);
+          Logger.log(`行${rowNum}: ${itemNameB} - 発注点 ${reorderPoint} をコピー（H列から検索）`);
+        } else {
+          Logger.log(`行${rowNum}: ${itemNameB} - H列に一致するデータなし`);
         }
       }
     }
@@ -238,9 +259,11 @@ function copyReorderPointFromHI() {
       const cache = CacheService.getScriptCache();
       cache.remove(CONFIG.CACHE_KEY);
       cache.remove('master_items_v2');
-    }
 
-    Logger.log(`発注点コピー完了: ${copiedCount}件`);
+      Logger.log(`発注点コピー完了: ${copiedCount}件`);
+    } else {
+      Logger.log('コピーするデータがありませんでした。');
+    }
 
     return {
       success: true,
