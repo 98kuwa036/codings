@@ -1,4 +1,5 @@
 using UnityEngine;
+using OpenBveMobile.Audio;
 
 namespace OpenBveMobile.Controllers
 {
@@ -8,6 +9,8 @@ namespace OpenBveMobile.Controllers
     /// </summary>
     public class TrainController : MonoBehaviour
     {
+        [Header("Sound")]
+        [SerializeField] private TrainSoundController soundController;
         [Header("Train Parameters")]
         [SerializeField] private float mass = 40000f; // 質量（kg）
         [SerializeField] private float maxAcceleration = 1.0f; // 最大加速度（m/s²）
@@ -42,6 +45,12 @@ namespace OpenBveMobile.Controllers
             currentPosition = 0f;
             powerNotch = 0;
             brakeNotch = brakeNotchCount; // フルブレーキでスタート
+
+            // サウンドコントローラー取得
+            if (soundController == null)
+            {
+                soundController = GetComponent<TrainSoundController>();
+            }
         }
 
         private void Update()
@@ -147,6 +156,22 @@ namespace OpenBveMobile.Controllers
         }
 
         /// <summary>
+        /// 警笛を鳴らす
+        /// </summary>
+        public void BlowHorn()
+        {
+            soundController?.PlayHorn();
+        }
+
+        /// <summary>
+        /// ベルを鳴らす
+        /// </summary>
+        public void RingBell()
+        {
+            soundController?.PlayBell();
+        }
+
+        /// <summary>
         /// 力行ノッチを下げる
         /// </summary>
         public void DecreasePowerNotch()
@@ -169,6 +194,7 @@ namespace OpenBveMobile.Controllers
                 brakeNotch++;
                 powerNotch = 0; // 力行を切る
                 OnBrakeNotchChanged?.Invoke(brakeNotch);
+                soundController?.PlayBrakeSound(false);
                 Debug.Log($"[TrainController] Brake notch: {brakeNotch}");
             }
         }
@@ -182,6 +208,7 @@ namespace OpenBveMobile.Controllers
             {
                 brakeNotch--;
                 OnBrakeNotchChanged?.Invoke(brakeNotch);
+                soundController?.PlayBrakeReleaseSound();
                 Debug.Log($"[TrainController] Brake notch: {brakeNotch}");
             }
         }
@@ -193,6 +220,7 @@ namespace OpenBveMobile.Controllers
         {
             brakeNotch = brakeNotchCount + 1; // 非常ブレーキ
             powerNotch = 0;
+            soundController?.PlayBrakeSound(true);
             Debug.Log("[TrainController] Emergency brake applied!");
         }
 

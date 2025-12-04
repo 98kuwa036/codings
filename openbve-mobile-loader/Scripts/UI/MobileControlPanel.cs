@@ -26,6 +26,8 @@ namespace OpenBveMobile.UI
         [SerializeField] private Button brakeDownButton;
         [SerializeField] private Button emergencyBrakeButton;
         [SerializeField] private Button reverserButton;
+        [SerializeField] private Button hornButton;
+        [SerializeField] private Button bellButton;
 
         private void Start()
         {
@@ -47,6 +49,12 @@ namespace OpenBveMobile.UI
 
             if (reverserButton != null)
                 reverserButton.onClick.AddListener(OnReverser);
+
+            if (hornButton != null)
+                hornButton.onClick.AddListener(OnHorn);
+
+            if (bellButton != null)
+                bellButton.onClick.AddListener(OnBell);
 
             // TrainControllerのイベント購読
             if (trainController != null)
@@ -104,6 +112,18 @@ namespace OpenBveMobile.UI
         {
             if (trainController != null)
                 trainController.ToggleReverser();
+        }
+
+        private void OnHorn()
+        {
+            if (trainController != null)
+                trainController.BlowHorn();
+        }
+
+        private void OnBell()
+        {
+            if (trainController != null)
+                trainController.RingBell();
         }
 
         // UI更新メソッド
