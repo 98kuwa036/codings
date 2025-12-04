@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.IO;
+using System.Collections.Generic;
 using OpenBveMobile.Parsers;
 
 namespace OpenBveMobile.Loaders
@@ -47,6 +48,11 @@ namespace OpenBveMobile.Loaders
 
                     case ".obj":
                         return LoadWavefrontObj(filePath, defaultMaterial);
+
+                    case ".xml":
+                        // BVE5 XMLオブジェクト
+                        Debug.LogWarning("[ModelLoader] BVE5 XML objects not yet implemented");
+                        return CreatePlaceholder(Path.GetFileName(filePath));
 
                     default:
                         Debug.LogWarning($"[ModelLoader] Unsupported format: {extension}");
@@ -117,12 +123,69 @@ namespace OpenBveMobile.Loaders
         }
 
         /// <summary>
-        /// DirectX Xフォーマットをロード（未実装）
+        /// DirectX Xフォーマットをロード
         /// </summary>
         private GameObject LoadDirectX(string filePath, Material material)
         {
-            Debug.LogWarning("[ModelLoader] DirectX .X format not yet implemented");
-            return CreatePlaceholder(Path.GetFileName(filePath));
+            Debug.Log($"[ModelLoader] Loading DirectX X: {filePath}");
+
+            var xParser = new DirectXParser();
+            var xModel = xParser.Parse(filePath);
+
+            if (xModel == null)
+            {
+                return CreatePlaceholder(Path.GetFileName(filePath));
+            }
+
+            var mesh = xParser.ConvertToMesh(xModel);
+            GameObject obj = CreateGameObjectFromMesh(mesh, material);
+            obj.name = Path.GetFileNameWithoutExtension(filePath);
+
+            // マテリアル適用
+            if (xModel.Materials.Count > 0)
+            {
+                ApplyXMaterials(obj, xModel.Materials);
+            }
+
+            // テクスチャがある場合は適用
+            if (!string.IsNullOrEmpty(xModel.TexturePath))
+            {
+                ApplyTexture(obj, xModel.TexturePath);
+            }
+            else if (xModel.Materials.Count > 0 && !string.IsNullOrEmpty(xModel.Materials[0].TextureFilename))
+            {
+                ApplyTexture(obj, xModel.Materials[0].TextureFilename);
+            }
+
+            return obj;
+        }
+
+        /// <summary>
+        /// DirectX マテリアルを適用
+        /// </summary>
+        private void ApplyXMaterials(GameObject obj, List<DirectXParser.XMaterial> materials)
+        {
+            var renderer = obj.GetComponent<MeshRenderer>();
+            if (renderer == null || materials.Count == 0) return;
+
+            var material = materials[0]; // 最初のマテリアルを使用
+
+            // マテリアル作成
+            Material unityMat = new Material(Shader.Find("Standard"));
+            unityMat.color = material.DiffuseColor;
+
+            // スペキュラー
+            unityMat.SetFloat("_Glossiness", material.SpecularPower / 100f);
+            unityMat.SetColor("_SpecColor", material.SpecularColor);
+
+            // エミッシブ
+            if (material.EmissiveColor != Color.black)
+            {
+                unityMat.EnableKeyword("_EMISSION");
+                unityMat.SetColor("_EmissionColor", material.EmissiveColor);
+            }
+
+            renderer.material = unityMat;
         }
 
         /// <summary>

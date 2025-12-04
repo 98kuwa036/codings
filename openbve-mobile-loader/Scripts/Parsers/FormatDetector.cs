@@ -39,7 +39,22 @@ namespace OpenBveMobile.Parsers
             // 拡張子による判定
             if (extension == ".xml")
             {
-                return BveFormat.BVE5; // BVE5はXML形式
+                // XMLの場合は内容で判定
+                string content = File.ReadAllText(filePath);
+                if (content.Contains("<Route>"))
+                {
+                    return BveFormat.BVE5;
+                }
+            }
+
+            if (extension == ".txt" || extension == ".map")
+            {
+                // BVE5はテキストマップファイルの可能性
+                string[] lines = ReadFileLines(filePath, 20);
+                if (ContainsPattern(lines, @"Map\.Load|Structure\.Load|Station\.Load"))
+                {
+                    return BveFormat.BVE5;
+                }
             }
 
             // ファイル内容を読み込んで判定

@@ -25,14 +25,16 @@ namespace OpenBveMobile.Loaders
         // パーサー
         private Bve2RouteParser bve2Parser;
         private CsvRouteParser bve4Parser;
-        private Bve5RouteParser bve5Parser;
+        private Bve5RouteParser bve5OldParser; // 旧XML版
+        private Bve5MapParser bve5Parser; // 正式版（テキストマップ）
 
         private void Awake()
         {
             // パーサー初期化
             bve2Parser = new Bve2RouteParser();
             bve4Parser = new CsvRouteParser();
-            bve5Parser = new Bve5RouteParser();
+            bve5OldParser = new Bve5RouteParser(); // 後方互換性
+            bve5Parser = new Bve5MapParser(); // 正式版
 
             modelLoader = GetComponent<ModelLoader>();
             if (modelLoader == null)
@@ -80,7 +82,16 @@ namespace OpenBveMobile.Loaders
                         break;
 
                     case BveFormat.BVE5:
-                        routeData = bve5Parser.Parse(filePath);
+                        // 拡張子で判定
+                        string extension = Path.GetExtension(filePath).ToLowerInvariant();
+                        if (extension == ".xml")
+                        {
+                            routeData = bve5OldParser.Parse(filePath); // 旧形式
+                        }
+                        else
+                        {
+                            routeData = bve5Parser.Parse(filePath); // テキストマップ形式
+                        }
                         break;
 
                     default:

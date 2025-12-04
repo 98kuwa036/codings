@@ -11,9 +11,13 @@ PC向け鉄道運転シミュレーター「openBVE」のゲームファイル�
 #### ✅ 実装済み機能
 
 - **マルチフォーマット対応**: BVE2/BVE4/BVE5/openBVE自動検出・読み込み
+- **BVE5完全対応**: テキストマップファイル形式（railsim互換）
 - **サウンドシステム**: WAV形式サウンド再生（モーター音、ブレーキ音、警笛等）
-- **路線パーサー**: CSV/XML形式対応
-- **3Dモデルローダー**: B3D、CSVオブジェクト
+- **路線パーサー**: CSV/XML/テキストマップ形式対応
+- **3Dモデルローダー**: B3D、CSVオブジェクト、**DirectX X形式**
+- **動的オブジェクト**: アニメーション、移動、回転、スクリプト制御
+- **スクリプトエンジン**: カスタムC#スクリプトで動作制御
+- **高度なグラフィックス**: ダイナミックライティング、霧、パーティクル
 - **3Dビューワー**: タッチ操作対応カメラ
 - **運転機能**: 力行・ブレーキノッチ、物理演算
 - **モバイルUI**: タッチ操作パネル、警笛ボタン
@@ -23,7 +27,8 @@ PC向け鉄道運転シミュレーター「openBVE」のゲームファイル�
 - **Phase 5**: 信号システム
 - **Phase 6**: ATS/ATC保安装置
 - **Phase 7**: 駅停車判定
-- **Phase 8**: DirectX (.x) モデル対応
+- **Phase 8**: Wavefront OBJモデル対応
+- **Phase 9**: VR対応
 
 ## 技術スタック
 
@@ -40,14 +45,15 @@ PC向け鉄道運転シミュレーター「openBVE」のゲームファイル�
 #### 路線データ
 - ✅ **BVE2形式**: BVE Trainsim 2.x（レガシー形式）
 - ✅ **BVE4形式**: BVE Trainsim 4.x（標準CSV形式）
-- ⚠️ **BVE5形式**: BVE Trainsim 5.x（XML形式、部分対応）
+- ✅ **BVE5形式**: BVE Trainsim 5.x（テキストマップ + CSV/XML）
 - ✅ **openBVE形式**: openBVE拡張CSV形式
 
 #### 3Dモデル
 - ✅ **B3D形式**: openBVE独自バイナリ形式
 - ✅ **CSVオブジェクト**: BVE4/openBVE形式
-- 🔄 **X形式**: DirectX形式（実装予定）
+- ✅ **X形式**: DirectX形式（マテリアル、テクスチャ対応）
 - 🔄 **OBJ形式**: Wavefront形式（実装予定）
+- ⚠️ **XMLオブジェクト**: BVE5形式（部分対応）
 
 #### テクスチャ
 - ✅ **PNG**: 推奨形式
@@ -65,27 +71,40 @@ PC向け鉄道運転シミュレーター「openBVE」のゲームファイル�
 openbve-mobile-loader/
 ├── Scripts/
 │   ├── Parsers/          # ファイルパーサー
-│   │   ├── CsvRouteParser.cs
-│   │   ├── B3DParser.cs
-│   │   └── CsvObjectParser.cs
+│   │   ├── FormatDetector.cs       # BVE2/4/5/openBVE自動検出
+│   │   ├── Bve2RouteParser.cs      # BVE2パーサー
+│   │   ├── CsvRouteParser.cs       # BVE4/openBVEパーサー
+│   │   ├── Bve5RouteParser.cs      # BVE5 XMLパーサー（後方互換）
+│   │   ├── Bve5MapParser.cs        # BVE5テキストマップパーサー
+│   │   ├── B3DParser.cs            # B3Dモデルパーサー
+│   │   ├── CsvObjectParser.cs      # CSVオブジェクトパーサー
+│   │   └── DirectXParser.cs        # DirectX Xファイルパーサー
 │   ├── Loaders/          # データローダー
+│   │   ├── UnifiedRouteLoader.cs   # 統合ローダー
 │   │   ├── RouteLoader.cs
-│   │   ├── ModelLoader.cs
-│   │   └── TextureLoader.cs
+│   │   └── ModelLoader.cs          # X形式対応
+│   ├── Audio/            # サウンドシステム
+│   │   ├── SoundManager.cs         # サウンド管理
+│   │   └── TrainSoundController.cs # 列車サウンド
 │   ├── Core/             # コア機能
-│   │   ├── TrackManager.cs
-│   │   ├── ObjectManager.cs
-│   │   └── WorldManager.cs
+│   │   ├── GameManager.cs
+│   │   ├── OpenBveTypes.cs
+│   │   ├── DynamicObjectSystem.cs  # 動的オブジェクト
+│   │   └── ScriptEngine.cs         # スクリプトエンジン
+│   ├── Graphics/         # 高度なグラフィックス
+│   │   └── AdvancedGraphicsSystem.cs
 │   ├── Controllers/      # 運転制御
-│   │   ├── TrainController.cs
-│   │   └── PhysicsController.cs
+│   │   ├── TrainController.cs      # 列車制御+サウンド統合
+│   │   └── CameraController.cs     # カメラ制御
 │   └── UI/               # ユーザーインターフェース
-│       ├── MainMenu.cs
-│       └── ControlPanel.cs
+│       └── MobileControlPanel.cs   # モバイルUI（警笛ボタン含む）
 ├── Docs/                 # ドキュメント
-│   ├── CSV_FORMAT.md
-│   ├── B3D_FORMAT.md
-│   └── DEVELOPMENT.md
+│   ├── SETUP_GUIDE.md              # セットアップガイド
+│   ├── CSV_FORMAT.md               # CSV仕様書
+│   ├── B3D_FORMAT.md               # B3D仕様書
+│   ├── SOUND_SYSTEM.md             # サウンドシステムガイド
+│   ├── BVE_COMPATIBILITY.md        # BVE互換性ガイド
+│   └── ADVANCED_FEATURES.md        # 高度な機能ガイド
 ├── Assets/               # アセット（テスト用）
 └── README.md
 ```
@@ -129,8 +148,12 @@ openbve-mobile-loader/
 #### Phase 1-4: 基本機能 ✅ 完了
 - [x] プロジェクト構造作成
 - [x] BVE2/4/5/openBVEパーサー
+- [x] BVE5テキストマップ形式対応
 - [x] フォーマット自動検出
-- [x] B3D/CSVモデルローダー
+- [x] B3D/CSV/DirectX Xモデルローダー
+- [x] 動的オブジェクトシステム
+- [x] スクリプトエンジン
+- [x] 高度なグラフィックス（ライティング、霧、パーティクル）
 - [x] 3Dビューワー（タッチ対応カメラ）
 - [x] 列車物理演算
 - [x] サウンドシステム（WAV対応）
@@ -152,9 +175,9 @@ openbve-mobile-loader/
 - [ ] 時刻表管理
 
 #### Phase 8: グラフィックス強化 📋 計画中
-- [ ] DirectX (.x) モデル対応
-- [ ] 動的照明
-- [ ] パーティクルエフェクト
+- [ ] Wavefront OBJモデル対応
+- [ ] 動的照明の最適化
+- [ ] パーティクルエフェクト拡張
 
 ## openBVE仕様書参考
 
@@ -182,4 +205,11 @@ openBVEはGPL-2.0ライセンスのオープンソースソフトウェアです
 
 ## 開発状況
 
-現在Phase 1を実装中
+現在Phase 1-4 完了、Phase 5（信号システム）進行中
+
+---
+
+**更新履歴**
+- 2025-12-04: 高度な機能追加（DirectX X、動的オブジェクト、スクリプト、グラフィックス）
+- 2025-12-04: BVE5テキストマップ形式対応、サウンドシステム実装
+- 2025-11-19: 初期リリース
