@@ -37,14 +37,27 @@ class NatureRemoAPI:
         _LOGGER.debug("Making %s request to %s", method, url)
 
         try:
-            async with self._session.request(
-                method,
-                url,
-                headers=self.headers,
-                json=data,
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
+            # Nature Remo API uses form-urlencoded for POST requests
+            if method == "POST" and data:
+                async with self._session.request(
+                    method,
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {self._access_token}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data=data,
+                ) as response:
+                    response.raise_for_status()
+                    return await response.json()
+            else:
+                async with self._session.request(
+                    method,
+                    url,
+                    headers=self.headers,
+                ) as response:
+                    response.raise_for_status()
+                    return await response.json()
         except aiohttp.ClientError as err:
             _LOGGER.error("Error making request to %s: %s", url, err)
             raise

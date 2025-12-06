@@ -8,6 +8,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    LIGHT_LUX,
     PERCENTAGE,
     UnitOfEnergy,
     UnitOfPower,
@@ -150,7 +151,7 @@ class NatureRemoIlluminanceSensor(NatureRemoSensorBase):
 
     _attr_device_class = SensorDeviceClass.ILLUMINANCE
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = "lx"
+    _attr_native_unit_of_measurement = LIGHT_LUX
 
     def __init__(self, coordinator, device_id, device_name):
         """Initialize the sensor."""
