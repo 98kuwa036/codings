@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Nature Remo Lapis",
+        "title": "Nature Remo",
         "description": "デバイスを接続するためにNature Remoのアクセストークンを入力してください。",
         "data": {
           "access_token": "アクセストークン"

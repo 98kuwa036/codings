@@ -1,4 +1,4 @@
-"""Support for Nature Remo Lapis climate devices."""
+"""Support for Nature Remo climate devices."""
 import logging
 from typing import Any
 
@@ -44,7 +44,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Nature Remo Lapis climate from a config entry."""
+    """Set up Nature Remo climate from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     api = hass.data[DOMAIN][entry.entry_id]["api"]
 
@@ -103,7 +103,7 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
                 "identifiers": {(DOMAIN, device_id)},
                 "name": device_name,
                 "manufacturer": "Nature",
-                "model": "Remo Lapis",
+                "model": "Nature Remo",
             }
         return None
 
