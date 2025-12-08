@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nature Remo Lapis",
+        "description": "デバイスを接続するためにNature Remoのアクセストークンを入力してください。",
+        "data": {
+          "access_token": "アクセストークン"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "認証に失敗しました。アクセストークンを確認してください。",
+      "cannot_connect": "Nature Remo APIに接続できません。インターネット接続を確認してください。",
+      "unknown": "予期しないエラーが発生しました。"
+    },
+    "abort": {
+      "already_configured": "このNature Remoアカウントは既に設定されています。"
+    }
+  }
+}

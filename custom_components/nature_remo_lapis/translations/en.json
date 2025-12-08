@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nature Remo Lapis",
+        "description": "Enter your Nature Remo access token to connect your devices.",
+        "data": {
+          "access_token": "Access Token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid authentication. Please check your access token.",
+      "cannot_connect": "Cannot connect to Nature Remo API. Please check your internet connection.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Nature Remo account is already configured."
+    }
+  }
+}
