@@ -1,0 +1,74 @@
+pause_printer:
+  name: Pause printer
+  description: Pause the printer, preventing it from processing new jobs.
+  target:
+    device:
+      integration: cups
+
+resume_printer:
+  name: Resume printer
+  description: Resume a paused printer, allowing it to process jobs again.
+  target:
+    device:
+      integration: cups
+
+cancel_all_jobs:
+  name: Cancel all jobs
+  description: Cancel all pending print jobs on the printer.
+  target:
+    device:
+      integration: cups
+
+pause_job:
+  name: Pause job
+  description: Pause a specific print job.
+  target:
+    device:
+      integration: cups
+  fields:
+    job_id:
+      name: Job ID
+      description: The ID of the print job to pause.
+      required: true
+      example: 123
+      selector:
+        number:
+          min: 1
+          max: 999999
+          mode: box
+
+resume_job:
+  name: Resume job
+  description: Resume a paused print job.
+  target:
+    device:
+      integration: cups
+  fields:
+    job_id:
+      name: Job ID
+      description: The ID of the print job to resume.
+      required: true
+      example: 123
+      selector:
+        number:
+          min: 1
+          max: 999999
+          mode: box
+
+cancel_job:
+  name: Cancel job
+  description: Cancel a specific print job.
+  target:
+    device:
+      integration: cups
+  fields:
+    job_id:
+      name: Job ID
+      description: The ID of the print job to cancel.
+      required: true
+      example: 123
+      selector:
+        number:
+          min: 1
+          max: 999999
+          mode: box

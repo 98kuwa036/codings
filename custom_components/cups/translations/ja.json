@@ -1,0 +1,88 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CUPSプリンター設定",
+        "description": "CUPS/IPPプリンターの詳細を入力してください。",
+        "data": {
+          "host": "ホスト名またはIPアドレス",
+          "port": "ポート",
+          "ssl": "SSL/TLSを使用",
+          "verify_ssl": "SSL証明書を検証",
+          "base_path": "ベースパス"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "CUPSプリンターを検出しました",
+        "description": "プリンター{name}を追加しますか？"
+      }
+    },
+    "error": {
+      "cannot_connect": "プリンターに接続できませんでした。ホスト名とポートを確認してください。",
+      "invalid_auth": "認証に失敗しました。認証情報を確認してください。",
+      "unknown": "予期しないエラーが発生しました。"
+    },
+    "abort": {
+      "already_configured": "このプリンターは既に設定されています。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "CUPSプリンターオプション",
+        "description": "CUPSプリンター設定を構成します。",
+        "data": {
+          "host": "ホスト名またはIPアドレス",
+          "port": "ポート",
+          "ssl": "SSL/TLSを使用",
+          "verify_ssl": "SSL証明書を検証",
+          "base_path": "ベースパス"
+        }
+      }
+    }
+  },
+  "services": {
+    "pause_printer": {
+      "name": "プリンターを一時停止",
+      "description": "プリンターを一時停止し、新しいジョブの処理を防ぎます。"
+    },
+    "resume_printer": {
+      "name": "プリンターを再開",
+      "description": "一時停止されたプリンターを再開し、ジョブの処理を再び許可します。"
+    },
+    "cancel_all_jobs": {
+      "name": "すべてのジョブをキャンセル",
+      "description": "プリンター上のすべての保留中の印刷ジョブをキャンセルします。"
+    },
+    "pause_job": {
+      "name": "ジョブを一時停止",
+      "description": "特定の印刷ジョブを一時停止します。",
+      "fields": {
+        "job_id": {
+          "name": "ジョブID",
+          "description": "一時停止する印刷ジョブのID。"
+        }
+      }
+    },
+    "resume_job": {
+      "name": "ジョブを再開",
+      "description": "一時停止された印刷ジョブを再開します。",
+      "fields": {
+        "job_id": {
+          "name": "ジョブID",
+          "description": "再開する印刷ジョブのID。"
+        }
+      }
+    },
+    "cancel_job": {
+      "name": "ジョブをキャンセル",
+      "description": "特定の印刷ジョブをキャンセルします。",
+      "fields": {
+        "job_id": {
+          "name": "ジョブID",
+          "description": "キャンセルする印刷ジョブのID。"
+        }
+      }
+    }
+  }
+}

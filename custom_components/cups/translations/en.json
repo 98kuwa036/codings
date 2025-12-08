@@ -1,0 +1,88 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CUPS Printer Setup",
+        "description": "Enter the details of your CUPS/IPP printer.",
+        "data": {
+          "host": "Hostname or IP address",
+          "port": "Port",
+          "ssl": "Use SSL/TLS",
+          "verify_ssl": "Verify SSL certificate",
+          "base_path": "Base path"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Discovered CUPS Printer",
+        "description": "Do you want to add the printer {name}?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the printer. Please check the hostname and port.",
+      "invalid_auth": "Authentication failed. Please check your credentials.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This printer is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "CUPS Printer Options",
+        "description": "Configure your CUPS printer settings.",
+        "data": {
+          "host": "Hostname or IP address",
+          "port": "Port",
+          "ssl": "Use SSL/TLS",
+          "verify_ssl": "Verify SSL certificate",
+          "base_path": "Base path"
+        }
+      }
+    }
+  },
+  "services": {
+    "pause_printer": {
+      "name": "Pause printer",
+      "description": "Pause the printer, preventing it from processing new jobs."
+    },
+    "resume_printer": {
+      "name": "Resume printer",
+      "description": "Resume a paused printer, allowing it to process jobs again."
+    },
+    "cancel_all_jobs": {
+      "name": "Cancel all jobs",
+      "description": "Cancel all pending print jobs on the printer."
+    },
+    "pause_job": {
+      "name": "Pause job",
+      "description": "Pause a specific print job.",
+      "fields": {
+        "job_id": {
+          "name": "Job ID",
+          "description": "The ID of the print job to pause."
+        }
+      }
+    },
+    "resume_job": {
+      "name": "Resume job",
+      "description": "Resume a paused print job.",
+      "fields": {
+        "job_id": {
+          "name": "Job ID",
+          "description": "The ID of the print job to resume."
+        }
+      }
+    },
+    "cancel_job": {
+      "name": "Cancel job",
+      "description": "Cancel a specific print job.",
+      "fields": {
+        "job_id": {
+          "name": "Job ID",
+          "description": "The ID of the print job to cancel."
+        }
+      }
+    }
+  }
+}
