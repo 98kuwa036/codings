@@ -1,4 +1,4 @@
-"""Config flow for Nature Remo Lapis integration."""
+"""Config flow for Nature Remo integration."""
 import logging
 from typing import Any
 
@@ -16,8 +16,8 @@ from .const import DOMAIN, ERROR_AUTH_INVALID, ERROR_CANNOT_CONNECT, ERROR_UNKNO
 _LOGGER = logging.getLogger(__name__)
 
 
-class NatureRemoLapisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Nature Remo Lapis."""
+class NatureRemoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Nature Remo."""
 
     VERSION = 1
 

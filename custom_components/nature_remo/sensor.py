@@ -1,4 +1,4 @@
-"""Support for Nature Remo Lapis sensors."""
+"""Support for Nature Remo sensors."""
 import logging
 
 from homeassistant.components.sensor import (
@@ -28,7 +28,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Nature Remo Lapis sensor from a config entry."""
+    """Set up Nature Remo sensor from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     sensors = []
@@ -96,7 +96,7 @@ class NatureRemoSensorBase(CoordinatorEntity, SensorEntity):
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device_name,
             "manufacturer": "Nature",
-            "model": "Remo Lapis",
+            "model": "Nature Remo",
         }
 
 

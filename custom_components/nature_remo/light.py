@@ -1,4 +1,4 @@
-"""Support for Nature Remo Lapis lights."""
+"""Support for Nature Remo lights."""
 import logging
 from typing import Any
 
@@ -22,7 +22,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Nature Remo Lapis light from a config entry."""
+    """Set up Nature Remo light from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     api = hass.data[DOMAIN][entry.entry_id]["api"]
 
@@ -76,7 +76,7 @@ class NatureRemoLight(CoordinatorEntity, LightEntity):
                 "identifiers": {(DOMAIN, device_id)},
                 "name": device_name,
                 "manufacturer": "Nature",
-                "model": "Remo Lapis",
+                "model": "Nature Remo",
             }
         return None
 

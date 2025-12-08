@@ -1,4 +1,4 @@
-"""Support for Nature Remo Lapis remote controls."""
+"""Support for Nature Remo remote controls."""
 import logging
 from typing import Any, Iterable
 
@@ -18,7 +18,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Nature Remo Lapis remote from a config entry."""
+    """Set up Nature Remo remote from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     api = hass.data[DOMAIN][entry.entry_id]["api"]
 
@@ -71,7 +71,7 @@ class NatureRemoRemote(CoordinatorEntity, RemoteEntity):
                 "identifiers": {(DOMAIN, device_id)},
                 "name": device_name,
                 "manufacturer": "Nature",
-                "model": "Remo Lapis",
+                "model": "Nature Remo",
             }
         return None
 

@@ -1,4 +1,4 @@
-"""API client for Nature Remo Lapis."""
+"""API client for Nature Remo."""
 import logging
 from typing import Any
 

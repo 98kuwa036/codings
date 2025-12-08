@@ -1,6 +1,6 @@
-"""Constants for the Nature Remo Lapis integration."""
+"""Constants for the Nature Remo integration."""
 
-DOMAIN = "nature_remo_lapis"
+DOMAIN = "nature_remo"
 
 # Configuration
 CONF_ACCESS_TOKEN = "access_token"

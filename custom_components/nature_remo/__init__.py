@@ -1,4 +1,4 @@
-"""The Nature Remo Lapis integration."""
+"""The Nature Remo integration."""
 import logging
 from datetime import timedelta
 
@@ -23,7 +23,7 @@ PLATFORMS = [
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Nature Remo Lapis from a config entry."""
+    """Set up Nature Remo from a config entry."""
     access_token = entry.data[CONF_ACCESS_TOKEN]
     session = async_get_clientsession(hass)
     api = NatureRemoAPI(access_token, session)
