@@ -50,12 +50,21 @@ async def async_setup_entry(
 
     climate_devices = []
 
+    _LOGGER.debug("Setting up climate entities, found %d appliances", len(coordinator.data.get("appliances", [])))
+
     for appliance in coordinator.data.get("appliances", []):
-        if appliance.get("type") == APPLIANCE_TYPE_AC:
+        appliance_type = appliance.get("type")
+        _LOGGER.debug("Checking appliance %s with type %s", appliance.get("nickname"), appliance_type)
+
+        if appliance_type == APPLIANCE_TYPE_AC:
+            _LOGGER.info("Adding climate entity for %s (id: %s)", appliance.get("nickname"), appliance.get("id"))
             climate_devices.append(
                 NatureRemoClimate(coordinator, api, appliance["id"])
             )
+        else:
+            _LOGGER.debug("Skipping non-AC appliance: %s (type: %s)", appliance.get("nickname"), appliance_type)
 
+    _LOGGER.info("Added %d climate entities", len(climate_devices))
     async_add_entities(climate_devices)
 
 

@@ -71,6 +71,18 @@ class NatureRemoDataUpdateCoordinator(DataUpdateCoordinator):
             devices = await self.api.get_devices()
             appliances = await self.api.get_appliances()
 
+            _LOGGER.debug("Fetched %d devices from Nature Remo API", len(devices))
+            _LOGGER.debug("Fetched %d appliances from Nature Remo API", len(appliances))
+
+            # Log appliance types for debugging
+            for appliance in appliances:
+                _LOGGER.debug(
+                    "Appliance: %s (type: %s, id: %s)",
+                    appliance.get("nickname"),
+                    appliance.get("type"),
+                    appliance.get("id"),
+                )
+
             return {
                 "devices": devices,
                 "appliances": appliances,
