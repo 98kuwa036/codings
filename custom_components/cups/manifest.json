@@ -8,6 +8,6 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/98kuwa036/codings/issues",
   "requirements": ["pyipp==0.14.6"],
-  "version": "1.0.0",
+  "version": "1.1.0",
   "zeroconf": ["_ipp._tcp.local.", "_ipps._tcp.local."]
 }

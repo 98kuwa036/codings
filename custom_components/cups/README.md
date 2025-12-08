@@ -20,16 +20,18 @@ A comprehensive Home Assistant custom integration for monitoring and managing CU
 - Uptime
 - Location and description
 
-### Services (Planned)
+### Services
 
-The following services are defined but require additional IPP operations not currently exposed by the pyipp library:
+Full print job management is now available:
 
-- `cups.pause_printer`: Pause the printer
+- `cups.pause_printer`: Pause the printer (prevents processing new jobs)
 - `cups.resume_printer`: Resume a paused printer
-- `cups.cancel_all_jobs`: Cancel all pending jobs
-- `cups.pause_job`: Pause a specific job
-- `cups.resume_job`: Resume a paused job
+- `cups.cancel_all_jobs`: Cancel all pending jobs (Purge-Jobs operation)
+- `cups.pause_job`: Pause a specific job (Hold-Job operation)
+- `cups.resume_job`: Resume a paused job (Release-Job operation)
 - `cups.cancel_job`: Cancel a specific job
+
+All services use direct IPP protocol communication for full compatibility with CUPS and IPP-compliant printers.
 
 ## Installation
 
@@ -127,6 +129,59 @@ automation:
           message: "Printer is offline"
 ```
 
+### Using Services
+
+#### Pause Printer
+
+```yaml
+service: cups.pause_printer
+target:
+  device_id: your_printer_device_id
+```
+
+#### Resume Printer
+
+```yaml
+service: cups.resume_printer
+target:
+  device_id: your_printer_device_id
+```
+
+#### Cancel All Jobs
+
+```yaml
+service: cups.cancel_all_jobs
+target:
+  device_id: your_printer_device_id
+```
+
+#### Cancel Specific Job
+
+```yaml
+service: cups.cancel_job
+target:
+  device_id: your_printer_device_id
+data:
+  job_id: 123
+```
+
+#### Automation: Cancel Jobs When Printer Goes Offline
+
+```yaml
+automation:
+  - alias: "Cancel Print Jobs on Printer Offline"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.printer_connectivity
+        to: "off"
+        for:
+          minutes: 10
+    action:
+      - service: cups.cancel_all_jobs
+        target:
+          device_id: your_printer_device_id
+```
+
 ## Technical Details
 
 ### Supported Protocols
@@ -203,9 +258,13 @@ Each sensor provides comprehensive attributes including:
 
 Some printers do not report ink/toner levels via IPP. This is a limitation of the printer, not the integration.
 
-### Service Not Working
+### Service Errors
 
-Job management services require IPP operations not currently exposed by the pyipp library. These are placeholders for future implementation.
+If services fail, check the logs for details. Common issues:
+
+1. **Printer doesn't support the operation**: Some printers may not support certain IPP operations
+2. **Permission denied**: Some printers require authentication for job management
+3. **Network timeout**: Check network connectivity and firewall rules
 
 ## Development
 
@@ -217,6 +276,7 @@ custom_components/cups/
 ├── binary_sensor.py      # Connectivity sensor
 ├── config_flow.py        # Configuration UI
 ├── const.py             # Constants
+├── ipp_operations.py    # Direct IPP protocol operations
 ├── manifest.json        # Integration metadata
 ├── sensor.py            # Status and marker sensors
 ├── services.yaml        # Service definitions
@@ -248,6 +308,18 @@ This integration is provided as-is without warranty. Use at your own risk.
 
 ## Version History
 
+### 1.1.0 (Current)
+
+- **Full IPP job management implementation**
+  - Direct IPP protocol communication for all operations
+  - Pause/resume printer functionality
+  - Cancel all jobs (Purge-Jobs)
+  - Pause/resume individual jobs (Hold-Job/Release-Job)
+  - Cancel individual jobs
+- Custom IPP operations module bypassing pyipp limitations
+- Automatic status refresh after service calls
+- Enhanced error handling and logging
+
 ### 1.0.0 (Initial Release)
 
 - Printer status monitoring
@@ -256,5 +328,5 @@ This integration is provided as-is without warranty. Use at your own risk.
 - Connectivity monitoring
 - Zeroconf auto-discovery
 - Manual configuration
-- Service definitions (planned)
+- Service framework
 - English and Japanese translations

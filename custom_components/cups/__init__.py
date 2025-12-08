@@ -28,6 +28,7 @@ from .const import (
     SERVICE_RESUME_PRINTER,
     UPDATE_INTERVAL,
 )
+from .ipp_operations import IPPOperations
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,10 +59,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = CUPSDataUpdateCoordinator(hass, ipp)
     await coordinator.async_config_entry_first_refresh()
 
+    # Create IPP operations handler for job management
+    ipp_ops = IPPOperations(
+        session=session,
+        host=entry.data[CONF_HOST],
+        port=entry.data.get(CONF_PORT, DEFAULT_PORT),
+        base_path=entry.data.get(CONF_BASE_PATH, DEFAULT_BASE_PATH),
+        tls=entry.data.get(CONF_SSL, DEFAULT_SSL),
+    )
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         "ipp": ipp,
         "coordinator": coordinator,
+        "ipp_ops": ipp_ops,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -70,60 +81,83 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_pause_printer(call: ServiceCall) -> None:
         """Handle pause printer service call."""
         _LOGGER.info("Pause printer service called for %s", entry.title)
-        # Note: This requires IPP Pause-Printer operation
-        # pyipp library may need to be extended to support this
-        _LOGGER.warning(
-            "Pause printer service is not yet fully implemented. "
-            "This requires IPP operations not currently exposed by pyipp."
-        )
+        success = await ipp_ops.pause_printer()
+        if success:
+            _LOGGER.info("Successfully paused printer %s", entry.title)
+            # Request coordinator refresh to update status
+            await coordinator.async_request_refresh()
+        else:
+            _LOGGER.error("Failed to pause printer %s", entry.title)
 
     async def handle_resume_printer(call: ServiceCall) -> None:
         """Handle resume printer service call."""
         _LOGGER.info("Resume printer service called for %s", entry.title)
-        # Note: This requires IPP Resume-Printer operation
-        _LOGGER.warning(
-            "Resume printer service is not yet fully implemented. "
-            "This requires IPP operations not currently exposed by pyipp."
-        )
+        success = await ipp_ops.resume_printer()
+        if success:
+            _LOGGER.info("Successfully resumed printer %s", entry.title)
+            # Request coordinator refresh to update status
+            await coordinator.async_request_refresh()
+        else:
+            _LOGGER.error("Failed to resume printer %s", entry.title)
 
     async def handle_cancel_all_jobs(call: ServiceCall) -> None:
         """Handle cancel all jobs service call."""
         _LOGGER.info("Cancel all jobs service called for %s", entry.title)
-        # Note: This requires IPP Purge-Jobs operation
-        _LOGGER.warning(
-            "Cancel all jobs service is not yet fully implemented. "
-            "This requires IPP operations not currently exposed by pyipp."
-        )
+        success = await ipp_ops.purge_jobs()
+        if success:
+            _LOGGER.info("Successfully cancelled all jobs on printer %s", entry.title)
+            # Request coordinator refresh to update queue
+            await coordinator.async_request_refresh()
+        else:
+            _LOGGER.error("Failed to cancel all jobs on printer %s", entry.title)
 
     async def handle_pause_job(call: ServiceCall) -> None:
         """Handle pause job service call."""
         job_id = call.data.get("job_id")
         _LOGGER.info("Pause job %s service called for %s", job_id, entry.title)
-        # Note: This requires IPP Hold-Job operation
-        _LOGGER.warning(
-            "Pause job service is not yet fully implemented. "
-            "This requires IPP operations not currently exposed by pyipp."
-        )
+        success = await ipp_ops.hold_job(job_id)
+        if success:
+            _LOGGER.info(
+                "Successfully paused job %s on printer %s", job_id, entry.title
+            )
+            # Request coordinator refresh to update queue
+            await coordinator.async_request_refresh()
+        else:
+            _LOGGER.error(
+                "Failed to pause job %s on printer %s", job_id, entry.title
+            )
 
     async def handle_resume_job(call: ServiceCall) -> None:
         """Handle resume job service call."""
         job_id = call.data.get("job_id")
         _LOGGER.info("Resume job %s service called for %s", job_id, entry.title)
-        # Note: This requires IPP Release-Job operation
-        _LOGGER.warning(
-            "Resume job service is not yet fully implemented. "
-            "This requires IPP operations not currently exposed by pyipp."
-        )
+        success = await ipp_ops.release_job(job_id)
+        if success:
+            _LOGGER.info(
+                "Successfully resumed job %s on printer %s", job_id, entry.title
+            )
+            # Request coordinator refresh to update queue
+            await coordinator.async_request_refresh()
+        else:
+            _LOGGER.error(
+                "Failed to resume job %s on printer %s", job_id, entry.title
+            )
 
     async def handle_cancel_job(call: ServiceCall) -> None:
         """Handle cancel job service call."""
         job_id = call.data.get("job_id")
         _LOGGER.info("Cancel job %s service called for %s", job_id, entry.title)
-        # Note: This requires IPP Cancel-Job operation
-        _LOGGER.warning(
-            "Cancel job service is not yet fully implemented. "
-            "This requires IPP operations not currently exposed by pyipp."
-        )
+        success = await ipp_ops.cancel_job(job_id)
+        if success:
+            _LOGGER.info(
+                "Successfully cancelled job %s on printer %s", job_id, entry.title
+            )
+            # Request coordinator refresh to update queue
+            await coordinator.async_request_refresh()
+        else:
+            _LOGGER.error(
+                "Failed to cancel job %s on printer %s", job_id, entry.title
+            )
 
     # Register services only once
     if not hass.services.has_service(DOMAIN, SERVICE_PAUSE_PRINTER):
