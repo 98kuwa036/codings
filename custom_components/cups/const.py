@@ -103,7 +103,9 @@ ERROR_INVALID_HOST = "invalid_host"
 ERROR_UNKNOWN = "unknown"
 
 # Services
-SERVICE_PRINT_TEST_PAGE = "print_test_page"
-SERVICE_CANCEL_JOB = "cancel_job"
 SERVICE_PAUSE_PRINTER = "pause_printer"
 SERVICE_RESUME_PRINTER = "resume_printer"
+SERVICE_CANCEL_ALL_JOBS = "cancel_all_jobs"
+SERVICE_PAUSE_JOB = "pause_job"
+SERVICE_RESUME_JOB = "resume_job"
+SERVICE_CANCEL_JOB = "cancel_job"
