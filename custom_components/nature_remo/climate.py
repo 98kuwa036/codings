@@ -143,9 +143,9 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
         aircon = self._appliance.get("aircon", {})
         range_data = aircon.get("range", {})
 
-        if "modes" in range_data:
-            for mode in range_data["modes"]:
-                mode_name = mode.get("mode")
+        # modes is a dict like {"cool": {...}, "warm": {...}}
+        if "modes" in range_data and isinstance(range_data["modes"], dict):
+            for mode_name in range_data["modes"].keys():
                 if mode_name in NATURE_TO_HA_MODE:
                     modes.append(NATURE_TO_HA_MODE[mode_name])
 
@@ -192,15 +192,15 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
         settings = self._appliance.get("settings", {})
         current_mode = settings.get("mode", AC_MODE_AUTO)
 
-        if "modes" in range_data:
-            for mode in range_data["modes"]:
-                if mode.get("mode") == current_mode:
-                    temps = mode.get("temp", [])
-                    if temps:
-                        try:
-                            return min(float(t) for t in temps if t)
-                        except (ValueError, TypeError):
-                            pass
+        # modes is a dict like {"cool": {"temp": [...], "vol": [...]}}
+        if "modes" in range_data and isinstance(range_data["modes"], dict):
+            mode_settings = range_data["modes"].get(current_mode, {})
+            temps = mode_settings.get("temp", [])
+            if temps:
+                try:
+                    return min(float(t) for t in temps if t)
+                except (ValueError, TypeError):
+                    pass
 
         return 16
 
@@ -215,15 +215,15 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
         settings = self._appliance.get("settings", {})
         current_mode = settings.get("mode", AC_MODE_AUTO)
 
-        if "modes" in range_data:
-            for mode in range_data["modes"]:
-                if mode.get("mode") == current_mode:
-                    temps = mode.get("temp", [])
-                    if temps:
-                        try:
-                            return max(float(t) for t in temps if t)
-                        except (ValueError, TypeError):
-                            pass
+        # modes is a dict like {"cool": {"temp": [...], "vol": [...]}}
+        if "modes" in range_data and isinstance(range_data["modes"], dict):
+            mode_settings = range_data["modes"].get(current_mode, {})
+            temps = mode_settings.get("temp", [])
+            if temps:
+                try:
+                    return max(float(t) for t in temps if t)
+                except (ValueError, TypeError):
+                    pass
 
         return 30
 
@@ -250,10 +250,10 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
         settings = self._appliance.get("settings", {})
         current_mode = settings.get("mode", AC_MODE_AUTO)
 
-        if "modes" in range_data:
-            for mode in range_data["modes"]:
-                if mode.get("mode") == current_mode:
-                    return mode.get("vol", [AC_FAN_AUTO])
+        # modes is a dict like {"cool": {"temp": [...], "vol": [...]}}
+        if "modes" in range_data and isinstance(range_data["modes"], dict):
+            mode_settings = range_data["modes"].get(current_mode, {})
+            return mode_settings.get("vol", [AC_FAN_AUTO])
 
         return [AC_FAN_AUTO]
 
@@ -280,10 +280,10 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
         settings = self._appliance.get("settings", {})
         current_mode = settings.get("mode", AC_MODE_AUTO)
 
-        if "modes" in range_data:
-            for mode in range_data["modes"]:
-                if mode.get("mode") == current_mode:
-                    return mode.get("dir", [AC_SWING_AUTO])
+        # modes is a dict like {"cool": {"temp": [...], "vol": [...], "dir": [...]}}
+        if "modes" in range_data and isinstance(range_data["modes"], dict):
+            mode_settings = range_data["modes"].get(current_mode, {})
+            return mode_settings.get("dir", [AC_SWING_AUTO])
 
         return [AC_SWING_AUTO]
 
