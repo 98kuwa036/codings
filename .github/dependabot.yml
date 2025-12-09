@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # Monitor pyipp library updates
+  - package-ecosystem: "pip"
+    directory: "/custom_components/cups"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "cups-integration"
+      - "pyipp"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    reviewers:
+      - "98kuwa036"
+    # Check for pyipp updates
+    allow:
+      - dependency-name: "pyipp"
+        dependency-type: "direct"
+
+  # Monitor GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "github-actions"

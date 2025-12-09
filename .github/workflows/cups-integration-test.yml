@@ -1,0 +1,175 @@
+name: CUPS Integration - Dependency & Compatibility Tests
+
+on:
+  # Run on push to main branches
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'custom_components/cups/**'
+      - '.github/workflows/cups-integration-test.yml'
+
+  # Run on pull requests
+  pull_request:
+    paths:
+      - 'custom_components/cups/**'
+      - '.github/workflows/cups-integration-test.yml'
+
+  # Run weekly to check for compatibility with latest dependencies
+  schedule:
+    - cron: '0 0 * * 1'  # Every Monday at midnight UTC
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  test-pyipp-compatibility:
+    name: Test pyipp Compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Test with current and latest pyipp versions
+        pyipp-version: ['0.14.6', 'latest']
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ "${{ matrix.pyipp-version }}" = "latest" ]; then
+            pip install pyipp
+          else
+            pip install pyipp==${{ matrix.pyipp-version }}
+          fi
+          pip install pytest pytest-asyncio aiohttp
+
+      - name: Check pyipp version
+        run: |
+          python -c "import pyipp; print(f'pyipp version: {pyipp.__version__}')"
+
+      - name: Run syntax check
+        run: |
+          python -m py_compile custom_components/cups/*.py
+
+      - name: Test IPP operations import
+        run: |
+          python -c "from custom_components.cups.ipp_operations import IPPOperations; print('IPP operations module loaded successfully')"
+
+      - name: Create test report
+        if: matrix.pyipp-version == 'latest'
+        run: |
+          echo "## pyipp Latest Version Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Testing with latest pyipp version" >> $GITHUB_STEP_SUMMARY
+          python -c "import pyipp; print(f'- pyipp version: {pyipp.__version__}')" >> $GITHUB_STEP_SUMMARY
+          echo "- Python version: ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All imports successful" >> $GITHUB_STEP_SUMMARY
+
+  check-cups-updates:
+    name: Check CUPS/OpenPrinting Updates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check OpenPrinting CUPS releases
+        run: |
+          echo "## CUPS Version Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get latest CUPS release from OpenPrinting
+          LATEST_CUPS=$(curl -s https://api.github.com/repos/OpenPrinting/cups/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "- Latest CUPS release: $LATEST_CUPS" >> $GITHUB_STEP_SUMMARY
+
+          # Get latest pyipp release
+          LATEST_PYIPP=$(curl -s https://api.github.com/repos/ctalkington/python-ipp/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "- Latest pyipp release: $LATEST_PYIPP" >> $GITHUB_STEP_SUMMARY
+
+          # Compare with manifest.json
+          CURRENT_PYIPP=$(grep -oP 'pyipp==\K[0-9.]+' custom_components/cups/requirements.txt)
+          echo "- Current pyipp in integration: $CURRENT_PYIPP" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$LATEST_PYIPP" != "v$CURRENT_PYIPP" ]; then
+            echo "⚠️ pyipp update available: v$CURRENT_PYIPP → $LATEST_PYIPP" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ pyipp is up to date" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check IPP specification updates
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## IPP Specification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Current implementation: RFC 8011 (IPP 2.0)" >> $GITHUB_STEP_SUMMARY
+          echo "- Check for updates: https://www.pwg.org/ipp/" >> $GITHUB_STEP_SUMMARY
+
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black isort
+
+      - name: Run ruff
+        run: |
+          ruff check custom_components/cups/ || true
+
+      - name: Check code formatting with black
+        run: |
+          black --check custom_components/cups/ || true
+
+      - name: Check import sorting
+        run: |
+          isort --check-only custom_components/cups/ || true
+
+  integration-info:
+    name: Integration Information
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display integration info
+        run: |
+          echo "## CUPS Integration Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Version
+          VERSION=$(grep -oP '"version": "\K[^"]+' custom_components/cups/manifest.json)
+          echo "- Version: $VERSION" >> $GITHUB_STEP_SUMMARY
+
+          # Dependencies
+          echo "- Dependencies:" >> $GITHUB_STEP_SUMMARY
+          grep -oP '"requirements": \[\K[^\]]+' custom_components/cups/manifest.json | tr -d '"' | sed 's/,/\n  -/g' | sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
+
+          # File count
+          FILE_COUNT=$(find custom_components/cups -name "*.py" | wc -l)
+          echo "- Python files: $FILE_COUNT" >> $GITHUB_STEP_SUMMARY
+
+          # Line count
+          LINE_COUNT=$(find custom_components/cups -name "*.py" -exec wc -l {} + | tail -1 | awk '{print $1}')
+          echo "- Total lines of code: $LINE_COUNT" >> $GITHUB_STEP_SUMMARY

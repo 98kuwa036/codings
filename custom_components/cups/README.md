@@ -2,6 +2,17 @@
 
 A comprehensive Home Assistant custom integration for monitoring and managing CUPS (Common Unix Printing System) and IPP (Internet Printing Protocol) printers.
 
+## Status & Maintenance
+
+This integration includes automated dependency tracking and compatibility testing:
+
+- **Automated Updates**: Dependabot monitors pyipp library updates weekly
+- **Compatibility Testing**: GitHub Actions tests against latest pyipp versions
+- **CUPS Tracking**: Monitors OpenPrinting CUPS 3.x releases
+- **Documentation**: See [MAINTENANCE.md](MAINTENANCE.md) for update procedures
+
+For details on tracking updates and maintenance procedures, see the [Maintenance Guide](MAINTENANCE.md).
+
 ## Features
 
 ### Sensors
@@ -268,6 +279,24 @@ If services fail, check the logs for details. Common issues:
 
 ## Development
 
+### Maintenance & Updates
+
+This integration includes comprehensive update tracking:
+
+**Automated Systems:**
+- **Dependabot** (`.github/dependabot.yml`): Weekly pyipp update checks
+- **GitHub Actions** (`.github/workflows/cups-integration-test.yml`): Compatibility testing
+  - Tests against current and latest pyipp versions
+  - Monitors CUPS/OpenPrinting releases
+  - Runs weekly and on code changes
+
+**Manual Monitoring:**
+- [OpenPrinting CUPS](https://github.com/OpenPrinting/cups) - Core CUPS development
+- [pyipp Library](https://github.com/ctalkington/python-ipp) - IPP client library
+- [IPP Specifications](https://www.pwg.org/ipp/) - Protocol updates
+
+See [MAINTENANCE.md](MAINTENANCE.md) for detailed update procedures and troubleshooting.
+
 ### Project Structure
 
 ```
@@ -281,6 +310,9 @@ custom_components/cups/
 ├── sensor.py            # Status and marker sensors
 ├── services.yaml        # Service definitions
 ├── strings.json         # UI strings
+├── requirements.txt     # Python dependencies (for Dependabot)
+├── README.md            # This file
+├── MAINTENANCE.md       # Maintenance and update tracking guide
 └── translations/        # Localization
     ├── en.json
     └── ja.json

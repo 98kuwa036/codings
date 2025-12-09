@@ -1,0 +1,4 @@
+# CUPS Integration Dependencies
+# This file is used by Dependabot to track dependency updates
+
+pyipp==0.14.6
