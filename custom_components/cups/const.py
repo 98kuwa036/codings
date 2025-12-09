@@ -2,11 +2,7 @@
 
 DOMAIN = "cups"
 
-# Configuration
-CONF_HOST = "host"
-CONF_PORT = "port"
-CONF_SSL = "use_ssl"
-CONF_VERIFY_SSL = "verify_ssl"
+# Configuration constants not in homeassistant.const
 CONF_BASE_PATH = "base_path"
 
 # Default values
