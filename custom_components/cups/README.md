@@ -203,7 +203,7 @@ automation:
 
 ### Dependencies
 
-- **pyipp**: Python IPP client library (v0.9.2)
+- **pyipp**: Python IPP client library (v0.9.0+)
 - Supports IPP 1.1, 2.0, and 2.1
 
 ### Data Update Interval
