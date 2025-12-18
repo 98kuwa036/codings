@@ -1,0 +1,77 @@
+BveTs Map 1.00:utf-8
+
+// BVE5サンプルマップファイル
+// このファイルはBVE5専用構文を含んでいます
+
+// 変数定義（BVE5専用）
+
+// ストラクチャー読み込み（BVE5形式）
+Structure['ballast'].Load('structures/ballast.csv');
+Structure['rail'].Load('structures/rail.csv');
+Structure['pole'].Load('structures/pole.csv');
+Structure['wall'].Load('structures/wall.csv');
+
+// サウンド読み込み（BVE5形式）
+Sound['joint'].Load('sounds/joint.wav');
+Sound['crossing'].Load('sounds/crossing.wav');
+
+// 信号読み込み（BVE5形式）
+Signal['signal_r'].Load('signals/signal_r.csv');
+Signal['signal_yg'].Load('signals/signal_yg.csv');
+
+// 起点
+0;
+    // レール設置
+    Track['Rail1'].Position(3.8, 0);
+    Track['Rail2'].Position(-3.8, 0);
+
+    // リピーター開始（BVE5専用）
+
+    // 背景
+
+    // フォグ設定（BVE5形式）
+    Legacy.Fog(0, 1000, 220, 220, 220);
+
+// 直線区間
+500;
+    // 軌道狂い（BVE5専用）
+
+    // 粘着係数（BVE5専用）
+
+// カーブ開始
+1000;
+    // カーブ（BVE5形式）
+    Curve.BeginTransition();
+    Curve.Begin(400, 0.105);
+
+    // ピッチ（BVE5形式）
+    Legacy.Pitch(0);
+
+// カーブ区間
+1500;
+    // セクション速度制限（BVE5専用）
+
+    // 信号配置
+    Signal['signal_yg'].Put(-3.8, 4.8);
+
+// カーブ終了
+2000;
+    Curve.BeginTransition();
+    Curve.Begin(0, 0);
+
+// 駅手前
+2500;
+    // 照明（BVE5形式）
+    Legacy.CabIlluminance(1.0);
+
+    // ターン（BVE5形式）
+    Legacy.Turn(0);
+
+// リピーター終了（BVE5専用）
+3000;
+
+    // 3Dサウンド（BVE5専用）
+
+// 終点
+3500;
+    // 停止位置

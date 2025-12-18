@@ -1,0 +1,88 @@
+BveTs Map 2.02:utf-8
+
+// BVE5サンプルマップファイル
+// このファイルはBVE5専用構文を含んでいます
+
+// 変数定義（BVE5専用）
+$rail_gauge = 1.067;
+$cant_max = 0.105;
+$structure_path = 'structures/';
+
+// ストラクチャー読み込み（BVE5形式）
+Structure.Load('ballast', 'structures/ballast.csv');
+Structure.Load('rail', 'structures/rail.csv');
+Structure.Load('pole', 'structures/pole.csv');
+Structure.Load('wall', 'structures/wall.csv');
+
+// サウンド読み込み（BVE5形式）
+Sound.Load('joint', 'sounds/joint.wav');
+Sound.Load('crossing', 'sounds/crossing.wav');
+
+// 信号読み込み（BVE5形式）
+Signal.Load('signal_r', 'signals/signal_r.csv');
+Signal.Load('signal_yg', 'signals/signal_yg.csv');
+
+// 起点
+0;
+    // レール設置
+    Track['Rail1'].Position(3.8, 0);
+    Track['Rail2'].Position(-3.8, 0);
+
+    // リピーター開始（BVE5専用）
+    Repeater['ballast_rep'].Begin(0, 'Rail1', 'ballast', 0, 0, 0, 0, 0, 0, 0, 25);
+    Repeater['pole_rep'].Begin(0, 'Rail1', 'pole', 3.5, 0, 0, 0, 0, 0, 0, 50);
+
+    // 背景
+    Background.Change('sky.png');
+
+    // フォグ設定（BVE5形式）
+    Fog.Set(1000, 220, 220, 220);
+
+// 直線区間
+500;
+    // 軌道狂い（BVE5専用）
+    Irregularity.Change(0.002, 0.002, 0.002, 0.002, 0.002, 0.002);
+
+    // 粘着係数（BVE5専用）
+    Adhesion.Change(1.0);
+
+// カーブ開始
+1000;
+    // カーブ（BVE5形式）
+    Curve.Interpolate(400, $cant_max);
+
+    // ピッチ（BVE5形式）
+    Pitch.Interpolate(0);
+
+// カーブ区間
+1500;
+    // セクション速度制限（BVE5専用）
+    Section.SetSpeedLimit(0, 60, 75);
+
+    // 信号配置
+    Signal.Put('signal_yg', -3.8, 4.8);
+
+// カーブ終了
+2000;
+    Curve.Interpolate(0, 0);
+
+// 駅手前
+2500;
+    // 照明（BVE5形式）
+    CabIlluminance.Interpolate(1.0);
+
+    // ターン（BVE5形式）
+    Turn.Interpolate(0);
+
+// リピーター終了（BVE5専用）
+3000;
+    Repeater['ballast_rep'].End();
+    Repeater['pole_rep'].End();
+
+    // 3Dサウンド（BVE5専用）
+    Sound3D.Load('announce', 'sounds/announce.wav');
+    Sound3D.Put('announce', 0, 3, 0);
+
+// 終点
+3500;
+    // 停止位置
