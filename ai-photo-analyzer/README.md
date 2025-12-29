@@ -10,6 +10,36 @@ Google Photosを超える写真分析・検索システム。OneDriveにアッ�
 - **日本語対応**: DeepL APIによる高品質な翻訳で日本語検索を実現
 - **Mylio Photos連携**: XMPサイドカーファイルでシームレスなメタデータ統合
 - **RAW画像対応**: CR2, NEF, ARW等のRAW画像を自動検出し、ペアのJPEGを解析してXMPを生成
+- **完全オンライン実行**: GitHub Actions / Google Colab でPython環境不要で実行可能
+
+## 実行方法
+
+### 🌐 オンライン実行（推奨）
+
+Pythonのローカルインストール不要で実行できます。
+
+| 方法 | 用途 | リンク |
+|------|------|--------|
+| **Google Colab** | 手動で数枚〜数十枚処理 | [Colabで開く](notebooks/photo_analyzer_colab.ipynb) |
+| **GitHub Actions** | 毎日自動で定期処理 | [設定ガイド](docs/ONLINE_SETUP.md) |
+
+#### Google Colab クイックスタート
+
+1. [Colabノートブック](notebooks/photo_analyzer_colab.ipynb)を開く
+2. Google Cloud認証JSON をアップロード
+3. DeepL APIキーを入力
+4. 写真をアップロードして実行
+5. XMPファイルをダウンロード
+
+#### GitHub Actions 自動実行
+
+1. リポジトリをFork
+2. Secretsを設定（詳細は[オンライン設定ガイド](docs/ONLINE_SETUP.md)）
+3. 毎日深夜2時（JST）に自動実行
+
+### 💻 ローカル実行
+
+従来通りローカルでも実行可能です。詳細は[インストール](#インストール)セクションを参照。
 
 ## システムフロー
 
