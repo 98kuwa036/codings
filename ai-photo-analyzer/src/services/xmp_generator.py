@@ -291,24 +291,98 @@ class XMPGenerator:
         logger.info(f"Saved XMP file: {xmp_path}")
         return xmp_path
 
-    def get_xmp_path(self, image_path: Path) -> Path:
+    def get_xmp_path(self, image_path: Path, is_raw: bool = False) -> Path:
         """Get the expected XMP path for an image.
 
         Args:
             image_path: Path to the image.
+            is_raw: Whether this is a RAW file.
 
         Returns:
             Expected path to the XMP sidecar file.
         """
-        return image_path.with_suffix(".xmp")
+        if is_raw:
+            # RAW files use filename.CR2.xmp format (Adobe/Lightroom convention)
+            return image_path.parent / f"{image_path.name}.xmp"
+        else:
+            return image_path.with_suffix(".xmp")
 
-    def xmp_exists(self, image_path: Path) -> bool:
+    def xmp_exists(self, image_path: Path, is_raw: bool = False) -> bool:
         """Check if XMP file already exists for an image.
 
         Args:
             image_path: Path to the image.
+            is_raw: Whether this is a RAW file.
 
         Returns:
             True if XMP file exists.
         """
-        return self.get_xmp_path(image_path).exists()
+        return self.get_xmp_path(image_path, is_raw).exists()
+
+    def save_xmp_for_raw(
+        self,
+        raw_image_path: Path,
+        japanese_labels: list[str],
+        english_labels: Optional[list[str]] = None,
+        raw_labels_ja: Optional[list[str]] = None,
+        raw_labels_en: Optional[list[str]] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        rating: Optional[int] = None,
+        faces_detected: int = 0,
+        landmarks: Optional[list[str]] = None,
+    ) -> Path:
+        """Generate and save XMP file for a RAW image.
+
+        RAW files use a different naming convention: filename.CR2.xmp
+        Also adds RAW-specific labels to indicate the file type.
+
+        Args:
+            raw_image_path: Path to the RAW image.
+            japanese_labels: List of Japanese labels/keywords.
+            english_labels: Optional list of original English labels.
+            raw_labels_ja: Japanese labels for RAW (e.g., ["RAW", "RAW画像"]).
+            raw_labels_en: English labels for RAW (e.g., ["RAW", "RAW Image"]).
+            title: Optional title for the photo.
+            description: Optional description.
+            rating: Optional rating (1-5).
+            faces_detected: Number of faces detected.
+            landmarks: Optional list of detected landmarks.
+
+        Returns:
+            Path to the saved XMP file.
+        """
+        # Add RAW-specific labels at the beginning
+        enhanced_ja_labels = list(raw_labels_ja or ["RAW", "RAW画像"])
+        enhanced_en_labels = list(raw_labels_en or ["RAW", "RAW Image"])
+
+        # Add the raw file extension as a label (e.g., "CR2", "NEF")
+        raw_ext = raw_image_path.suffix.upper().lstrip(".")
+        if raw_ext:
+            enhanced_ja_labels.append(raw_ext)
+            enhanced_en_labels.append(raw_ext)
+
+        # Merge with detected labels
+        enhanced_ja_labels.extend(japanese_labels)
+        if english_labels:
+            enhanced_en_labels.extend(english_labels)
+
+        # Generate XMP path for RAW (filename.CR2.xmp format)
+        xmp_path = self.get_xmp_path(raw_image_path, is_raw=True)
+
+        # Generate XMP content
+        xmp_content = self.generate_xmp(
+            japanese_labels=enhanced_ja_labels,
+            english_labels=enhanced_en_labels if self.include_original else None,
+            title=title,
+            description=description,
+            rating=rating,
+            faces_detected=faces_detected,
+            landmarks=landmarks,
+        )
+
+        # Save to file
+        xmp_path.write_text(xmp_content, encoding="utf-8")
+
+        logger.info(f"Saved RAW XMP file: {xmp_path}")
+        return xmp_path

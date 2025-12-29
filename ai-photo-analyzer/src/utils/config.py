@@ -265,3 +265,75 @@ class Config:
             True if debug mode is enabled.
         """
         return os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
+
+    # RAW Processing Settings
+    @property
+    def raw_processing_enabled(self) -> bool:
+        """Check if RAW processing is enabled.
+
+        Returns:
+            True if RAW processing is enabled.
+        """
+        return self.get("raw_processing.enabled", True)
+
+    @property
+    def raw_extensions(self) -> set:
+        """Get RAW file extensions.
+
+        Returns:
+            Set of RAW file extensions.
+        """
+        extensions = self.get(
+            "raw_processing.raw_extensions",
+            [".cr2", ".cr3", ".nef", ".arw", ".raf", ".orf", ".rw2", ".dng"],
+        )
+        # Remove duplicates and normalize to lowercase
+        return set(ext.lower() for ext in extensions)
+
+    @property
+    def analysis_source_priority(self) -> list:
+        """Get priority order for analysis source files.
+
+        When a RAW file exists, these extensions are searched in order
+        to find a file to analyze instead.
+
+        Returns:
+            List of extensions in priority order.
+        """
+        return self.get(
+            "raw_processing.analysis_source_priority",
+            [".jpg", ".jpeg", ".png", ".heic", ".heif"],
+        )
+
+    @property
+    def raw_labels_japanese(self) -> list:
+        """Get Japanese labels for RAW images.
+
+        Returns:
+            List of Japanese RAW labels.
+        """
+        return self.get(
+            "raw_processing.raw_labels.japanese",
+            ["RAW", "RAW画像", "生データ"],
+        )
+
+    @property
+    def raw_labels_english(self) -> list:
+        """Get English labels for RAW images.
+
+        Returns:
+            List of English RAW labels.
+        """
+        return self.get(
+            "raw_processing.raw_labels.english",
+            ["RAW", "RAW Image", "Unprocessed"],
+        )
+
+    @property
+    def all_watchable_extensions(self) -> set:
+        """Get all extensions to watch (both regular and RAW).
+
+        Returns:
+            Set of all watchable extensions.
+        """
+        return self.supported_extensions | self.raw_extensions

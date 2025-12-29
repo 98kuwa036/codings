@@ -2,6 +2,7 @@
 
 Handles scheduled batch processing of shrink images during night hours.
 Coordinates Vision API analysis, translation, and XMP generation.
+Supports RAW image processing with paired JPEG analysis.
 """
 
 import logging
@@ -17,6 +18,7 @@ from .image_processor import ImageProcessor
 from .vision_service import VisionService, VisionAnalysisResult
 from .translation_service import TranslationService
 from .xmp_generator import XMPGenerator
+from .raw_processor import RawImageProcessor, RawProcessingMapping
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +33,16 @@ class ProcessingResult:
         success: bool = False,
         error: Optional[str] = None,
         labels_count: int = 0,
+        is_raw: bool = False,
+        raw_path: Optional[Path] = None,
     ):
         self.shrink_path = shrink_path
         self.original_path = original_path
         self.success = success
         self.error = error
         self.labels_count = labels_count
+        self.is_raw = is_raw
+        self.raw_path = raw_path
 
 
 class BatchProcessor:
@@ -53,6 +59,9 @@ class BatchProcessor:
         batch_minute: int = 0,
         timezone: str = "Asia/Tokyo",
         on_complete: Optional[Callable[[list[ProcessingResult]], None]] = None,
+        raw_processor: Optional[RawImageProcessor] = None,
+        raw_labels_ja: Optional[list[str]] = None,
+        raw_labels_en: Optional[list[str]] = None,
     ):
         """Initialize the batch processor.
 
@@ -66,6 +75,9 @@ class BatchProcessor:
             batch_minute: Minute to run batch processing (0-59).
             timezone: Timezone for scheduling.
             on_complete: Optional callback when batch completes.
+            raw_processor: Optional RawImageProcessor instance for RAW support.
+            raw_labels_ja: Japanese labels for RAW images.
+            raw_labels_en: English labels for RAW images.
         """
         self.image_processor = image_processor
         self.vision_service = vision_service
@@ -76,6 +88,9 @@ class BatchProcessor:
         self.batch_minute = batch_minute
         self.timezone = timezone
         self.on_complete = on_complete
+        self.raw_processor = raw_processor
+        self.raw_labels_ja = raw_labels_ja or ["RAW", "RAW画像", "生データ"]
+        self.raw_labels_en = raw_labels_en or ["RAW", "RAW Image", "Unprocessed"]
 
         self._scheduler: Optional[BackgroundScheduler] = None
         self._is_processing = False
@@ -108,22 +123,35 @@ class BatchProcessor:
         self,
         shrink_path: Path,
         original_path: Optional[Path] = None,
+        raw_mapping: Optional[RawProcessingMapping] = None,
     ) -> ProcessingResult:
         """Process a single shrink image.
 
         Args:
             shrink_path: Path to the shrink image.
             original_path: Optional path to original (if known).
+            raw_mapping: Optional RAW mapping if this is for a RAW file.
 
         Returns:
             ProcessingResult with status and details.
         """
-        result = ProcessingResult(shrink_path=shrink_path)
+        # Check if this is a RAW processing task
+        is_raw = raw_mapping is not None
+        raw_path = raw_mapping.raw_path if raw_mapping else None
+
+        result = ProcessingResult(
+            shrink_path=shrink_path,
+            is_raw=is_raw,
+            raw_path=raw_path,
+        )
 
         try:
             # Find original if not provided
             if original_path is None:
-                original_path = self._find_original_image(shrink_path)
+                if raw_mapping:
+                    original_path = raw_mapping.source_path
+                else:
+                    original_path = self._find_original_image(shrink_path)
 
             if original_path is None:
                 result.error = "Original image not found"
@@ -134,11 +162,21 @@ class BatchProcessor:
 
             result.original_path = original_path
 
-            # Skip if XMP already exists
-            if self.xmp_generator.xmp_exists(original_path):
-                logger.info(f"XMP already exists for: {original_path}")
-                result.success = True
-                return result
+            # Determine the target for XMP
+            if is_raw and raw_path:
+                xmp_target = raw_path
+                # Skip if XMP already exists for RAW
+                if self.xmp_generator.xmp_exists(raw_path, is_raw=True):
+                    logger.info(f"XMP already exists for RAW: {raw_path}")
+                    result.success = True
+                    return result
+            else:
+                xmp_target = original_path
+                # Skip if XMP already exists
+                if self.xmp_generator.xmp_exists(original_path):
+                    logger.info(f"XMP already exists for: {original_path}")
+                    result.success = True
+                    return result
 
             # Analyze with Vision API
             logger.info(f"Analyzing: {shrink_path}")
@@ -164,21 +202,34 @@ class BatchProcessor:
             # Extract landmarks
             landmarks = [l.description for l in vision_result.landmarks]
 
-            # Generate and save XMP
-            xmp_path = self.xmp_generator.save_xmp(
-                original_image_path=original_path,
-                japanese_labels=japanese_labels,
-                english_labels=english_labels,
-                faces_detected=len(vision_result.faces),
-                landmarks=landmarks,
-            )
+            # Generate and save XMP (different handling for RAW)
+            if is_raw and raw_path:
+                xmp_path = self.xmp_generator.save_xmp_for_raw(
+                    raw_image_path=raw_path,
+                    japanese_labels=japanese_labels,
+                    english_labels=english_labels,
+                    raw_labels_ja=self.raw_labels_ja,
+                    raw_labels_en=self.raw_labels_en,
+                    faces_detected=len(vision_result.faces),
+                    landmarks=landmarks,
+                )
+                logger.info(
+                    f"Successfully processed RAW: {raw_path.name} -> {xmp_path.name}"
+                )
+            else:
+                xmp_path = self.xmp_generator.save_xmp(
+                    original_image_path=original_path,
+                    japanese_labels=japanese_labels,
+                    english_labels=english_labels,
+                    faces_detected=len(vision_result.faces),
+                    landmarks=landmarks,
+                )
+                logger.info(
+                    f"Successfully processed: {original_path.name} -> {xmp_path.name}"
+                )
 
             result.success = True
             result.labels_count = len(japanese_labels)
-
-            logger.info(
-                f"Successfully processed: {original_path.name} -> {xmp_path.name}"
-            )
 
         except Exception as e:
             result.error = str(e)
@@ -206,13 +257,24 @@ class BatchProcessor:
             logger.info(f"Found {len(shrink_images)} shrink images to process")
 
             for shrink_path in shrink_images:
+                # Check if this is a RAW processing task
+                raw_mapping = None
+                if self.raw_processor:
+                    raw_mapping = self.raw_processor.get_mapping(shrink_path)
+
                 # Process image
-                result = self.process_single_image(shrink_path)
+                result = self.process_single_image(
+                    shrink_path,
+                    raw_mapping=raw_mapping,
+                )
                 results.append(result)
 
                 # Clean up shrink image if successful
                 if result.success:
                     self.image_processor.cleanup_shrink_image(shrink_path)
+                    # Also remove the RAW mapping
+                    if self.raw_processor and raw_mapping:
+                        self.raw_processor.remove_mapping(shrink_path)
 
             # Save statistics
             self._save_stats(results)
@@ -227,8 +289,10 @@ class BatchProcessor:
         # Log summary
         successful = sum(1 for r in results if r.success)
         failed = len(results) - successful
+        raw_count = sum(1 for r in results if r.is_raw and r.success)
         logger.info(
-            f"Batch processing complete: {successful} successful, {failed} failed"
+            f"Batch processing complete: {successful} successful "
+            f"({raw_count} RAW), {failed} failed"
         )
 
         return results
@@ -247,11 +311,13 @@ class BatchProcessor:
                 "total_processed": len(results),
                 "successful": sum(1 for r in results if r.success),
                 "failed": sum(1 for r in results if not r.success),
+                "raw_processed": sum(1 for r in results if r.is_raw and r.success),
                 "total_labels": sum(r.labels_count for r in results),
                 "errors": [
                     {
                         "file": str(r.shrink_path),
                         "error": r.error,
+                        "is_raw": r.is_raw,
                     }
                     for r in results
                     if not r.success

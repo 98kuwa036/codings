@@ -6,6 +6,7 @@ from .translation_service import TranslationService
 from .xmp_generator import XMPGenerator
 from .file_watcher import FileWatcher
 from .batch_processor import BatchProcessor
+from .raw_processor import RawImageProcessor, RawImagePair, RawProcessingMapping
 
 __all__ = [
     "ImageProcessor",
@@ -14,4 +15,7 @@ __all__ = [
     "XMPGenerator",
     "FileWatcher",
     "BatchProcessor",
+    "RawImageProcessor",
+    "RawImagePair",
+    "RawProcessingMapping",
 ]
