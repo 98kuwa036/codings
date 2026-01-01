@@ -1,0 +1,1 @@
+emerge --ask kde-apps/yakuake app-office/libreoffice app-i18n/fcitx5 app-i18n/fcitx5-mozc-ut kde-plasma/plasma-meta kde-apps/dolphin kde-apps/kate
