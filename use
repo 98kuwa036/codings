@@ -1,0 +1,1 @@
+mkdir -p /etc/portage/package.use && printf 'app-office/libreoffice qt6 -gtk -gtk3 -gnome\napp-i18n/fcitx:5 -gtk\napp-i18n/fcitx5-mozc-ut qt6\napp-i18n/mozc-ut-dictionaries nicovideo jisx0213 neologd wikipedia jawiki place_name person_name station_name\n' > /etc/portage/package.use/ultimate
