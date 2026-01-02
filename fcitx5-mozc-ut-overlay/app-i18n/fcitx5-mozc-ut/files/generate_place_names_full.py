@@ -6,286 +6,204 @@
 
 """
 Generate place-names dictionary from Japan Post ZIP code data.
-Includes both ken_all.zip (residential addresses) and jigyosyo.zip (business addresses).
+Reads pre-downloaded CSV files (ken_all.csv and jigyosyo.csv).
 
-Generates proper (reading, surface) pairs using kana columns from the CSV data.
+Usage: python generate_place_names_full.py <ken_all.csv> <jigyosyo.csv>
 """
 
 import csv
-import io
-import urllib.request
-import zipfile
+import sys
+import unicodedata
 
 
-def katakana_to_hiragana(text):
+def kata_to_hira(text):
     """
-    Convert katakana to hiragana using standard library.
-    カタカナ（ァ-ヶ）をひらがな（ぁ-ゖ）に変換
+    Convert katakana to hiragana.
+    Handles both full-width and half-width katakana via NFKC normalization.
     """
+    # Normalize half-width kana to full-width
+    normalized = unicodedata.normalize('NFKC', text)
+
     result = []
-    for char in text:
-        code = ord(char)
-        # Katakana (U+30A1-U+30F6) to Hiragana (U+3041-U+3096)
-        if 0x30A1 <= code <= 0x30F6:
+    for ch in normalized:
+        code = ord(ch)
+        # Katakana (ァ-ン: U+30A1-U+30F3) to Hiragana (ぁ-ん: U+3041-U+3093)
+        if 0x30A1 <= code <= 0x30F3:
             result.append(chr(code - 0x60))
-        # Katakana punctuation (U+30FC: ー) keep as is or convert
-        elif code == 0x30FC:  # ー (prolonged sound mark)
+        # Special cases
+        elif ch == 'ヵ':
+            result.append('か')
+        elif ch == 'ヶ':
+            result.append('け')
+        elif ch == 'ヴ':
+            result.append('ゔ')
+        elif ch == 'ー':
             result.append('ー')
         else:
-            result.append(char)
+            result.append(ch)
+
     return ''.join(result)
 
 
-def normalize_kana(text):
-    """
-    Normalize kana text for Mozc dictionary.
-    - Convert katakana to hiragana
-    - Remove spaces and special characters
-    """
-    if not text:
-        return ''
-
-    # Convert to hiragana
-    hiragana = katakana_to_hiragana(text)
-
-    # Remove spaces (both full-width and half-width)
-    hiragana = hiragana.replace('　', '').replace(' ', '')
-
-    return hiragana
-
-
-def download_and_extract(url, filename):
-    """Download a ZIP file and extract the CSV content."""
-    print(f"Downloading {url}...")
-    with urllib.request.urlopen(url) as response:
-        zip_data = response.read()
-
-    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-        for name in zf.namelist():
-            if name.upper().endswith('.CSV'):
-                with zf.open(name) as f:
-                    # Read as Shift-JIS (CP932) which Japan Post uses
-                    return f.read().decode('cp932')
-    return None
-
-
-def process_ken_all(csv_content):
+def process_ken_all(csv_path):
     """
     Process ken_all.csv (residential addresses).
 
-    Format (15 columns):
+    CSV format (15 columns):
     0: JIS code
     1: Old ZIP code (5 digits)
     2: ZIP code (7 digits)
-    3: Prefecture name (kana) ← USE THIS FOR READING
-    4: City name (kana)       ← USE THIS FOR READING
-    5: Town name (kana)       ← USE THIS FOR READING
+    3: Prefecture name (kana) ← Reading
+    4: City name (kana)       ← Reading
+    5: Town name (kana)       ← Reading
     6: Prefecture name (kanji) ← Surface
     7: City name (kanji)       ← Surface
     8: Town name (kanji)       ← Surface
     9-14: Various flags
 
-    Returns: list of (reading, surface) tuples
+    Returns: set of (kana, kanji) tuples
     """
-    entries = []
-    seen = set()
-    reader = csv.reader(io.StringIO(csv_content))
+    entries = set()
 
-    for row in reader:
-        if len(row) < 9:
-            continue
+    try:
+        with open(csv_path, 'r', encoding='cp932', errors='replace') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) < 9:
+                    continue
 
-        # Kana (reading)
-        pref_kana = row[3].strip()
-        city_kana = row[4].strip()
-        town_kana = row[5].strip()
+                # Kana columns (reading) - normalize and remove spaces
+                pref_kana = unicodedata.normalize('NFKC', row[3]).replace(' ', '').replace('　', '')
+                city_kana = unicodedata.normalize('NFKC', row[4]).replace(' ', '').replace('　', '')
+                town_kana = unicodedata.normalize('NFKC', row[5]).replace(' ', '').replace('　', '')
 
-        # Kanji (surface)
-        pref_kanji = row[6].strip()
-        city_kanji = row[7].strip()
-        town_kanji = row[8].strip()
+                # Kanji columns (surface)
+                pref_kanji = row[6].strip()
+                city_kanji = row[7].strip()
+                town_kanji = row[8].strip()
 
-        # Skip entries with special markers in town
-        if '（' in town_kanji or '以下に掲載がない場合' in town_kanji:
-            town_kanji = ''
-            town_kana = ''
+                # Skip entries with special markers
+                if '（' in town_kanji or '以下に掲載がない場合' in town_kanji:
+                    town_kanji = ''
+                    town_kana = ''
 
-        # Convert kana to hiragana for reading
-        pref_reading = normalize_kana(pref_kana)
-        city_reading = normalize_kana(city_kana)
-        town_reading = normalize_kana(town_kana)
+                # Prefecture
+                if pref_kana and pref_kanji:
+                    entries.add((pref_kana, pref_kanji))
 
-        # Add prefecture
-        if pref_reading and pref_kanji:
-            key = (pref_reading, pref_kanji)
-            if key not in seen:
-                entries.append(key)
-                seen.add(key)
+                # City
+                if city_kana and city_kanji:
+                    entries.add((city_kana, city_kanji))
+                    # Prefecture + City
+                    entries.add((pref_kana + city_kana, pref_kanji + city_kanji))
 
-        # Add city
-        if city_reading and city_kanji:
-            key = (city_reading, city_kanji)
-            if key not in seen:
-                entries.append(key)
-                seen.add(key)
+                # Town
+                if town_kana and town_kanji:
+                    entries.add((town_kana, town_kanji))
+                    # City + Town
+                    entries.add((city_kana + town_kana, city_kanji + town_kanji))
+                    # Full address
+                    entries.add((pref_kana + city_kana + town_kana,
+                                 pref_kanji + city_kanji + town_kanji))
 
-            # Add prefecture + city
-            full_reading = pref_reading + city_reading
-            full_surface = pref_kanji + city_kanji
-            key = (full_reading, full_surface)
-            if key not in seen:
-                entries.append(key)
-                seen.add(key)
-
-        # Add town (if valid)
-        if town_reading and town_kanji:
-            key = (town_reading, town_kanji)
-            if key not in seen:
-                entries.append(key)
-                seen.add(key)
-
-            # Add city + town
-            ct_reading = city_reading + town_reading
-            ct_surface = city_kanji + town_kanji
-            key = (ct_reading, ct_surface)
-            if key not in seen:
-                entries.append(key)
-                seen.add(key)
-
-            # Add full address (prefecture + city + town)
-            full_reading = pref_reading + city_reading + town_reading
-            full_surface = pref_kanji + city_kanji + town_kanji
-            key = (full_reading, full_surface)
-            if key not in seen:
-                entries.append(key)
-                seen.add(key)
+    except Exception as e:
+        print(f"Error processing {csv_path}: {e}", file=sys.stderr)
 
     return entries
 
 
-def process_jigyosyo(csv_content):
+def process_jigyosyo(csv_path):
     """
     Process jigyosyo.csv (business/office addresses).
 
-    Format (13 columns):
+    CSV format (13 columns):
     0: JIS code (5 digits)
-    1: Business name (kana)   ← USE THIS FOR READING
+    1: Business name (kana)   ← Reading
     2: Business name (kanji)  ← Surface
     3: Prefecture name (kanji)
     4: City name (kanji)
     5: Town name (kanji)
     6: Street address details
     7: ZIP code (7 digits)
-    8: Old ZIP code (5 digits)
-    9: Handling post office
-    10: Type code
-    11: Multiple numbers flag
-    12: Modification code
+    ...
 
-    Note: jigyosyo.csv doesn't have separate kana columns for addresses,
-    only for business names.
-
-    Returns: list of (reading, surface) tuples
+    Returns: set of (kana, kanji) tuples
     """
-    entries = []
-    seen = set()
-    reader = csv.reader(io.StringIO(csv_content))
+    entries = set()
 
-    for row in reader:
-        if len(row) < 8:
-            continue
+    try:
+        with open(csv_path, 'r', encoding='cp932', errors='replace') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) < 8:
+                    continue
 
-        business_kana = row[1].strip()
-        business_kanji = row[2].strip()
+                # Business name - kana and kanji
+                name_kana = unicodedata.normalize('NFKC', row[1]).replace(' ', '').replace('　', '')
+                name_kanji = row[2].replace('　', ' ').strip()
 
-        # Add business name with proper reading
-        if business_kana and business_kanji:
-            # Clean up
-            business_kana = business_kana.replace('　', ' ').strip()
-            business_kanji = business_kanji.replace('　', ' ').strip()
+                if name_kana and name_kanji and len(name_kanji) >= 2:
+                    entries.add((name_kana, name_kanji))
 
-            # Convert kana to hiragana
-            reading = normalize_kana(business_kana)
-
-            if len(reading) >= 2 and len(business_kanji) >= 2:
-                key = (reading, business_kanji)
-                if key not in seen:
-                    entries.append(key)
-                    seen.add(key)
+    except Exception as e:
+        print(f"Error processing {csv_path}: {e}", file=sys.stderr)
 
     return entries
 
 
-def generate_mozc_entries(entries, cost=8000):
-    """
-    Generate Mozc dictionary entries.
-
-    Format: reading<TAB>left_id<TAB>right_id<TAB>cost<TAB>surface
-
-    For place names, we use id=1847 (proper noun, place name)
-    For organization names, we use id=1848 (proper noun, organization)
-    """
-    output = []
-
-    for reading, surface in entries:
-        if not reading or not surface:
-            continue
-
-        # Skip if reading contains non-hiragana characters (except ー)
-        valid_reading = True
-        for char in reading:
-            code = ord(char)
-            # Allow hiragana (ぁ-ゖ), prolonged sound mark (ー), and some punctuation
-            if not (0x3041 <= code <= 0x3096 or char in 'ーゝゞ'):
-                valid_reading = False
-                break
-
-        if not valid_reading:
-            continue
-
-        # Format: reading\tleft_id\tright_id\tcost\tsurface
-        # Using 1847 for place names (proper noun)
-        output.append(f"{reading}\t1847\t1847\t{cost}\t{surface}")
-
-    return output
-
-
 def main():
-    # URLs for Japan Post data
-    ken_all_url = "https://www.post.japanpost.jp/zipcode/dl/kogaki/zip/ken_all.zip"
-    jigyosyo_url = "https://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip"
+    if len(sys.argv) < 3:
+        print("Usage: python generate_place_names_full.py <ken_all.csv> <jigyosyo.csv>",
+              file=sys.stderr)
+        sys.exit(1)
 
-    all_entries = []
+    ken_all_csv = sys.argv[1]
+    jigyosyo_csv = sys.argv[2]
 
-    # Process ken_all (residential addresses)
-    print("Processing ken_all.zip (residential addresses)...")
-    ken_all_csv = download_and_extract(ken_all_url, "ken_all.csv")
-    if ken_all_csv:
-        entries = process_ken_all(ken_all_csv)
-        print(f"  Found {len(entries)} entries from ken_all")
-        all_entries.extend(entries)
+    all_entries = set()
 
-    # Process jigyosyo (business addresses)
-    print("Processing jigyosyo.zip (business addresses)...")
-    jigyosyo_csv = download_and_extract(jigyosyo_url, "jigyosyo.csv")
-    if jigyosyo_csv:
-        entries = process_jigyosyo(jigyosyo_csv)
-        print(f"  Found {len(entries)} entries from jigyosyo")
-        all_entries.extend(entries)
+    print(f"Processing {ken_all_csv}...")
+    entries = process_ken_all(ken_all_csv)
+    print(f"  Found {len(entries)} entries from ken_all")
+    all_entries.update(entries)
 
-    print(f"Total entries: {len(all_entries)}")
+    print(f"Processing {jigyosyo_csv}...")
+    entries = process_jigyosyo(jigyosyo_csv)
+    print(f"  Found {len(entries)} entries from jigyosyo")
+    all_entries.update(entries)
 
-    # Generate Mozc dictionary format
+    print(f"Total unique entries: {len(all_entries)}")
     print("Generating Mozc dictionary entries...")
-    mozc_entries = generate_mozc_entries(all_entries)
 
-    # Write output
+    # Mozc dictionary format:
+    # reading<TAB>left_id<TAB>right_id<TAB>cost<TAB>surface
+    # 1847 = proper noun (place name)
+    cost = 8000
     output_file = "mozcdic-ut-place-names.txt"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(mozc_entries))
-        f.write('\n')
 
-    print(f"Written {len(mozc_entries)} entries to {output_file}")
+    valid_count = 0
+    with open(output_file, 'w', encoding='utf-8') as f:
+        for kana, kanji in sorted(all_entries):
+            if not kana or not kanji:
+                continue
+
+            # Convert katakana to hiragana for reading
+            reading = kata_to_hira(kana)
+
+            # Validate reading contains only valid characters
+            valid = True
+            for ch in reading:
+                code = ord(ch)
+                # Allow hiragana (ぁ-ゖ), prolonged sound mark (ー), iteration marks
+                if not (0x3041 <= code <= 0x3096 or ch in 'ーゝゞ'):
+                    valid = False
+                    break
+
+            if valid:
+                f.write(f"{reading}\t1847\t1847\t{cost}\t{kanji}\n")
+                valid_count += 1
+
+    print(f"Written {valid_count} entries to {output_file}")
 
 
 if __name__ == "__main__":

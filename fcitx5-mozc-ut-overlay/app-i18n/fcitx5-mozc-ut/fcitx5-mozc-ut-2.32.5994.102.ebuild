@@ -121,9 +121,23 @@ _generate_place_names() {
 	curl -L -o jigyosyo.zip "${jigyosyo_url}" || die "Failed to download jigyosyo.zip"
 	unzip -o jigyosyo.zip || die "Failed to extract jigyosyo.zip"
 
+	# Find the actual CSV filenames (may be uppercase or lowercase)
+	local ken_all_csv=$(find . -maxdepth 1 -iname 'ken_all.csv' -print -quit)
+	local jigyosyo_csv=$(find . -maxdepth 1 -iname 'jigyosyo.csv' -print -quit)
+
+	if [[ -z "${ken_all_csv}" ]]; then
+		die "ken_all.csv not found after extraction"
+	fi
+	if [[ -z "${jigyosyo_csv}" ]]; then
+		die "jigyosyo.csv not found after extraction"
+	fi
+
+	einfo "  Found: ${ken_all_csv}, ${jigyosyo_csv}"
+
 	# Use our custom script to generate dictionary with both sources
 	cp "${FILESDIR}/generate_place_names_full.py" . || die
-	"${EPYTHON}" generate_place_names_full.py || die "Failed to generate place-names dictionary"
+	"${EPYTHON}" generate_place_names_full.py "${ken_all_csv}" "${jigyosyo_csv}" \
+		|| die "Failed to generate place-names dictionary"
 
 	# Return the generated file path
 	echo "${workdir}/place-names/mozcdic-ut-place-names.txt"
