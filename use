@@ -1,1 +1,12 @@
-mkdir -p /etc/portage/package.use && printf 'app-office/libreoffice qt6 -gtk -gtk3 -gnome\napp-i18n/fcitx:5 -gtk\napp-i18n/fcitx5-mozc-ut qt6\napp-i18n/mozc-ut-dictionaries nicovideo jisx0213 neologd wikipedia jawiki place_name person_name station_name\n' > /etc/portage/package.use/ultimate
+# /etc/portage/make.conf
+
+# 基本設定（Qt6/KDE/Wayland優先）
+# 除外設定（GTK/GNOME/Systemd/Legacy排除）
+USE="amd64 qt6 plasma wayland vulkan vaapi \
+     alsa pipewire sound-server screencast \
+     dbus elogind policykit udev \
+     wifi \
+     -gtk -gtk2 -gtk3 -gnome -eds -telepathy \
+     -systemd -consolekit -pulseaudio \
+     -doc -test -debug -handbook \
+     -clang"
