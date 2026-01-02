@@ -11,48 +11,36 @@ MOZC_VER="${PV}"
 MOZC_COMMIT="d9c3f195582de6b0baa07ecb81a04e8902acf9af"
 FCITX5_MOZC_COMMIT="f9feca5e986ed1a874e6f86122ecc48808a57b1a"
 
-# UT Dictionary commits (latest as of 2025-01)
-UT_ALT_CANNADIC_COMMIT="69d40eed4e9cf016384d9629920fefa199116ea2"
-UT_EDICT2_COMMIT="aa2decff870dd341ac2ddc20b453f27fc2df3721"
-UT_JAWIKI_COMMIT="4590e06f23071be2850b7d53a7fe73728a2572ad"
-UT_NEOLOGD_COMMIT="e33ac4ce808fa4253c6c97bf5178e229a4bfb50f"
-UT_PERSONAL_NAMES_COMMIT="a64659ba0c8ee34170f09d7fa21dfd5cb5005296"
-UT_PLACE_NAMES_COMMIT="2748c881573e4e33e2c20e3ec61dba7e59e8bf9d"
-UT_SKK_JISYO_COMMIT="384ad926e306d5308839c6dedb63696f11703968"
-UT_SUDACHIDICT_COMMIT="33f9835cfafc85d6761037342debec0e7ae8aa17"
+# merge-ut-dictionaries commit for building from source
+MERGE_UT_COMMIT="main"
 
-DESCRIPTION="Mozc with Fcitx5 support and all UT dictionaries"
+DESCRIPTION="Mozc with Fcitx5 support and all UT dictionaries (built from source)"
 HOMEPAGE="
 	https://github.com/google/mozc
 	https://github.com/fcitx/mozc
 	https://github.com/utuhiro78/merge-ut-dictionaries
+	https://www.post.japanpost.jp/zipcode/download.html
 "
 
 SRC_URI="
 	https://github.com/google/mozc/archive/${MOZC_COMMIT}.tar.gz -> mozc-${MOZC_VER}.tar.gz
 	https://github.com/fcitx/mozc/archive/${FCITX5_MOZC_COMMIT}.tar.gz -> fcitx5-mozc-${FCITX5_MOZC_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-alt-cannadic/archive/${UT_ALT_CANNADIC_COMMIT}.tar.gz -> mozcdic-ut-alt-cannadic-${UT_ALT_CANNADIC_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-edict2/archive/${UT_EDICT2_COMMIT}.tar.gz -> mozcdic-ut-edict2-${UT_EDICT2_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-jawiki/archive/${UT_JAWIKI_COMMIT}.tar.gz -> mozcdic-ut-jawiki-${UT_JAWIKI_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-neologd/archive/${UT_NEOLOGD_COMMIT}.tar.gz -> mozcdic-ut-neologd-${UT_NEOLOGD_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-personal-names/archive/${UT_PERSONAL_NAMES_COMMIT}.tar.gz -> mozcdic-ut-personal-names-${UT_PERSONAL_NAMES_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-place-names/archive/${UT_PLACE_NAMES_COMMIT}.tar.gz -> mozcdic-ut-place-names-${UT_PLACE_NAMES_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-skk-jisyo/archive/${UT_SKK_JISYO_COMMIT}.tar.gz -> mozcdic-ut-skk-jisyo-${UT_SKK_JISYO_COMMIT}.tar.gz
-	https://github.com/utuhiro78/mozcdic-ut-sudachidict/archive/${UT_SUDACHIDICT_COMMIT}.tar.gz -> mozcdic-ut-sudachidict-${UT_SUDACHIDICT_COMMIT}.tar.gz
 "
 
 S="${WORKDIR}/mozc-${MOZC_COMMIT}"
 
-LICENSE="BSD-3 Apache-2.0 CC-BY-SA-4.0 GPL-2+ LGPL-2.1+ MIT"
+LICENSE="BSD-3 Apache-2.0 CC-BY-SA-4.0 GPL-2+ LGPL-2.1+ MIT public-domain"
 SLOT="0"
 KEYWORDS="~amd64"
 IUSE="emacs gui renderer test"
-RESTRICT="!test? ( test )"
+RESTRICT="!test? ( test ) network-sandbox"
 
 BDEPEND="
 	${PYTHON_DEPS}
 	>=dev-build/bazel-6.4.0
 	dev-build/ninja
+	dev-vcs/git
+	net-misc/curl
 	virtual/pkgconfig
 "
 
@@ -77,8 +65,10 @@ PATCHES=(
 
 pkg_pretend() {
 	# Bazel requires significant memory
+	# Dictionary generation also needs extra space
 	if [[ ${MERGE_TYPE} != binary ]]; then
 		CHECKREQS_MEMORY="4G"
+		CHECKREQS_DISK_BUILD="8G"
 		check-reqs_pkg_pretend
 	fi
 }
@@ -88,6 +78,130 @@ src_unpack() {
 
 	# Move fcitx5 patch files
 	mv "${WORKDIR}/mozc-${FCITX5_MOZC_COMMIT}" "${WORKDIR}/fcitx5-mozc" || die
+
+	# Clone merge-ut-dictionaries for building dictionaries from source
+	einfo "Cloning merge-ut-dictionaries..."
+	git clone --depth 1 https://github.com/utuhiro78/merge-ut-dictionaries.git \
+		"${WORKDIR}/merge-ut-dictionaries" || die "Failed to clone merge-ut-dictionaries"
+}
+
+# Generate place-names dictionary with both ken_all and jigyosyo
+_generate_place_names() {
+	local workdir="${1}"
+
+	einfo "Generating place-names dictionary (ken_all + jigyosyo)..."
+
+	# Download Japan Post ZIP code data
+	local ken_all_url="https://www.post.japanpost.jp/zipcode/dl/kogaki/zip/ken_all.zip"
+	local jigyosyo_url="https://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip"
+
+	mkdir -p "${workdir}/place-names" || die
+	cd "${workdir}/place-names" || die
+
+	# Download and extract ken_all (residential addresses)
+	einfo "  Downloading ken_all.zip (residential addresses)..."
+	curl -L -o ken_all.zip "${ken_all_url}" || die "Failed to download ken_all.zip"
+	unzip -o ken_all.zip || die "Failed to extract ken_all.zip"
+
+	# Download and extract jigyosyo (business addresses)
+	einfo "  Downloading jigyosyo.zip (business addresses)..."
+	curl -L -o jigyosyo.zip "${jigyosyo_url}" || die "Failed to download jigyosyo.zip"
+	unzip -o jigyosyo.zip || die "Failed to extract jigyosyo.zip"
+
+	# Use our custom script to generate dictionary with both sources
+	cp "${FILESDIR}/generate_place_names_full.py" . || die
+	"${EPYTHON}" generate_place_names_full.py || die "Failed to generate place-names dictionary"
+
+	# Return the generated file path
+	echo "${workdir}/place-names/mozcdic-ut-place-names.txt"
+}
+
+# Generate UT dictionaries from source using merge-ut-dictionaries
+_generate_ut_dictionaries() {
+	local merge_dir="${WORKDIR}/merge-ut-dictionaries"
+	local dict_output="${WORKDIR}/ut-dictionaries"
+
+	mkdir -p "${dict_output}" || die
+
+	einfo "Building UT dictionaries from source..."
+
+	# Generate alt-cannadic
+	einfo "  Generating alt-cannadic..."
+	cd "${merge_dir}/src/alt-cannadic" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "alt-cannadic generation failed, skipping"
+		[[ -f mozcdic-ut-alt-cannadic.txt.bz2 ]] && \
+			bunzip2 -kf mozcdic-ut-alt-cannadic.txt.bz2 && \
+			cp mozcdic-ut-alt-cannadic.txt "${dict_output}/"
+	fi
+
+	# Generate edict2
+	einfo "  Generating edict2..."
+	cd "${merge_dir}/src/edict2" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "edict2 generation failed, skipping"
+		[[ -f mozcdic-ut-edict2.txt.bz2 ]] && \
+			bunzip2 -kf mozcdic-ut-edict2.txt.bz2 && \
+			cp mozcdic-ut-edict2.txt "${dict_output}/"
+	fi
+
+	# Generate jawiki (this may take a while)
+	einfo "  Generating jawiki..."
+	cd "${merge_dir}/src/jawiki" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "jawiki generation failed, skipping"
+		[[ -f mozcdic-ut-jawiki.txt.bz2 ]] && \
+			bunzip2 -kf mozcdic-ut-jawiki.txt.bz2 && \
+			cp mozcdic-ut-jawiki.txt "${dict_output}/"
+	fi
+
+	# Generate neologd
+	einfo "  Generating neologd..."
+	cd "${merge_dir}/src/neologd" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "neologd generation failed, skipping"
+		[[ -f mozcdic-ut-neologd.txt.bz2 ]] && \
+			bunzip2 -kf mozcdic-ut-neologd.txt.bz2 && \
+			cp mozcdic-ut-neologd.txt "${dict_output}/"
+	fi
+
+	# Generate personal-names (part of common)
+	einfo "  Generating personal-names..."
+	cd "${merge_dir}/src/common" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "personal-names generation failed, skipping"
+	fi
+	# personal-names may be in common directory
+	find "${merge_dir}/src" -name "mozcdic-ut-personal-names.txt*" -exec sh -c \
+		'f="{}"; [[ "$f" == *.bz2 ]] && bunzip2 -kf "$f"; cp "${f%.bz2}" "'"${dict_output}"'/" 2>/dev/null' \;
+
+	# Generate place-names with jigyosyo support (our custom version)
+	einfo "  Generating place-names (with jigyosyo)..."
+	local place_names_file
+	place_names_file=$(_generate_place_names "${WORKDIR}")
+	[[ -f "${place_names_file}" ]] && cp "${place_names_file}" "${dict_output}/"
+
+	# Generate skk-jisyo
+	einfo "  Generating skk-jisyo..."
+	cd "${merge_dir}/src/skk-jisyo" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "skk-jisyo generation failed, skipping"
+		[[ -f mozcdic-ut-skk-jisyo.txt.bz2 ]] && \
+			bunzip2 -kf mozcdic-ut-skk-jisyo.txt.bz2 && \
+			cp mozcdic-ut-skk-jisyo.txt "${dict_output}/"
+	fi
+
+	# Generate sudachidict
+	einfo "  Generating sudachidict..."
+	cd "${merge_dir}/src/sudachidict" || die
+	if [[ -f make.sh ]]; then
+		bash make.sh || ewarn "sudachidict generation failed, skipping"
+		[[ -f mozcdic-ut-sudachidict.txt.bz2 ]] && \
+			bunzip2 -kf mozcdic-ut-sudachidict.txt.bz2 && \
+			cp mozcdic-ut-sudachidict.txt "${dict_output}/"
+	fi
+
+	echo "${dict_output}"
 }
 
 src_prepare() {
@@ -103,60 +217,27 @@ src_prepare() {
 		cp -r "${WORKDIR}/fcitx5-mozc/src/unix/fcitx5" "${S}/src/unix/" || die
 	fi
 
-	# Merge UT dictionaries
-	einfo "Merging UT dictionaries..."
+	# Generate UT dictionaries from source
+	local dict_dir
+	dict_dir=$(_generate_ut_dictionaries)
 
+	# Merge UT dictionaries into Mozc
+	einfo "Merging UT dictionaries into Mozc..."
 	local dict_file="${S}/src/data/dictionary_oss/dictionary00.txt"
+	local count=0
 
-	# alt-cannadic
-	if [[ -f "${WORKDIR}/mozcdic-ut-alt-cannadic-${UT_ALT_CANNADIC_COMMIT}/mozcdic-ut-alt-cannadic.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-alt-cannadic-${UT_ALT_CANNADIC_COMMIT}/mozcdic-ut-alt-cannadic.txt" >> "${dict_file}" || die
-		einfo "  Added: alt-cannadic"
-	fi
+	for dict in alt-cannadic edict2 jawiki neologd personal-names place-names skk-jisyo sudachidict; do
+		local dict_path="${dict_dir}/mozcdic-ut-${dict}.txt"
+		if [[ -f "${dict_path}" ]]; then
+			cat "${dict_path}" >> "${dict_file}" || die
+			einfo "  Added: ${dict}"
+			(( count++ ))
+		else
+			ewarn "  Missing: ${dict}"
+		fi
+	done
 
-	# edict2
-	if [[ -f "${WORKDIR}/mozcdic-ut-edict2-${UT_EDICT2_COMMIT}/mozcdic-ut-edict2.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-edict2-${UT_EDICT2_COMMIT}/mozcdic-ut-edict2.txt" >> "${dict_file}" || die
-		einfo "  Added: edict2"
-	fi
-
-	# jawiki
-	if [[ -f "${WORKDIR}/mozcdic-ut-jawiki-${UT_JAWIKI_COMMIT}/mozcdic-ut-jawiki.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-jawiki-${UT_JAWIKI_COMMIT}/mozcdic-ut-jawiki.txt" >> "${dict_file}" || die
-		einfo "  Added: jawiki"
-	fi
-
-	# neologd
-	if [[ -f "${WORKDIR}/mozcdic-ut-neologd-${UT_NEOLOGD_COMMIT}/mozcdic-ut-neologd.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-neologd-${UT_NEOLOGD_COMMIT}/mozcdic-ut-neologd.txt" >> "${dict_file}" || die
-		einfo "  Added: neologd"
-	fi
-
-	# personal-names
-	if [[ -f "${WORKDIR}/mozcdic-ut-personal-names-${UT_PERSONAL_NAMES_COMMIT}/mozcdic-ut-personal-names.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-personal-names-${UT_PERSONAL_NAMES_COMMIT}/mozcdic-ut-personal-names.txt" >> "${dict_file}" || die
-		einfo "  Added: personal-names"
-	fi
-
-	# place-names
-	if [[ -f "${WORKDIR}/mozcdic-ut-place-names-${UT_PLACE_NAMES_COMMIT}/mozcdic-ut-place-names.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-place-names-${UT_PLACE_NAMES_COMMIT}/mozcdic-ut-place-names.txt" >> "${dict_file}" || die
-		einfo "  Added: place-names"
-	fi
-
-	# skk-jisyo
-	if [[ -f "${WORKDIR}/mozcdic-ut-skk-jisyo-${UT_SKK_JISYO_COMMIT}/mozcdic-ut-skk-jisyo.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-skk-jisyo-${UT_SKK_JISYO_COMMIT}/mozcdic-ut-skk-jisyo.txt" >> "${dict_file}" || die
-		einfo "  Added: skk-jisyo"
-	fi
-
-	# sudachidict
-	if [[ -f "${WORKDIR}/mozcdic-ut-sudachidict-${UT_SUDACHIDICT_COMMIT}/mozcdic-ut-sudachidict.txt" ]]; then
-		cat "${WORKDIR}/mozcdic-ut-sudachidict-${UT_SUDACHIDICT_COMMIT}/mozcdic-ut-sudachidict.txt" >> "${dict_file}" || die
-		einfo "  Added: sudachidict"
-	fi
-
-	einfo "UT dictionary merge complete."
+	einfo "UT dictionary merge complete. Added ${count} dictionaries."
 }
 
 src_configure() {
@@ -272,15 +353,19 @@ pkg_postinst() {
 
 	elog "Mozc with fcitx5 support and UT dictionaries has been installed."
 	elog ""
-	elog "Included UT dictionaries (all selected):"
+	elog "This package builds dictionaries from source, including:"
 	elog "  - alt-cannadic: Alternative Cannadic dictionary"
 	elog "  - edict2: Japanese-English dictionary"
 	elog "  - jawiki: Japanese Wikipedia dictionary"
 	elog "  - neologd: Neologism dictionary"
 	elog "  - personal-names: Personal name dictionary"
-	elog "  - place-names: Place name dictionary"
+	elog "  - place-names: Place name dictionary (ken_all + jigyosyo)"
 	elog "  - skk-jisyo: SKK Japanese dictionary"
 	elog "  - sudachidict: Sudachi morphological dictionary"
+	elog ""
+	elog "Place-names dictionary includes BOTH:"
+	elog "  - Residential addresses (ken_all.zip)"
+	elog "  - Business/office addresses (jigyosyo.zip)"
 	elog ""
 	elog "To use fcitx5-mozc, add 'mozc' to your fcitx5 input methods."
 	elog ""

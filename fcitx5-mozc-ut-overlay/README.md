@@ -2,9 +2,14 @@
 
 This overlay provides `fcitx5-mozc-ut` - Mozc with Fcitx5 support and **all** UT dictionaries from [utuhiro78's merge-ut-dictionaries](https://github.com/utuhiro78/merge-ut-dictionaries).
 
+**Key Features:**
+- Builds all dictionaries from source (not pre-built binaries)
+- Includes both residential (ken_all) AND business (jigyosyo) addresses
+- Uses the latest Mozc stable release
+
 ## Included UT Dictionaries
 
-All 8 dictionaries are included:
+All 8 dictionaries are built from source:
 
 | Dictionary | Description | Source |
 |------------|-------------|--------|
@@ -13,9 +18,22 @@ All 8 dictionaries are included:
 | jawiki | Japanese Wikipedia dictionary | [mozcdic-ut-jawiki](https://github.com/utuhiro78/mozcdic-ut-jawiki) |
 | neologd | Neologism dictionary (mecab-ipadic-NEologd) | [mozcdic-ut-neologd](https://github.com/utuhiro78/mozcdic-ut-neologd) |
 | personal-names | Personal name dictionary | [mozcdic-ut-personal-names](https://github.com/utuhiro78/mozcdic-ut-personal-names) |
-| place-names | Place name dictionary (Japan Post ZIP code) | [mozcdic-ut-place-names](https://github.com/utuhiro78/mozcdic-ut-place-names) |
+| **place-names** | Place name dictionary **(ken_all + jigyosyo)** | Custom build |
 | skk-jisyo | SKK Japanese dictionary | [mozcdic-ut-skk-jisyo](https://github.com/utuhiro78/mozcdic-ut-skk-jisyo) |
 | sudachidict | Sudachi morphological dictionary | [mozcdic-ut-sudachidict](https://github.com/utuhiro78/mozcdic-ut-sudachidict) |
+
+## Place-Names Dictionary (Enhanced)
+
+Unlike the upstream version, this overlay's place-names dictionary includes **both** data sources from [Japan Post](https://www.post.japanpost.jp/zipcode/download.html):
+
+| Data Source | File | Description |
+|-------------|------|-------------|
+| Residential addresses | ken_all.zip | Standard postal code to address mapping |
+| Business addresses | jigyosyo.zip | Business/office individual postal codes |
+
+This means you can convert:
+- Regular postal codes (e.g., 100-0001 -> Chiyoda-ku, Tokyo)
+- Business-specific postal codes (e.g., major corporations, government offices)
 
 ## Installation
 
@@ -70,6 +88,15 @@ sudo emerge -av app-i18n/fcitx5-mozc-ut
 - Fcitx5
 - Bazel >= 6.4.0
 - Qt6 (for gui/renderer USE flags)
+- Network access during build (for downloading dictionaries)
+- ~8GB disk space for build
+
+## Build Notes
+
+This ebuild builds dictionaries from source, which means:
+- Build time is longer than pre-built versions
+- Dictionaries are always up-to-date
+- Requires network access during emerge (uses `RESTRICT="network-sandbox"`)
 
 ## Configuration
 
@@ -82,15 +109,18 @@ After installation, add Mozc to your Fcitx5 input methods:
 ## Version
 
 - Mozc: 2.32.5994.102 (November 2025)
-- UT Dictionaries: Latest commits as of January 2025
+- UT Dictionaries: Built from source at emerge time
+- Japan Post Data: Downloaded fresh at emerge time
 
 ## License
 
 - Mozc: BSD-3-Clause
 - UT Dictionaries: Various (see individual repositories)
+- Japan Post ZIP code data: Public domain (no copyright claimed by Japan Post)
 
 ## Credits
 
 - [Google Mozc](https://github.com/google/mozc)
 - [Fcitx Mozc](https://github.com/fcitx/mozc)
 - [utuhiro78's UT Dictionaries](https://github.com/utuhiro78/merge-ut-dictionaries)
+- [Japan Post ZIP Code Data](https://www.post.japanpost.jp/zipcode/download.html)
