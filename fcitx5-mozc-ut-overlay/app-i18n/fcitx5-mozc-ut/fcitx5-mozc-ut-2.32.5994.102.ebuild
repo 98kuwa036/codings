@@ -7,14 +7,10 @@ PYTHON_COMPAT=( python3_{11..13} )
 
 inherit check-reqs cmake desktop python-any-r1 xdg
 
-MOZC_VER="${PV}"
-MOZC_COMMIT="d9c3f195582de6b0baa07ecb81a04e8902acf9af"
-FCITX5_MOZC_COMMIT="f9feca5e986ed1a874e6f86122ecc48808a57b1a"
+# Mozc version tag to checkout
+MOZC_TAG="${PV}"
 
-# merge-ut-dictionaries commit for building from source
-MERGE_UT_COMMIT="main"
-
-DESCRIPTION="Mozc with Fcitx5 support and all UT dictionaries (built from source)"
+DESCRIPTION="Mozc with Fcitx5 support and all UT dictionaries (fully built from source)"
 HOMEPAGE="
 	https://github.com/google/mozc
 	https://github.com/fcitx/mozc
@@ -22,12 +18,10 @@ HOMEPAGE="
 	https://www.post.japanpost.jp/zipcode/download.html
 "
 
-SRC_URI="
-	https://github.com/google/mozc/archive/${MOZC_COMMIT}.tar.gz -> mozc-${MOZC_VER}.tar.gz
-	https://github.com/fcitx/mozc/archive/${FCITX5_MOZC_COMMIT}.tar.gz -> fcitx5-mozc-${FCITX5_MOZC_COMMIT}.tar.gz
-"
+# No SRC_URI - everything is cloned from git
+SRC_URI=""
 
-S="${WORKDIR}/mozc-${MOZC_COMMIT}"
+S="${WORKDIR}/mozc"
 
 LICENSE="BSD-3 Apache-2.0 CC-BY-SA-4.0 GPL-2+ LGPL-2.1+ MIT public-domain"
 SLOT="0"
@@ -38,6 +32,8 @@ RESTRICT="!test? ( test ) network-sandbox"
 BDEPEND="
 	${PYTHON_DEPS}
 	>=dev-build/bazel-6.4.0
+	app-arch/unzip
+	app-arch/bzip2
 	dev-build/ninja
 	dev-vcs/git
 	net-misc/curl
@@ -65,23 +61,40 @@ PATCHES=(
 
 pkg_pretend() {
 	# Bazel requires significant memory
-	# Dictionary generation also needs extra space
+	# Full source build needs extra resources
 	if [[ ${MERGE_TYPE} != binary ]]; then
-		CHECKREQS_MEMORY="4G"
-		CHECKREQS_DISK_BUILD="8G"
+		CHECKREQS_MEMORY="8G"
+		CHECKREQS_DISK_BUILD="15G"
 		check-reqs_pkg_pretend
 	fi
 }
 
-src_unpack() {
-	default
+pkg_setup() {
+	python-any-r1_pkg_setup
+}
 
-	# Move fcitx5 patch files
-	mv "${WORKDIR}/mozc-${FCITX5_MOZC_COMMIT}" "${WORKDIR}/fcitx5-mozc" || die
+src_unpack() {
+	# Clone Google Mozc from source
+	einfo "Cloning Google Mozc (tag: ${MOZC_TAG})..."
+	git clone --depth 1 --branch "${MOZC_TAG}" \
+		https://github.com/google/mozc.git \
+		"${WORKDIR}/mozc" || die "Failed to clone Google Mozc"
+
+	# Initialize and update submodules (abseil, protobuf, etc.)
+	cd "${WORKDIR}/mozc" || die
+	einfo "Initializing Mozc submodules..."
+	git submodule update --init --recursive --depth 1 || die "Failed to update submodules"
+
+	# Clone Fcitx5 Mozc patches from source
+	einfo "Cloning Fcitx5 Mozc patches..."
+	git clone --depth 1 --branch fcitx \
+		https://github.com/fcitx/mozc.git \
+		"${WORKDIR}/fcitx5-mozc" || die "Failed to clone Fcitx5 Mozc"
 
 	# Clone merge-ut-dictionaries for building dictionaries from source
 	einfo "Cloning merge-ut-dictionaries..."
-	git clone --depth 1 https://github.com/utuhiro78/merge-ut-dictionaries.git \
+	git clone --depth 1 \
+		https://github.com/utuhiro78/merge-ut-dictionaries.git \
 		"${WORKDIR}/merge-ut-dictionaries" || die "Failed to clone merge-ut-dictionaries"
 }
 
@@ -208,11 +221,18 @@ src_prepare() {
 	default
 
 	# Apply fcitx5 patches from fcitx/mozc repository
+	einfo "Applying Fcitx5 patches..."
 	if [[ -d "${WORKDIR}/fcitx5-mozc/scripts/patches" ]]; then
-		eapply "${WORKDIR}/fcitx5-mozc/scripts/patches"/*.patch
+		for patch in "${WORKDIR}/fcitx5-mozc/scripts/patches"/*.patch; do
+			if [[ -f "${patch}" ]]; then
+				einfo "  Applying: $(basename ${patch})"
+				eapply "${patch}" || ewarn "Patch failed: $(basename ${patch})"
+			fi
+		done
 	fi
 
 	# Copy fcitx5 module source
+	einfo "Copying Fcitx5 module source..."
 	if [[ -d "${WORKDIR}/fcitx5-mozc/src/unix/fcitx5" ]]; then
 		cp -r "${WORKDIR}/fcitx5-mozc/src/unix/fcitx5" "${S}/src/unix/" || die
 	fi
@@ -252,6 +272,7 @@ src_compile() {
 		"--compilation_mode=opt"
 		"--copt=-Wno-error"
 		"--host_copt=-Wno-error"
+		"--jobs=$(nproc)"
 	)
 
 	# Build mozc_server
@@ -353,7 +374,12 @@ pkg_postinst() {
 
 	elog "Mozc with fcitx5 support and UT dictionaries has been installed."
 	elog ""
-	elog "This package builds dictionaries from source, including:"
+	elog "This package is FULLY built from source:"
+	elog "  - Google Mozc: cloned from git (tag: ${MOZC_TAG})"
+	elog "  - Fcitx5 patches: cloned from fcitx/mozc"
+	elog "  - All UT dictionaries: generated from source"
+	elog ""
+	elog "Included UT dictionaries:"
 	elog "  - alt-cannadic: Alternative Cannadic dictionary"
 	elog "  - edict2: Japanese-English dictionary"
 	elog "  - jawiki: Japanese Wikipedia dictionary"

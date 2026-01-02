@@ -3,9 +3,11 @@
 This overlay provides `fcitx5-mozc-ut` - Mozc with Fcitx5 support and **all** UT dictionaries from [utuhiro78's merge-ut-dictionaries](https://github.com/utuhiro78/merge-ut-dictionaries).
 
 **Key Features:**
-- Builds all dictionaries from source (not pre-built binaries)
+- **100% source build** - Everything is cloned from git and built from scratch
+- Google Mozc: cloned from `google/mozc` repository
+- Fcitx5 patches: cloned from `fcitx/mozc` repository
+- UT dictionaries: generated from source via `merge-ut-dictionaries`
 - Includes both residential (ken_all) AND business (jigyosyo) addresses
-- Uses the latest Mozc stable release
 
 ## Included UT Dictionaries
 
@@ -87,16 +89,29 @@ sudo emerge -av app-i18n/fcitx5-mozc-ut
 - Gentoo Linux (amd64)
 - Fcitx5
 - Bazel >= 6.4.0
+- Git
 - Qt6 (for gui/renderer USE flags)
-- Network access during build (for downloading dictionaries)
-- ~8GB disk space for build
+- Network access during build
+- **~15GB disk space** for full source build
+- **~8GB RAM** recommended
 
 ## Build Notes
 
-This ebuild builds dictionaries from source, which means:
-- Build time is longer than pre-built versions
-- Dictionaries are always up-to-date
+This ebuild performs a **full source build**, which means:
+- All sources are cloned fresh from git repositories
+- Google Mozc is built from the official repository with submodules
+- Fcitx5 patches are applied from the fcitx/mozc repository
+- All UT dictionaries are generated from their original sources
+- Build time is significantly longer than binary packages
 - Requires network access during emerge (uses `RESTRICT="network-sandbox"`)
+
+### What Gets Cloned
+
+| Repository | Branch/Tag | Purpose |
+|------------|------------|---------|
+| google/mozc | `${PV}` tag | Mozc core |
+| fcitx/mozc | `fcitx` branch | Fcitx5 patches |
+| utuhiro78/merge-ut-dictionaries | `main` | Dictionary generation |
 
 ## Configuration
 
@@ -108,7 +123,8 @@ After installation, add Mozc to your Fcitx5 input methods:
 
 ## Version
 
-- Mozc: 2.32.5994.102 (November 2025)
+- Mozc: 2.32.5994.102 (cloned from git tag at emerge time)
+- Fcitx5 patches: Latest from fcitx branch
 - UT Dictionaries: Built from source at emerge time
 - Japan Post Data: Downloaded fresh at emerge time
 
