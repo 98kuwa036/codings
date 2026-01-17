@@ -1,38 +1,10 @@
 # 結論
 
-Gentoo KDE (Btrfs) + Distrobox Arch + Zed Editor + Claude Code の完全統合環境を、初回セットアップから日常運用まで一貫したワークフローで提供します。
+OpenRC版の完全統合環境に修正します。systemd関連をすべてOpenRCサービス管理に置き換え、Gentoo本来のinit systemで動作する構成を提供します。
 
 ---
 
-## 完全統合システム構成図
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Gentoo Linux (KDE Plasma Wayland/X11)                      │
-│  ├─ Btrfs (zstd圧縮, スナップショット自動管理)                 │
-│  ├─ Kernel: gentoo-sources 6.18 (Ryzen最適化)               │
-│  └─ Hardware: Ryzen 9 3900XT + RX 5700 XT                   │
-│                                                              │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Distrobox: arch-dev (開発環境)                      │    │
-│  │  ├─ Zed Editor (Claude Code統合)                    │    │
-│  │  ├─ カーネルビルド環境 (Qt6 xconfig)                  │    │
-│  │  ├─ ESP-IDF (Omni-P4開発)                           │    │
-│  │  └─ 各種開発ツール                                    │    │
-│  └────────────────────────────────────────────────────┘    │
-│                                                              │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Distrobox: kernel-build (カーネル専用)              │    │
-│  │  ├─ /usr/src マウント                                │    │
-│  │  ├─ Qt6 + xconfig                                    │    │
-│  │  └─ ビルドツールチェーン                               │    │
-│  └────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Phase 1: Gentoo Base System Installation
+## Phase 1: Gentoo Base System Installation (OpenRC版)
 
 ### 1.1 パーティション & Btrfs構築
 
@@ -65,7 +37,7 @@ btrfs subvolume create /mnt/gentoo/@var_tmp
 btrfs subvolume create /mnt/gentoo/@portage
 btrfs subvolume create /mnt/gentoo/@distfiles
 btrfs subvolume create /mnt/gentoo/@ccache
-btrfs subvolume create /mnt/gentoo/@containers  # Distrobox用
+btrfs subvolume create /mnt/gentoo/@containers
 
 umount /mnt/gentoo
 
@@ -90,13 +62,13 @@ mount /dev/nvme0n1p1 /mnt/gentoo/boot
 swapon /dev/nvme0n1p2
 ```
 
-### 1.2 Stage3展開 & Chroot
+### 1.2 Stage3展開 & Chroot (OpenRC版)
 
 ```bash
 cd /mnt/gentoo
 
-# Stage3ダウンロード (最新版URL確認: https://www.gentoo.org/downloads/)
-wget https://distfiles.gentoo.org/releases/amd64/autobuilds/latest-stage3-amd64-desktop-systemd.tar.xz
+# OpenRC Stage3ダウンロード (最新版URL確認: https://www.gentoo.org/downloads/)
+wget https://distfiles.gentoo.org/releases/amd64/autobuilds/latest-stage3-amd64-desktop-openrc.tar.xz
 
 tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 
@@ -104,7 +76,7 @@ tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 nano /mnt/gentoo/etc/portage/make.conf
 ```
 
-### 1.3 最終版 make.conf
+### 1.3 最終版 make.conf (OpenRC対応)
 
 ```bash
 # /mnt/gentoo/etc/portage/make.conf
@@ -125,19 +97,19 @@ EMERGE_DEFAULT_OPTS="--jobs=4 --load-average=20 --keep-going --verbose"
 FEATURES="parallel-fetch parallel-install split-log split-elog candy ccache"
 CCACHE_SIZE="20G"
 
-# ===== USE Flags - 完全Qt6環境 =====
+# ===== USE Flags - 完全Qt6環境 + OpenRC =====
 USE="qt6 qt5 kde plasma wayland X \
      -gtk -gtk2 -gtk3 -gtk4 -gnome \
      vulkan opengl opencl vaapi vdpau \
      pulseaudio pipewire alsa jack \
      networkmanager bluetooth wifi \
-     elogind dbus udev systemd \
+     elogind dbus udev \
      btrfs zstd lzo lz4 \
      jpeg png svg webp pdf \
      encode mp3 flac opus aac vorbis \
      threads lto pgo graphite \
      distcc ccache \
-     -doc -examples -test"
+     -systemd -doc -examples -test"
 
 # ===== Hardware Specific =====
 VIDEO_CARDS="amdgpu radeonsi"
@@ -154,7 +126,7 @@ LINGUAS="ja en"
 LC_MESSAGES=C.utf8
 
 # ===== Accept =====
-ACCEPT_KEYWORDS="~amd64"  # Testing branch (最新パッケージ)
+ACCEPT_KEYWORDS="~amd64"
 ACCEPT_LICENSE="*"
 
 # ===== Mirrors (Japan) =====
@@ -177,7 +149,7 @@ PORTAGE_ELOG_SYSTEM="save"
 GRUB_PLATFORMS="efi-64"
 ```
 
-### 1.4 Chroot & 基本設定
+### 1.4 Chroot & 基本設定 (OpenRC)
 
 ```bash
 cp --dereference /etc/resolv.conf /mnt/gentoo/etc/
@@ -198,9 +170,9 @@ export PS1="(chroot) ${PS1}"
 emerge-webrsync
 emerge --sync
 
-# プロファイル選択
+# プロファイル選択 (OpenRC版)
 eselect profile list
-eselect profile set default/linux/amd64/23.0/desktop/plasma/systemd
+eselect profile set default/linux/amd64/23.0/desktop/plasma
 
 # タイムゾーン
 echo "Asia/Tokyo" > /etc/timezone
@@ -232,22 +204,20 @@ eselect kernel set 1
 ls -l /usr/src/linux
 ```
 
-### 2.2 カーネル設定必須項目
+### 2.2 カーネル設定 (OpenRC必須項目含む)
 
 ```bash
 cd /usr/src/linux
 make defconfig
-
-# 以下を有効化:
 make menuconfig
 ```
 
-**最小必須設定:**
+**OpenRC必須設定:**
 
 ```
 General setup --->
   [*] Initial RAM filesystem and RAM disk support
-  [*] Support for paging of anonymous memory (swap)
+  [ ] Support for systemd (無効化)
   [*] System V IPC
   [*] POSIX Message Queues
   [*] Control Group support --->
@@ -280,8 +250,7 @@ Device Drivers --->
   Sound card support --->
     <*> Advanced Linux Sound Architecture --->
       [*] PCI sound devices --->
-        <M> Intel/SiS/nVidia/AMD/ALi AC97 Controller
-        <M> Intel/SiS/nVidia/AMD MC97 Modem
+        <M> Intel HD Audio
 
 File systems --->
   <*> Btrfs filesystem
@@ -313,12 +282,11 @@ dracut --force --hostonly
 
 ---
 
-## Phase 3: System Configuration
+## Phase 3: System Configuration (OpenRC)
 
 ### 3.1 fstab設定
 
 ```bash
-# UUID取得
 blkid
 
 nano /etc/fstab
@@ -346,7 +314,7 @@ UUID=<nvme0n1p1-uuid>  /boot  vfat  defaults,noatime  0 2
 UUID=<nvme0n1p2-uuid>  none   swap  sw               0 0
 ```
 
-### 3.2 ネットワーク & ホスト名
+### 3.2 ネットワーク & ホスト名 (OpenRC)
 
 ```bash
 echo "gentoo-omni" > /etc/hostname
@@ -361,9 +329,15 @@ nano /etc/hosts
 ```
 
 ```bash
-# NetworkManager
+# NetworkManager (OpenRC)
 emerge --ask net-misc/networkmanager
-systemctl enable NetworkManager
+
+# OpenRCサービス登録
+rc-update add NetworkManager default
+
+# elogind (セッション管理)
+emerge --ask sys-auth/elogind
+rc-update add elogind boot
 ```
 
 ### 3.3 ブートローダー (GRUB)
@@ -390,10 +364,10 @@ EDITOR=nano visudo
 
 ---
 
-## Phase 4: KDE Plasma Installation
+## Phase 4: KDE Plasma Installation (OpenRC)
 
 ```bash
-# KDE Plasma
+# KDE Plasma (OpenRC版)
 emerge --ask kde-plasma/plasma-meta
 
 # 必須アプリ
@@ -405,15 +379,31 @@ emerge --ask \
   kde-apps/gwenview \
   kde-apps/okular
 
-# ディスプレイマネージャー
-emerge --ask gui-apps/sddm
-systemctl enable sddm
+# ディスプレイマネージャー (SDDM - OpenRC)
+emerge --ask x11-misc/sddm
 
-# オーディオ (PipeWire)
+# OpenRCサービス登録
+rc-update add dbus default
+rc-update add sddm default
+
+# オーディオ (PipeWire + OpenRC)
 emerge --ask \
   media-video/pipewire \
   media-video/wireplumber
 
+# Gentoo OpenRC用PipeWireセッション設定
+mkdir -p /etc/pipewire/pipewire.conf.d
+```
+
+**`/etc/pipewire/pipewire.conf.d/10-openrc.conf`:**
+
+```conf
+context.exec = [
+    { path = "wireplumber" args = "" }
+]
+```
+
+```bash
 # 日本語入力
 emerge --ask \
   app-i18n/fcitx5 \
@@ -427,7 +417,25 @@ emerge --ask \
   media-fonts/noto-emoji
 ```
 
-### 4.1 再起動
+### 4.1 OpenRC init設定
+
+```bash
+# デフォルトランレベル確認
+rc-status
+
+# 有効サービス確認
+rc-update show
+```
+
+**重要なOpenRCサービス:**
+```bash
+rc-update add dbus default
+rc-update add elogind boot
+rc-update add NetworkManager default
+rc-update add sddm default
+```
+
+### 4.2 再起動
 
 ```bash
 exit
@@ -439,7 +447,7 @@ reboot
 
 ---
 
-## Phase 5: Distrobox & Development Environment
+## Phase 5: Distrobox & Development Environment (OpenRC)
 
 ### 5.1 Distrobox インストール
 
@@ -451,10 +459,24 @@ sudo emerge --ask \
   app-containers/podman \
   app-containers/distrobox
 
+# cgroup v2設定 (OpenRC)
+sudo nano /etc/rc.conf
+```
+
+**`/etc/rc.conf` に追加:**
+
+```bash
+# cgroup v2 for Podman
+rc_cgroup_mode="unified"
+```
+
+```bash
 # ユーザーネームスペース設定
 sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 $USER
 
-# セッション再ログイン必要
+# 再ログイン
+exit
+# 再度ログイン
 ```
 
 ### 5.2 開発用Distrobox作成
@@ -484,7 +506,7 @@ distrobox enter arch-dev
 sudo pacman -Syu
 sudo pacman -S --noconfirm \
   base-devel git curl wget \
-  zed-git \
+  zed \
   rust rust-analyzer \
   python python-pip \
   nodejs npm \
@@ -520,283 +542,97 @@ sudo pacman -S --noconfirm \
 
 ---
 
-## Phase 6: Zed Editor + Claude Code Integration
+## Phase 6: OpenRC自動メンテナンス設定
 
-### 6.1 Zed設定ディレクトリ構造
+### 6.1 Btrfs Scrub サービス (OpenRC)
+
+**`/etc/init.d/btrfs-scrub`:**
 
 ```bash
-mkdir -p ~/.config/zed/{tasks,snippets}
-```
+#!/sbin/openrc-run
 
-### 6.2 統合設定ファイル
+description="Btrfs filesystem scrub"
 
-**`~/.config/zed/settings.json`:**
+depend() {
+    need localmount
+    after *
+}
 
-```json
-{
-  "assistant": {
-    "default_model": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-20250514"
-    },
-    "version": "2",
-    "enabled": true,
-    "button": true
-  },
-
-  "features": {
-    "inline_completion_provider": "supermaven"
-  },
-
-  "language_models": {
-    "anthropic": {
-      "api_url": "https://api.anthropic.com",
-      "version": "1"
-    }
-  },
-
-  "terminal": {
-    "shell": {
-      "program": "/bin/bash"
-    },
-    "working_directory": "current_project_directory",
-    "font_size": 14,
-    "env": {
-      "TERM": "xterm-256color"
-    },
-    "blinking": "terminal_controlled",
-    "alternate_scroll": "on"
-  },
-
-  "project": {
-    "default_directory": "~/projects"
-  },
-
-  "vim_mode": false,
-  "buffer_font_family": "JetBrains Mono",
-  "buffer_font_size": 14,
-  "buffer_line_height": {
-    "custom": 1.5
-  },
-
-  "theme": {
-    "mode": "system",
-    "light": "One Light",
-    "dark": "One Dark"
-  },
-
-  "ui_font_size": 16,
-  "ui_font_family": "Noto Sans CJK JP",
-
-  "tab_size": 2,
-  "soft_wrap": "editor_width",
-  "show_whitespaces": "selection",
-  "remove_trailing_whitespace_on_save": true,
-  "ensure_final_newline_on_save": true,
-
-  "format_on_save": "on",
-  "autosave": "on_focus_change",
-  "auto_update": true,
-
-  "git": {
-    "enabled": true,
-    "autoFetch": true,
-    "autoFetchInterval": 300
-  },
-
-  "lsp": {
-    "rust-analyzer": {
-      "initialization_options": {
-        "checkOnSave": {
-          "command": "clippy"
-        },
-        "cargo": {
-          "features": "all"
-        }
-      }
-    },
-    "clangd": {
-      "initialization_options": {
-        "compilationDatabasePath": "build"
-      }
-    }
-  },
-
-  "languages": {
-    "C": {
-      "tab_size": 2,
-      "format_on_save": "on"
-    },
-    "C++": {
-      "tab_size": 2,
-      "format_on_save": "on"
-    },
-    "Rust": {
-      "tab_size": 4,
-      "format_on_save": "on"
-    },
-    "Python": {
-      "tab_size": 4,
-      "format_on_save": "on"
-    }
-  },
-
-  "file_scan_exclusions": [
-    "**/.git",
-    "**/.svn",
-    "**/.hg",
-    "**/CVS",
-    "**/.DS_Store",
-    "**/Thumbs.db",
-    "**/.ccls-cache",
-    "**/.cache",
-    "**/node_modules",
-    "**/target",
-    "**/build",
-    "**/.venv"
-  ]
+start() {
+    ebegin "Starting btrfs scrub on /"
+    /usr/bin/btrfs scrub start -B /
+    eend $?
 }
 ```
 
-### 6.3 キーマップ設定
-
-**`~/.config/zed/keymap.json`:**
-
-```json
-[
-  {
-    "context": "Editor",
-    "bindings": {
-      "ctrl-shift-space": "assistant::InlineAssist",
-      "ctrl-shift-/": "assistant::ToggleFocus",
-      "ctrl-shift-enter": "assistant::NewConversation",
-      "ctrl-shift-l": "editor::SelectLine",
-      "ctrl-d": "editor::SelectNext",
-      "ctrl-shift-k": "editor::DeleteLine",
-      "alt-up": "editor::MoveLineUp",
-      "alt-down": "editor::MoveLineDown"
-    }
-  },
-  {
-    "context": "Terminal",
-    "bindings": {
-      "ctrl-shift-c": "terminal::Copy",
-      "ctrl-shift-v": "terminal::Paste",
-      "ctrl-shift-n": "terminal::NewTerminal"
-    }
-  },
-  {
-    "context": "Workspace",
-    "bindings": {
-      "ctrl-shift-p": "command_palette::Toggle",
-      "ctrl-p": "file_finder::Toggle",
-      "ctrl-shift-f": "workspace::DeploySearch",
-      "ctrl-`": "terminal::ToggleFocus"
-    }
-  }
-]
+```bash
+sudo chmod +x /etc/init.d/btrfs-scrub
 ```
 
-### 6.4 統合タスク定義
+**月次実行 (cron):**
 
-**`~/.config/zed/tasks/omni-p4.json`:**
+```bash
+sudo crontab -e
+```
 
-```json
-{
-  "label": "Omni-P4 Development Tasks",
-  "tasks": [
-    {
-      "label": "ESP-IDF: Build",
-      "command": "distrobox",
-      "args": [
-        "enter", "arch-dev", "--",
-        "bash", "-c",
-        "cd ~/projects/omni-p4/esp-idf && . ~/esp/esp-idf/export.sh && idf.py build"
-      ],
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "label": "ESP-IDF: Flash & Monitor",
-      "command": "distrobox",
-      "args": [
-        "enter", "arch-dev", "--",
-        "bash", "-c",
-        "cd ~/projects/omni-p4/esp-idf && . ~/esp/esp-idf/export.sh && idf.py -p /dev/ttyUSB0 flash monitor"
-      ],
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "label": "ESP-IDF: Menuconfig",
-      "command": "distrobox",
-      "args": [
-        "enter", "arch-dev", "--",
-        "bash", "-c",
-        "cd ~/projects/omni-p4/esp-idf && . ~/esp/esp-idf/export.sh && idf.py menuconfig"
-      ],
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "label": "Gentoo Kernel: xconfig",
-      "command": "bash",
-      "args": [
-        "-c",
-        "xhost +local: && distrobox enter kernel-build -- bash -c 'export DISPLAY=:0 && cd /usr/src/linux && make xconfig'"
-      ]
-    },
-    {
-      "label": "Gentoo Kernel: menuconfig",
-      "command": "distrobox",
-      "args": [
-        "enter", "kernel-build", "--",
-        "bash", "-c",
-        "cd /usr/src/linux && make menuconfig"
-      ]
-    },
-    {
-      "label": "Gentoo Kernel: Build",
-      "command": "distrobox",
-      "args": [
-        "enter", "kernel-build", "--",
-        "bash", "-c",
-        "cd /usr/src/linux && make -j24"
-      ]
-    },
-    {
-      "label": "Gentoo Kernel: Install",
-      "command": "bash",
-      "args": [
-        "-c",
-        "cd /usr/src/linux && sudo make modules_install && sudo make install && sudo grub-mkconfig -o /boot/grub/grub.cfg"
-      ]
-    },
-    {
-      "label": "Format: C/C++ (clang-format)",
-      "command": "clang-format",
-      "args": ["-i", "${file}"],
-      "cwd": "${fileDirname}"
-    },
-    {
-      "label": "Git: Commit Snapshot",
-      "command": "git",
-      "args": ["commit", "-am", "WIP: $(date +%Y%m%d_%H%M%S)"],
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "label": "Btrfs: Create Snapshot",
-      "command": "sudo",
-      "args": [
-        "snapper", "-c", "root", "create",
-        "--description", "Manual snapshot: ${workspaceFolder}",
-        "--cleanup-algorithm", "number"
-      ]
-    }
-  ]
+```cron
+# Btrfs scrub - 毎月1日 3:00AM
+0 3 1 * * /etc/init.d/btrfs-scrub start
+```
+
+### 6.2 Snapper設定 (OpenRC)
+
+```bash
+sudo emerge --ask app-backup/snapper
+
+# Snapper設定作成
+sudo snapper -c root create-config /
+
+# 設定編集
+sudo nano /etc/snapper/configs/root
+```
+
+```ini
+# Timeline設定
+TIMELINE_CREATE="yes"
+TIMELINE_CLEANUP="yes"
+TIMELINE_MIN_AGE="1800"
+TIMELINE_LIMIT_HOURLY="5"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="0"
+TIMELINE_LIMIT_MONTHLY="0"
+TIMELINE_LIMIT_YEARLY="0"
+```
+
+**Snapper タイマー (OpenRC cron):**
+
+```bash
+sudo crontab -e
+```
+
+```cron
+# Snapper timeline - 毎時
+0 * * * * /usr/bin/snapper -c root create --cleanup-algorithm timeline
+
+# Snapper cleanup - 毎日 4:00AM
+0 4 * * * /usr/bin/snapper -c root cleanup timeline
+```
+
+### 6.3 システム更新前スナップショット (OpenRC)
+
+**`/etc/portage/bashrc`:**
+
+```bash
+post_pkg_preinst() {
+    if [[ "${EBUILD_PHASE}" == "preinst" ]]; then
+        /usr/bin/snapper -c root create --description "emerge: ${CATEGORY}/${PF}" --cleanup-algorithm number 2>/dev/null || true
+    fi
 }
 ```
 
 ---
 
-## Phase 7: システム管理自動化
+## Phase 7: 統合管理スクリプト (OpenRC版)
 
 ### 7.1 統合管理スクリプト
 
@@ -804,18 +640,33 @@ mkdir -p ~/.config/zed/{tasks,snippets}
 
 ```bash
 #!/bin/bash
-# Omni-P4 System Manager
+# Omni-P4 System Manager (OpenRC Edition)
 
 set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_service() { echo -e "${BLUE}[SERVICE]${NC} $1"; }
+
+# ===== OpenRC Service Management =====
+service_status() {
+    log_service "OpenRC Services Status:"
+    echo ""
+    rc-status --all
+}
+
+service_restart() {
+    local service=$1
+    log_service "Restarting $service..."
+    sudo rc-service "$service" restart
+}
 
 # ===== Gentoo System =====
 gentoo_update() {
@@ -886,7 +737,7 @@ btrfs_status() {
     echo ""
     
     echo "=== Compression Ratio ==="
-    sudo compsize /
+    sudo compsize / 2>/dev/null || log_warn "Install sys-fs/compsize for compression stats"
     echo ""
     
     echo "=== Recent Snapshots ==="
@@ -910,8 +761,33 @@ btrfs_cleanup() {
 
 btrfs_scrub() {
     log_info "Starting Btrfs scrub (data integrity check)..."
-    sudo btrfs scrub start /
-    sudo btrfs scrub status /
+    sudo /etc/init.d/btrfs-scrub start
+}
+
+# ===== OpenRC Specific =====
+openrc_services_check() {
+    log_service "Checking critical OpenRC services..."
+    echo ""
+    
+    CRITICAL_SERVICES="dbus elogind NetworkManager sddm"
+    
+    for service in $CRITICAL_SERVICES; do
+        if rc-service "$service" status &>/dev/null; then
+            echo -e "${GREEN}✓${NC} $service is running"
+        else
+            echo -e "${RED}✗${NC} $service is NOT running"
+        fi
+    done
+}
+
+openrc_services_restart_all() {
+    log_service "Restarting all critical services..."
+    
+    sudo rc-service dbus restart
+    sudo rc-service elogind restart
+    sudo rc-service NetworkManager restart
+    
+    log_service "Services restarted (SDDM excluded, manual restart recommended)"
 }
 
 # ===== Backup =====
@@ -922,25 +798,29 @@ backup_configs() {
     mkdir -p "$BACKUP_DIR"
     
     # Zed configs
-    cp -r ~/.config/zed "$BACKUP_DIR/"
+    cp -r ~/.config/zed "$BACKUP_DIR/" 2>/dev/null || true
     
     # Kernel config
-    cp /usr/src/linux/.config "$BACKUP_DIR/kernel.config"
+    [ -f /usr/src/linux/.config ] && cp /usr/src/linux/.config "$BACKUP_DIR/kernel.config"
     
     # make.conf
     sudo cp /etc/portage/make.conf "$BACKUP_DIR/"
     
+    # OpenRC runlevels
+    rc-update show > "$BACKUP_DIR/rc-update.txt"
+    
     # Package lists
-    sudo eix-installed all > "$BACKUP_DIR/installed-packages.txt"
+    qlist -I > "$BACKUP_DIR/installed-packages.txt"
     
     log_info "Backup saved to $BACKUP_DIR"
 }
 
 # ===== Menu =====
 show_menu() {
+    clear
     echo ""
     echo "╔══════════════════════════════════════════════╗"
-    echo "║     Omni-P4 System Manager                   ║"
+    echo "║   Omni-P4 System Manager (OpenRC Edition)    ║"
     echo "╚══════════════════════════════════════════════╝"
     echo ""
     echo "  Gentoo System:"
@@ -955,8 +835,13 @@ show_menu() {
     echo "    5) Run cleanup & maintenance"
     echo "    6) Run scrub (integrity check)"
     echo ""
+    echo "  OpenRC Services:"
+    echo "    7) Check critical services"
+    echo "    8) Show all services status"
+    echo "    9) Restart critical services"
+    echo ""
     echo "  Backup:"
-    echo "    7) Backup configurations"
+    echo "    b) Backup configurations"
     echo ""
     echo "  0) Exit"
     echo ""
@@ -969,11 +854,15 @@ show_menu() {
         4) btrfs_status ;;
         5) btrfs_cleanup ;;
         6) btrfs_scrub ;;
-        7) backup_configs ;;
+        7) openrc_services_check ;;
+        8) service_status ;;
+        9) openrc_services_restart_all ;;
+        b|B) backup_configs ;;
         0) exit 0 ;;
         *) log_error "Invalid option" ;;
     esac
     
+    echo ""
     read -rp "Press Enter to continue..."
     show_menu
 }
@@ -988,6 +877,7 @@ else
         distrobox) distrobox_update_all ;;
         btrfs-status) btrfs_status ;;
         btrfs-cleanup) btrfs_cleanup ;;
+        services) openrc_services_check ;;
         backup) backup_configs ;;
         *) log_error "Unknown command: $1" ;;
     esac
@@ -995,20 +885,26 @@ fi
 ```
 
 ```bash
+mkdir -p ~/bin
 chmod +x ~/bin/omni-sys-manager.sh
 ```
 
-### 7.2 便利なエイリアス
+### 7.2 便利なエイリアス (OpenRC版)
 
 **`~/.bashrc` に追加:**
 
 ```bash
-# ===== Omni-P4 Development Aliases =====
+# ===== Omni-P4 Development Aliases (OpenRC Edition) =====
 
 # System management
 alias omni-sys='~/bin/omni-sys-manager.sh'
 alias omni-update='~/bin/omni-sys-manager.sh update'
 alias omni-kernel='~/bin/omni-sys-manager.sh kernel'
+
+# OpenRC service management
+alias rc-stat='rc-status'
+alias rc-check='~/bin/omni-sys-manager.sh services'
+alias rc-restart='sudo rc-service'
 
 # Distrobox shortcuts
 alias dev='distrobox enter arch-dev'
@@ -1018,7 +914,7 @@ alias kernel='distrobox enter kernel-build'
 alias kxconfig='xhost +local: && distrobox enter kernel-build -- bash -c "export DISPLAY=:0 && cd /usr/src/linux && make xconfig"'
 alias kmenu='distrobox enter kernel-build -- bash -c "cd /usr/src/linux && make menuconfig"'
 alias kbuild='distrobox enter kernel-build -- bash -c "cd /usr/src/linux && make -j24"'
-alias kinstall='cd /usr/src/linux && sudo make modules_install && sudo make install && sudo grub-mkconfig -o /boot/grub/grub.cfg'
+alias kinstall='cd /usr/src/linux && sudo make modules_install && sudo make install && sudo dracut --force --hostonly && sudo grub-mkconfig -o /boot/grub/grub.cfg'
 
 # ESP-IDF (Omni-P4)
 alias esp-build='distrobox enter arch-dev -- bash -c ". ~/esp/esp-idf/export.sh && cd ~/projects/omni-p4/esp-idf && idf.py build"'
@@ -1042,191 +938,116 @@ alias gl='git log --oneline --graph --decorate --all'
 alias zed='distrobox enter arch-dev -- zed'
 ```
 
-### 7.3 Systemd自動メンテナンスタイマー
+---
 
-**`/etc/systemd/system/btrfs-scrub.service`:**
+## Phase 8: Zed Editor統合 (変更なし)
 
-```ini
-[Unit]
-Description=Btrfs scrub on /
-ConditionPathIsMountPoint=/
+Zedの設定は前回提案と同じです:
+- `~/.config/zed/settings.json`
+- `~/.config/zed/keymap.json`
+- `~/.config/zed/tasks/omni-p4.json`
 
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/btrfs scrub start -B /
-```
+---
 
-**`/etc/systemd/system/btrfs-scrub.timer`:**
+## Phase 9: OpenRC特有の運用Tips
 
-```ini
-[Unit]
-Description=Monthly Btrfs scrub
-
-[Timer]
-OnCalendar=monthly
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-**有効化:**
+### 9.1 サービス管理基本コマンド
 
 ```bash
-sudo systemctl enable --now btrfs-scrub.timer
+# サービス状態確認
+rc-status
+
+# 特定サービス確認
+rc-service NetworkManager status
+
+# サービス再起動
+sudo rc-service NetworkManager restart
+
+# 起動時サービス登録
+sudo rc-update add service-name default
+
+# サービス削除
+sudo rc-update del service-name default
+
+# ランレベル確認
+rc-update show
+```
+
+### 9.2 トラブルシューティング
+
+**問題: NetworkManagerが起動しない**
+
+```bash
+# ログ確認
+sudo rc-service NetworkManager status
+tail -f /var/log/messages
+
+# 手動起動
+sudo rc-service NetworkManager start
+
+# 依存関係確認
+rc-service NetworkManager describe
+```
+
+**問題: SDDMが起動しない**
+
+```bash
+# elogind確認 (必須依存)
+sudo rc-service elogind status
+sudo rc-service elogind start
+
+# SDDM再起動
+sudo rc-service sddm restart
+
+# ログ確認
+journalctl -xe  # OpenRCでも使用可能
+```
+
+### 9.3 起動時間最適化
+
+```bash
+# 並列起動有効化
+sudo nano /etc/rc.conf
+```
+
+```bash
+# 並列起動
+rc_parallel="YES"
+
+# タイムアウト設定
+rc_timeout_stopsec="30"
 ```
 
 ---
 
-## Phase 8: プロジェクト構造テンプレート
+## まとめ: OpenRC版完全統合環境
 
-### 8.1 Omni-P4プロジェクト構造
+### ✅ 達成した統合 (OpenRC版)
 
-```bash
-mkdir -p ~/projects/omni-p4/{esp-idf,firmware,mechanical,docs,scripts,tests}
+1. **Gentoo OpenRC Base**
+   - systemd完全排除
+   - elogindでセッション管理
+   - 軽量で高速な起動
 
-cd ~/projects/omni-p4
-```
+2. **OpenRCサービス管理**
+   - rc-update/rc-serviceで完全制御
+   - cronベースの自動メンテナンス
+   - Snapperスナップショット自動化
 
-**ディレクトリ構造:**
+3. **Distrobox統合**
+   - Podman + cgroup v2対応
+   - OpenRC環境下で完全動作
 
-```
-~/projects/omni-p4/
-├── esp-idf/                    # ESP32-P4メインコード
-│   ├── main/
-│   │   ├── main.c
-│   │   ├── audio_pipeline.c
-│   │   ├── i2s_driver.c
-│   │   └── dac_control.c
-│   ├── components/
-│   │   ├── audio_processing/
-│   │   └── bluetooth_control/
-│   ├── CMakeLists.txt
-│   └── sdkconfig
-├── firmware/                   # ビルド成果物
-│   └── build/
-├── mechanical/                 # 3Dモデル
-│   ├── enclosure-v4.1.step
-│   └── assembly.pdf
-├── docs/                       # ドキュメント
-│   ├── architecture.md
-│   ├── audio-pipeline.md
-│   └── hardware-specs.md
-├── scripts/                    # 自動化スクリプト
-│   ├── flash-dev.sh
-│   └── monitor.sh
-├── tests/                      # テストコード
-│   └── unit/
-├── .zed/
-│   └── tasks.json
-├── .gitignore
-└── README.md
-```
+4. **開発環境**
+   - Zed + Claude Code
+   - ESP-IDF + カーネルビルド
+   - 統合管理スクリプト
 
-### 8.2 .gitignore
+### 🚀 OpenRC版の利点
 
-```gitignore
-# ESP-IDF
-build/
-sdkconfig.old
-*.pyc
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary
-*.tmp
-*.bak
-*.log
-```
-
----
-
-## Phase 9: 日常運用ワークフロー
-
-### 典型的な開発セッション
-
-```bash
-# 1. 朝の起動
-omni-sys  # システム状態確認
-
-# 2. プロジェクト開始
-cd ~/projects/omni-p4
-zed .  # Zed Editorで開く
-
-# 3. ESP-IDF開発
-# Zedターミナルで:
-dev  # arch-dev環境に入る
-. ~/esp/esp-idf/export.sh
-cd esp-idf
-idf.py build
-
-# 4. Claude Codeと対話
-# Zed内で Ctrl+Shift+Space
-# 「ESP32-P4のI2S DMA設定で、デュアルチャネル対応のバッファ管理コードを生成してください」
-
-# 5. フラッシュ & テスト
-esp-flash
-
-# 6. 定期コミット
-git add .
-git commit -m "feat: デュアルI2S対応実装"
-
-# 7. システムスナップショット（重要な変更前）
-btrfs-create-snap
-```
-
-### 週次メンテナンス
-
-```bash
-# 日曜朝に実行
-omni-update              # Gentoo更新
-distrobox update --all   # コンテナ更新
-btrfs-cleanup           # Btrfs整理
-backup-configs          # 設定バックアップ
-```
-
----
-
-## まとめ: 完全統合環境の特徴
-
-### ✅ 達成した統合
-
-1. **Gentoo Base System**
-   - Ryzen最適化ビルド
-   - Btrfsスナップショット自動管理
-   - Qt6完全環境
-
-2. **開発環境分離**
-   - arch-dev: Zed + Claude Code + ESP-IDF
-   - kernel-build: カーネル設定専用
-   - ホストの安定性維持
-
-3. **Zed + Claude Code統合**
-   - ワンコマンドでタスク実行
-   - ESP-IDF/カーネルビルド自動化
-   - Claude Codeとシームレス連携
-
-4. **システム管理自動化**
-   - スナップショット自動作成
-   - 定期メンテナンススクリプト
-   - 設定バックアップ
-
-### 🚀 次のステップ
-
-この環境で以下が可能です:
-
-1. Omni-P4のESP32-P4コード開発
-2. Claude Codeとの自然な対話でコード生成
-3. カーネルカスタマイズ
-4. 安全なシステム実験（スナップショット保護）
+- **軽量**: systemdより省メモリ
+- **シンプル**: initスクリプトが理解しやすい
+- **カスタマイズ性**: 細かい制御が可能
+- **Gentoo本来の設計**: Gentooの哲学に忠実
 
 ご質問や追加のカスタマイズがあればお知らせください！
