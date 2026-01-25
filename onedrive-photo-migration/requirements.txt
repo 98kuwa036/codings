@@ -1,0 +1,10 @@
+# OneDrive Photo Migration - Python Dependencies
+
+# Microsoft Authentication Library for Azure AD
+msal>=1.24.0
+
+# HTTP requests library
+requests>=2.31.0
+
+# Optional: For image processing (not required for basic operation)
+Pillow>=10.0.0
