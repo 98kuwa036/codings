@@ -1,6 +1,15 @@
-# OneDrive Photo Migration Tool
+# OneDrive Photo Migration Tool v2.0
 
 Microsoft OneDrive上でGoogle Photos Takeoutの写真メタデータを修復し、整理されたフォルダ構造で保存するツールです。GitHub Actions上で完全に動作します。
+
+## v2.0 新機能（堅牢化）
+
+| 機能 | 説明 |
+|------|------|
+| **トークン自動更新** | MSALの`acquire_token_silent`を使用し、1時間のトークン有効期限を自動で更新 |
+| **レート制限対策** | 429エラー時に指数バックオフ（2s, 4s, 8s...）で自動リトライ |
+| **途中再開機能** | `--skip-existing`で処理済みファイルをスキップ（6時間制限対策） |
+| **5xxエラー対策** | サーバーエラー時も自動リトライ |
 
 ## 機能
 
@@ -11,6 +20,7 @@ Microsoft OneDrive上でGoogle Photos Takeoutの写真メタデータを修復�
 - 重複ファイルの検出と隔離
 - フォルダB（出力先）への自動アップロード
 - 処理レポートの自動生成
+- **途中再開可能**（タイムアウト後も続きから再開）
 
 ## メタデータソースの優先順位
 
@@ -91,8 +101,25 @@ Microsoft Graph APIを使用するため、Azure ADでアプリケーション�
    - **Destination folder path**: 出力先フォルダのパス（例: `Photos/Processed`）
    - **Timezone offset**: タイムゾーン（日本は `9`）
    - **Create XMP sidecar files**: XMPファイルを作成するか
+   - **Skip already processed files**: 処理済みファイルをスキップ（デフォルト: true）
    - **Dry run**: テスト実行（ファイルリストのみ表示）
 5. **Run workflow** をクリック
+
+### 大量ファイルの処理（推奨運用）
+
+6時間制限がある場合の推奨運用:
+
+1. **初回実行**: すべてのファイルを処理開始
+2. **タイムアウト時**: 自動的に停止（処理済みファイルは出力先に保存済み）
+3. **再実行**: `Skip already processed files: true` で再度実行
+4. **繰り返し**: すべて完了するまで2-3を繰り返す
+
+```
+# 処理イメージ
+1回目: 0-2000枚を処理 → タイムアウト
+2回目: 2001-4000枚を処理 → タイムアウト
+3回目: 4001-5000枚を処理 → 完了!
+```
 
 ### ローカルで実行（テスト用）
 
@@ -110,7 +137,8 @@ python onedrive_photo_fixer.py \
   --tenant-id "YOUR_TENANT_ID" \
   --src-folder "Photos/Google Takeout" \
   --dst-folder "Photos/Processed" \
-  --timezone 9
+  --timezone 9 \
+  --skip-existing
 
 # ドライラン（ファイルリストのみ表示）
 python onedrive_photo_fixer.py \
@@ -130,9 +158,25 @@ export AZURE_TENANT_ID="your-tenant-id"
 export ONEDRIVE_SRC_FOLDER="Photos/Google Takeout"
 export ONEDRIVE_DST_FOLDER="Photos/Processed"
 export TZ_OFFSET="9"
+export SKIP_EXISTING="true"
 
 python onedrive_photo_fixer.py
 ```
+
+## コマンドラインオプション
+
+| オプション | 説明 | デフォルト |
+|------------|------|-----------|
+| `--client-id` | Azure App Client ID | 環境変数 |
+| `--client-secret` | Azure App Client Secret | 環境変数 |
+| `--tenant-id` | Azure Tenant ID | 環境変数 |
+| `--src-folder` | ソースフォルダパス | `Photos/Google Takeout` |
+| `--dst-folder` | 出力先フォルダパス | `Photos/Processed` |
+| `--timezone` | タイムゾーンオフセット | `9` (JST) |
+| `--threads` | 並列スレッド数 | `1` |
+| `--create-xmp` | XMPサイドカー作成 | `false` |
+| `--skip-existing` | 処理済みファイルをスキップ | `true` |
+| `--dry-run` | ドライラン（実行せず一覧表示） | `false` |
 
 ## 対応ファイル形式
 
@@ -186,8 +230,10 @@ Photos/Processed/
 {
   "summary": {
     "total_files": 1000,
-    "processed_success": 950,
+    "processed_success": 800,
     "duplicates_isolated": 30,
+    "skipped_already_exists": 150,
+    "skipped_other": 0,
     "errors": 20,
     "duration_seconds": 3600
   },
@@ -235,11 +281,57 @@ ExifTool not found in PATH
 ```
 → GitHub Actionsでは自動インストールされます。ローカル実行時は `apt-get install exiftool` を実行。
 
+### レート制限エラー（v2.0で自動対応）
+
+```
+429 Too Many Requests
+```
+→ v2.0では自動リトライします。頻発する場合は `--threads 1` を確認してください。
+
+### トークン期限切れ（v2.0で自動対応）
+
+```
+401 Unauthorized
+```
+→ v2.0ではトークンを自動更新します。1時間以上の処理も問題ありません。
+
+## 技術仕様（v2.0）
+
+### トークン管理
+
+```python
+# MSALのacquire_token_silentを使用
+# キャッシュされたトークンを優先、期限切れ5分前に自動更新
+result = self.app.acquire_token_silent(scopes=GRAPH_SCOPES, account=None)
+if not result:
+    result = self.app.acquire_token_for_client(scopes=GRAPH_SCOPES)
+```
+
+### リトライ戦略
+
+```python
+# requests.adapters.HTTPAdapterとurllib3.util.Retryを使用
+Retry(
+    total=5,                                    # 最大5回リトライ
+    backoff_factor=2.0,                         # 2s, 4s, 8s, 16s, 32s
+    status_forcelist=(429, 500, 502, 503, 504)  # 対象ステータスコード
+)
+```
+
+### ファイル存在チェック（Resume機能）
+
+```python
+# 出力先フォルダの内容をキャッシュしてAPI呼び出しを最小化
+if self.skip_existing and self.client.file_exists(dest_folder_path, file_name):
+    logger.info(f"SKIP (exists): {file_name}")
+    return True
+```
+
 ## 制限事項
 
 - **ファイルサイズ**: 単一ファイル最大250GB（OneDrive制限）
-- **API制限**: Microsoft Graph APIには使用量制限があります
-- **実行時間**: GitHub Actionsは最大6時間（大量ファイルは分割処理を推奨）
+- **API制限**: Microsoft Graph APIには使用量制限があります（リトライで対応）
+- **実行時間**: GitHub Actionsは最大6時間（途中再開機能で対応）
 - **スレッド数**: API制限を避けるためデフォルトは1スレッド
 
 ## セキュリティ

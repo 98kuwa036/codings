@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-OneDrive Photo Metadata Fixer for GitHub Actions
+OneDrive Photo Metadata Fixer for GitHub Actions (v2.0 - Hardened)
 Processes photos from OneDrive Folder A, fixes metadata using JSON files,
 and uploads to OneDrive Folder B.
 
 Designed to run in GitHub Actions with Microsoft Graph API.
+
+v2.0 Improvements:
+- Token auto-refresh using MSAL's acquire_token_silent
+- Rate limit handling with exponential backoff (429 errors)
+- Resume functionality (skip already processed files)
+- Robust retry logic for all API calls
 """
 
 import os
@@ -20,11 +26,13 @@ import subprocess
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import Counter
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from msal import ConfidentialClientApplication
 
 # ==========================================
@@ -38,6 +46,10 @@ ALL_TARGETS = IMAGE_EXTENSIONS | RAW_EXTENSIONS | VIDEO_EXTENSIONS
 JSON_EXTENSION = {'.json'}
 
 GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
+GRAPH_SCOPES = ["https://graph.microsoft.com/.default"]
+
+# Token refresh buffer (refresh 5 minutes before expiry)
+TOKEN_REFRESH_BUFFER_SECONDS = 300
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +67,37 @@ DATE_PATTERNS = [
 ]
 
 
+def create_retry_session(
+    retries: int = 5,
+    backoff_factor: float = 2.0,
+    status_forcelist: tuple = (429, 500, 502, 503, 504)
+) -> requests.Session:
+    """
+    Create a requests session with automatic retry and exponential backoff.
+
+    This handles:
+    - 429 Too Many Requests (rate limiting)
+    - 5xx server errors
+
+    Backoff: 2s, 4s, 8s, 16s, 32s for 5 retries
+    """
+    session = requests.Session()
+
+    retry_strategy = Retry(
+        total=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+        allowed_methods=["HEAD", "GET", "PUT", "POST", "DELETE", "PATCH"],
+        raise_on_status=False  # Don't raise, let us handle the response
+    )
+
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    return session
+
+
 class Statistics:
     """Track processing statistics"""
 
@@ -64,6 +107,7 @@ class Statistics:
         self.errors = 0
         self.duplicates = 0
         self.skipped = 0
+        self.already_exists = 0  # New: count of files already in destination
         self.source_counts = Counter()
         self.file_types = Counter()
         self.issues: List[str] = []
@@ -75,7 +119,8 @@ class Statistics:
                 'total_files': self.total_files,
                 'processed_success': self.processed,
                 'duplicates_isolated': self.duplicates,
-                'skipped': self.skipped,
+                'skipped_already_exists': self.already_exists,
+                'skipped_other': self.skipped,
                 'errors': self.errors,
                 'duration_seconds': round(time.time() - self.start_time, 2)
             },
@@ -86,43 +131,73 @@ class Statistics:
 
 
 class OneDriveClient:
-    """Microsoft Graph API client for OneDrive operations"""
+    """
+    Microsoft Graph API client for OneDrive operations.
 
-    def __init__(self, client_id: str, client_secret: str, tenant_id: str, drive_type: str = "me"):
+    Features:
+    - Automatic token refresh using MSAL's acquire_token_silent
+    - Retry with exponential backoff for rate limits (429) and server errors (5xx)
+    - Proper error handling
+    """
+
+    def __init__(self, client_id: str, client_secret: str, tenant_id: str):
         self.client_id = client_id
         self.client_secret = client_secret
         self.tenant_id = tenant_id
-        self.drive_type = drive_type
-        self.access_token: Optional[str] = None
-        self.token_expires: float = 0
 
+        # MSAL app with token caching
         self.app = ConfidentialClientApplication(
             client_id=self.client_id,
             client_credential=self.client_secret,
             authority=f"https://login.microsoftonline.com/{self.tenant_id}"
         )
 
-    def _ensure_token(self):
-        """Ensure we have a valid access token"""
-        if self.access_token and time.time() < self.token_expires - 60:
-            return
+        # Session with retry logic
+        self.session = create_retry_session()
 
-        scopes = ["https://graph.microsoft.com/.default"]
-        result = self.app.acquire_token_for_client(scopes=scopes)
+        # Token management
+        self._access_token: Optional[str] = None
+        self._token_expires_at: float = 0
+
+        # Cache for existing files (for resume functionality)
+        self._existing_files_cache: Dict[str, Set[str]] = {}
+
+    def _get_token(self) -> str:
+        """
+        Get a valid access token, refreshing if necessary.
+
+        Uses MSAL's acquire_token_silent first (uses cache),
+        falls back to acquire_token_for_client if needed.
+        """
+        # Check if current token is still valid
+        if self._access_token and time.time() < self._token_expires_at - TOKEN_REFRESH_BUFFER_SECONDS:
+            return self._access_token
+
+        # Try to get token silently from cache first
+        result = self.app.acquire_token_silent(scopes=GRAPH_SCOPES, account=None)
+
+        if not result:
+            # No cached token, acquire new one
+            logger.info("Acquiring new access token...")
+            result = self.app.acquire_token_for_client(scopes=GRAPH_SCOPES)
 
         if "access_token" not in result:
             error = result.get("error_description", result.get("error", "Unknown error"))
             raise Exception(f"Failed to acquire token: {error}")
 
-        self.access_token = result["access_token"]
-        self.token_expires = time.time() + result.get("expires_in", 3600)
-        logger.info("Successfully acquired Microsoft Graph API token")
+        self._access_token = result["access_token"]
+        # Calculate expiry time (default 1 hour, use actual value from response)
+        expires_in = result.get("expires_in", 3600)
+        self._token_expires_at = time.time() + expires_in
 
-    def _headers(self) -> Dict[str, str]:
-        self._ensure_token()
+        logger.info(f"Token acquired/refreshed, expires in {expires_in}s")
+        return self._access_token
+
+    def _get_headers(self, content_type: str = "application/json") -> Dict[str, str]:
+        """Get headers with fresh token for each request"""
         return {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
+            "Authorization": f"Bearer {self._get_token()}",
+            "Content-Type": content_type
         }
 
     def _get_drive_path(self, user_id: Optional[str] = None) -> str:
@@ -131,11 +206,85 @@ class OneDriveClient:
             return f"{GRAPH_API_BASE}/users/{user_id}/drive"
         return f"{GRAPH_API_BASE}/me/drive"
 
+    def _make_request(
+        self,
+        method: str,
+        url: str,
+        headers: Optional[Dict] = None,
+        **kwargs
+    ) -> requests.Response:
+        """
+        Make an HTTP request with automatic token refresh and retry.
+
+        Handles 401 errors by refreshing token and retrying once.
+        """
+        if headers is None:
+            headers = self._get_headers()
+
+        response = self.session.request(method, url, headers=headers, **kwargs)
+
+        # Handle 401 Unauthorized - token might have expired
+        if response.status_code == 401:
+            logger.warning("Got 401, refreshing token and retrying...")
+            self._access_token = None  # Force token refresh
+            headers["Authorization"] = f"Bearer {self._get_token()}"
+            response = self.session.request(method, url, headers=headers, **kwargs)
+
+        return response
+
+    def file_exists(self, folder_path: str, filename: str, user_id: Optional[str] = None) -> bool:
+        """
+        Check if a file already exists in the destination folder.
+        Uses caching to minimize API calls.
+        """
+        folder_path = folder_path.strip('/')
+        cache_key = folder_path
+
+        # Check cache first
+        if cache_key in self._existing_files_cache:
+            return filename in self._existing_files_cache[cache_key]
+
+        # Fetch folder contents and cache
+        drive_path = self._get_drive_path(user_id)
+        if folder_path:
+            url = f"{drive_path}/root:/{folder_path}:/children"
+        else:
+            url = f"{drive_path}/root/children"
+
+        existing_files: Set[str] = set()
+
+        while url:
+            response = self._make_request("GET", url)
+
+            if response.status_code == 404:
+                # Folder doesn't exist yet
+                self._existing_files_cache[cache_key] = set()
+                return False
+
+            if response.status_code != 200:
+                logger.warning(f"Failed to check folder contents: {response.status_code}")
+                return False  # Assume doesn't exist on error
+
+            data = response.json()
+            for item in data.get("value", []):
+                if "file" in item:  # Only files, not folders
+                    existing_files.add(item.get("name", ""))
+
+            url = data.get("@odata.nextLink")
+
+        self._existing_files_cache[cache_key] = existing_files
+        return filename in existing_files
+
+    def invalidate_cache(self, folder_path: str):
+        """Invalidate cache for a folder after uploading"""
+        folder_path = folder_path.strip('/')
+        if folder_path in self._existing_files_cache:
+            del self._existing_files_cache[folder_path]
+
     def list_folder(self, folder_path: str, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all items in a OneDrive folder recursively"""
         drive_path = self._get_drive_path(user_id)
 
-        # Normalize folder path
         folder_path = folder_path.strip('/')
         if folder_path:
             url = f"{drive_path}/root:/{folder_path}:/children"
@@ -145,18 +294,20 @@ class OneDriveClient:
         all_items = []
 
         while url:
-            response = requests.get(url, headers=self._headers())
+            response = self._make_request("GET", url)
 
             if response.status_code == 404:
                 logger.warning(f"Folder not found: {folder_path}")
                 return []
 
-            response.raise_for_status()
+            if response.status_code != 200:
+                logger.error(f"Failed to list folder: {response.status_code} - {response.text}")
+                response.raise_for_status()
+
             data = response.json()
 
             for item in data.get("value", []):
                 if "folder" in item:
-                    # Recursively get contents of subfolders
                     subfolder_path = f"{folder_path}/{item['name']}" if folder_path else item['name']
                     all_items.extend(self.list_folder(subfolder_path, user_id))
                 else:
@@ -173,8 +324,11 @@ class OneDriveClient:
         url = f"{drive_path}/items/{item_id}/content"
 
         try:
-            response = requests.get(url, headers=self._headers(), stream=True)
-            response.raise_for_status()
+            response = self._make_request("GET", url, stream=True)
+
+            if response.status_code != 200:
+                logger.error(f"Download failed: {response.status_code}")
+                return False
 
             with open(local_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -192,9 +346,15 @@ class OneDriveClient:
         file_size = local_path.stat().st_size
 
         if file_size < 4 * 1024 * 1024:  # < 4MB
-            return self._upload_small_file(local_path, dest_folder, filename, drive_path)
+            success = self._upload_small_file(local_path, dest_folder, filename, drive_path)
         else:
-            return self._upload_large_file(local_path, dest_folder, filename, drive_path)
+            success = self._upload_large_file(local_path, dest_folder, filename, drive_path)
+
+        if success:
+            # Invalidate cache for this folder
+            self.invalidate_cache(dest_folder)
+
+        return success
 
     def _upload_small_file(self, local_path: Path, dest_folder: str, filename: str, drive_path: str) -> bool:
         """Upload small file (< 4MB) directly"""
@@ -207,11 +367,13 @@ class OneDriveClient:
             with open(local_path, 'rb') as f:
                 content = f.read()
 
-            headers = self._headers()
-            headers['Content-Type'] = 'application/octet-stream'
+            headers = self._get_headers(content_type='application/octet-stream')
+            response = self._make_request("PUT", url, headers=headers, data=content)
 
-            response = requests.put(url, headers=headers, data=content)
-            response.raise_for_status()
+            if response.status_code not in [200, 201]:
+                logger.error(f"Upload failed: {response.status_code} - {response.text[:200]}")
+                return False
+
             return True
         except Exception as e:
             logger.error(f"Failed to upload {filename}: {e}")
@@ -226,10 +388,14 @@ class OneDriveClient:
 
         try:
             # Create upload session
-            session_response = requests.post(url, headers=self._headers(), json={
+            session_response = self._make_request("POST", url, json={
                 "item": {"@microsoft.graph.conflictBehavior": "rename"}
             })
-            session_response.raise_for_status()
+
+            if session_response.status_code not in [200, 201]:
+                logger.error(f"Failed to create upload session: {session_response.status_code}")
+                return False
+
             upload_url = session_response.json()["uploadUrl"]
 
             # Upload in chunks
@@ -247,8 +413,13 @@ class OneDriveClient:
                         'Content-Range': f'bytes {chunk_start}-{chunk_end}/{file_size}'
                     }
 
-                    response = requests.put(upload_url, headers=headers, data=chunk_data)
-                    response.raise_for_status()
+                    # Use session for retry, but upload URL doesn't need auth
+                    response = self.session.put(upload_url, headers=headers, data=chunk_data)
+
+                    if response.status_code not in [200, 201, 202]:
+                        logger.error(f"Chunk upload failed: {response.status_code}")
+                        return False
+
                     chunk_start = chunk_end + 1
 
             return True
@@ -270,19 +441,20 @@ class OneDriveClient:
                 parent_url = f"{drive_path}/root/children"
 
             try:
-                response = requests.post(parent_url, headers=self._headers(), json={
+                response = self._make_request("POST", parent_url, json={
                     "name": part,
                     "folder": {},
                     "@microsoft.graph.conflictBehavior": "fail"
                 })
 
-                if response.status_code not in [201, 409]:  # 409 = already exists
-                    response.raise_for_status()
-
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code != 409:
-                    logger.error(f"Failed to create folder {part}: {e}")
+                # 201 = created, 409 = already exists (both are OK)
+                if response.status_code not in [201, 409]:
+                    logger.error(f"Failed to create folder {part}: {response.status_code}")
                     return False
+
+            except Exception as e:
+                logger.error(f"Error creating folder {part}: {e}")
+                return False
 
             current_path = f"{current_path}/{part}" if current_path else part
 
@@ -377,12 +549,14 @@ class OneDrivePhotoFixer:
         self.exiftool = ExifToolWrapper()
         self.tz = timezone(timedelta(hours=args.timezone))
         self.hash_db: Dict[str, str] = {}
+        self.skip_existing = args.skip_existing
 
         self.temp_dir = Path(tempfile.mkdtemp(prefix='onedrive_photo_fixer_'))
         self.processed_temp_dir = self.temp_dir / 'processed'
         self.processed_temp_dir.mkdir()
 
         logger.info(f"Using temporary directory: {self.temp_dir}")
+        logger.info(f"Skip existing files: {self.skip_existing}")
 
     def cleanup(self):
         """Clean up temporary files"""
@@ -406,7 +580,6 @@ class OneDrivePhotoFixer:
     def find_json_in_items(self, file_name: str, all_items: List[Dict], folder_path: str) -> Optional[Dict]:
         """Find matching JSON metadata file from OneDrive items"""
         stem = Path(file_name).stem
-        suffix = Path(file_name).suffix
 
         candidates = [
             f"{file_name}.json",
@@ -480,7 +653,6 @@ class OneDrivePhotoFixer:
             file_hash = self.calculate_hash(local_file)
             if file_hash and file_hash in self.hash_db:
                 logger.info(f"Duplicate found: {file_name} (matches {self.hash_db[file_hash]})")
-                # Upload to duplicates folder
                 self.client.create_folder(self.dup_folder)
                 self.client.upload_file(local_file, self.dup_folder, file_name)
                 self.stats.duplicates += 1
@@ -546,7 +718,6 @@ class OneDrivePhotoFixer:
 
             # --- STEP 4: File modification time (fallback) ---
             if 'DateTimeOriginal' not in meta_tags:
-                # Use OneDrive lastModifiedDateTime
                 last_modified = item.get('lastModifiedDateTime')
                 if last_modified:
                     try:
@@ -560,14 +731,21 @@ class OneDrivePhotoFixer:
                     meta_tags['DateTimeOriginal'] = datetime.fromtimestamp(local_file.stat().st_mtime)
                     source = "FileSystem_LastResort"
 
-            # Write metadata to file
-            if meta_tags and self.exiftool.available:
-                self.exiftool.write_metadata(local_file, meta_tags, sidecar=self.args.create_xmp)
-
             # Determine destination folder based on date
             final_dt = meta_tags.get('DateTimeOriginal', datetime.now())
             date_folder = final_dt.strftime('%Y/%Y-%m')
             dest_folder_path = f"{self.dst_folder}/{date_folder}"
+
+            # Check if file already exists in destination (resume functionality)
+            if self.skip_existing and self.client.file_exists(dest_folder_path, file_name):
+                logger.info(f"SKIP (exists): {file_name} in {dest_folder_path}")
+                self.stats.already_exists += 1
+                local_file.unlink(missing_ok=True)
+                return True
+
+            # Write metadata to file
+            if meta_tags and self.exiftool.available:
+                self.exiftool.write_metadata(local_file, meta_tags, sidecar=self.args.create_xmp)
 
             # Create folder and upload
             self.client.create_folder(dest_folder_path)
@@ -601,9 +779,10 @@ class OneDrivePhotoFixer:
     def run(self):
         """Main execution method"""
         logger.info("=" * 60)
-        logger.info("OneDrive Photo Fixer Started")
+        logger.info("OneDrive Photo Fixer v2.0 (Hardened)")
         logger.info(f"Source: {self.src_folder}")
         logger.info(f"Destination: {self.dst_folder}")
+        logger.info(f"Skip existing: {self.skip_existing}")
         logger.info("=" * 60)
 
         try:
@@ -624,8 +803,9 @@ class OneDrivePhotoFixer:
                 logger.warning("No media files found in source folder")
                 return
 
-            # Process files
+            # Process files (single-threaded recommended for API rate limits)
             if self.args.threads > 1:
+                logger.warning("Multi-threading may cause rate limit issues. Consider using --threads 1")
                 with ThreadPoolExecutor(max_workers=self.args.threads) as executor:
                     futures = [
                         executor.submit(self.process_item, item, all_items)
@@ -655,6 +835,7 @@ class OneDrivePhotoFixer:
             logger.info("Processing Complete!")
             logger.info(f"  Total files: {self.stats.total_files}")
             logger.info(f"  Processed: {self.stats.processed}")
+            logger.info(f"  Already existed (skipped): {self.stats.already_exists}")
             logger.info(f"  Duplicates: {self.stats.duplicates}")
             logger.info(f"  Errors: {self.stats.errors}")
             logger.info(f"  Duration: {round(time.time() - self.stats.start_time, 2)}s")
@@ -670,10 +851,10 @@ class OneDrivePhotoFixer:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="OneDrive Photo Metadata Fixer - Processes photos and fixes metadata"
+        description="OneDrive Photo Metadata Fixer v2.0 - Processes photos and fixes metadata"
     )
 
-    # Required arguments (will be provided via environment variables in GitHub Actions)
+    # Required arguments
     parser.add_argument(
         '--client-id',
         default=os.environ.get('AZURE_CLIENT_ID'),
@@ -720,6 +901,12 @@ def main():
         action='store_true',
         default=os.environ.get('CREATE_XMP', '').lower() == 'true',
         help='Create XMP sidecar files'
+    )
+    parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        default=os.environ.get('SKIP_EXISTING', 'true').lower() == 'true',
+        help='Skip files that already exist in destination (default: true, enables resume)'
     )
     parser.add_argument(
         '--dry-run',

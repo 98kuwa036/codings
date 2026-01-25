@@ -24,6 +24,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip_existing:
+        description: 'Skip already processed files (enables resume)'
+        required: false
+        default: true
+        type: boolean
       dry_run:
         description: 'Dry run - list files without processing'
         required: false
@@ -78,10 +83,11 @@ jobs:
           ONEDRIVE_DST_FOLDER: ${{ github.event.inputs.dst_folder || 'Photos/Processed' }}
           TZ_OFFSET: ${{ github.event.inputs.timezone || '9' }}
           CREATE_XMP: ${{ github.event.inputs.create_xmp || 'false' }}
+          SKIP_EXISTING: ${{ github.event.inputs.skip_existing || 'true' }}
         run: |
           cd onedrive-photo-migration
 
-          # Build command
+          # Build command with all options
           CMD="python onedrive_photo_fixer.py"
           CMD="$CMD --src-folder '${{ github.event.inputs.src_folder || 'Photos/Google Takeout' }}'"
           CMD="$CMD --dst-folder '${{ github.event.inputs.dst_folder || 'Photos/Processed' }}'"
@@ -91,11 +97,23 @@ jobs:
             CMD="$CMD --create-xmp"
           fi
 
+          if [ "${{ github.event.inputs.skip_existing }}" == "true" ] || [ -z "${{ github.event.inputs.skip_existing }}" ]; then
+            CMD="$CMD --skip-existing"
+          fi
+
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
             CMD="$CMD --dry-run"
           fi
 
+          echo "=============================================="
+          echo "OneDrive Photo Migration v2.0 (Hardened)"
+          echo "=============================================="
+          echo "Source: ${{ github.event.inputs.src_folder || 'Photos/Google Takeout' }}"
+          echo "Destination: ${{ github.event.inputs.dst_folder || 'Photos/Processed' }}"
+          echo "Skip existing: ${{ github.event.inputs.skip_existing || 'true' }}"
+          echo "=============================================="
           echo "Running: $CMD"
+          echo ""
           eval $CMD
 
       - name: Upload logs as artifact
