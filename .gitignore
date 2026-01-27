@@ -29,3 +29,10 @@ ENV/
 # Environment variables
 .env
 .env.local
+
+# Shogun system
+shogun/queue/*.json
+shogun/status/*.json
+shogun/logs/*.log
+shogun/.venv/
+*.gguf
