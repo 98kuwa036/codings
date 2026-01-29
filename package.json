@@ -1,0 +1,63 @@
+{
+  "name": "shogun-ai-system",
+  "version": "7.0.0",
+  "description": "将軍AIシステム - 4つの新機能を含む統合AIエージェントシステム",
+  "main": "shogun/main.py",
+  "scripts": {
+    "start": "cd shogun && python main.py",
+    "dev": "cd shogun && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8080",
+    "install-deps": "cd shogun && pip install -r requirements.txt",
+    "test": "cd shogun && python -m pytest tests/",
+    "lint": "cd shogun && python -m flake8 .",
+    "format": "cd shogun && python -m black .",
+    "setup": "cd shogun/setup && chmod +x install.sh && ./install.sh",
+    "cli": "cd shogun && python cli.py"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "shogun",
+    "claude",
+    "groq",
+    "notion",
+    "rag",
+    "japanese"
+  ],
+  "author": "98kuwa036",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/98kuwa036/codings.git"
+  },
+  "engines": {
+    "python": ">=3.8"
+  },
+  "dependencies": {
+    "note": "Python dependencies are managed in shogun/requirements.txt"
+  },
+  "devDependencies": {},
+  "shogun": {
+    "version": "7.0.0",
+    "features": {
+      "claude_opus_20251101": "✅ 最新版Claude Opus指定",
+      "notion_rag_dual_management": "✅ 家訓のNotion+RAG二重管理",
+      "dynamic_ashigaru_selection": "✅ 足軽の動的選抜システム(最大4人)",
+      "groq_rate_limiting": "✅ GroqRecorderのレート制限とExponential Backoff"
+    },
+    "agents": {
+      "shogun": "将軍 - 最終決裁・戦略判断",
+      "karo": "家老 - 作業割振り・複雑実装", 
+      "taisho": "侍大将 - OpenVINO R1推論",
+      "ashigaru": "足軽 × 8 - MCP実行部隊 (最大4名同時実行)"
+    },
+    "new_files": [
+      "shogun/core/rag_integration.py",
+      "shogun/core/ashigaru_selection.py"
+    ],
+    "updated_files": [
+      "shogun/config/settings.yaml",
+      "shogun/ashigaru/groq_recorder.py",
+      "shogun/requirements.txt"
+    ]
+  }
+}
