@@ -87,8 +87,8 @@ class ZipExtractor:
         logger.info(f"Downloading ZIP: {zip_name}")
         zip_path_in_onedrive = f"{zip_folder_path}/{zip_name}"
 
-        # Download ZIP content into memory
-        zip_bytes = self.client.download_file(zip_path_in_onedrive)
+        # Download ZIP content into memory via rclone
+        zip_bytes = self.client.download_file_bytes(zip_path_in_onedrive)
         if not zip_bytes:
             logger.error(f"Failed to download {zip_name}")
             return []

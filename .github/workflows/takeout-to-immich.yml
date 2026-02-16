@@ -1,45 +1,62 @@
 name: Google Takeout → Immich Pipeline
 
+# ─────────────────────────────────────────────────────────────────
+# 必要な GitHub Secrets (Azure不要 - rcloneのみ):
+#
+#   RCLONE_CONFIG              - rclone設定ファイルの内容
+#                                (ローカルで `rclone config` 後に
+#                                 ~/.config/rclone/rclone.conf をコピー)
+#
+# AI タグ付けを使う場合のみ追加:
+#   GOOGLE_VISION_CREDENTIALS_JSON - Google Cloud サービスアカウントJSON
+#   DEEPL_API_KEY                  - DeepL API キー
+# ─────────────────────────────────────────────────────────────────
+
 on:
   workflow_dispatch:
     inputs:
       zip_folder:
-        description: 'OneDrive folder containing Google Takeout ZIPs'
+        description: 'OneDrive: Google Takeout ZIPのフォルダ'
         required: true
         default: 'Photos/Google Takeout ZIPs'
         type: string
       dst_folder:
-        description: 'Destination folder in OneDrive (Immich external library root)'
+        description: 'OneDrive: 出力先フォルダ (Immich外部ライブラリ)'
         required: true
         default: 'Photos/Immich'
         type: string
+      rclone_remote:
+        description: 'rclone リモート名'
+        required: false
+        default: 'onedrive'
+        type: string
       enable_ai_tagging:
-        description: 'Enable Vision AI + DeepL Japanese tagging'
+        description: 'Vision AI + DeepL 日本語タグ付けを有効化'
         required: false
         default: false
         type: boolean
       ai_confidence:
-        description: 'Vision AI minimum confidence threshold (0.0–1.0)'
+        description: 'Vision AI 最小信頼スコア (0.0〜1.0)'
         required: false
         default: '0.75'
         type: string
       deepl_free_tier:
-        description: 'Use DeepL free API endpoint'
+        description: 'DeepL 無料プランを使用'
         required: false
-        default: false
+        default: true
         type: boolean
       skip_existing:
-        description: 'Skip files already in destination (resume mode)'
+        description: '処理済みファイルをスキップ (再実行対応)'
         required: false
         default: true
         type: boolean
       timezone:
-        description: 'Timezone offset from UTC (9 = JST)'
+        description: 'タイムゾーン (UTC+X, 日本=9)'
         required: false
         default: '9'
         type: string
       dry_run:
-        description: 'Dry run – list ZIPs and files without processing'
+        description: 'ドライラン (ファイル一覧のみ、変更なし)'
         required: false
         default: false
         type: boolean
@@ -49,121 +66,138 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────
-  # Job 1: Extract ZIPs, repair EXIF, generate XMP, upload to OneDrive
+  # Job 1: rclone設定 → ZIP解凍 → EXIF修復 → OneDriveアップロード
   # ─────────────────────────────────────────────────────────────────
   extract-and-repair:
-    name: Extract ZIPs & Repair Metadata
+    name: ZIP解凍・メタデータ修復
     runs-on: ubuntu-latest
-    timeout-minutes: 330  # Leave 30 min margin within 6h limit
+    timeout-minutes: 330
 
     outputs:
       processed_count: ${{ steps.migration.outputs.processed_count }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Python セットアップ
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: 'onedrive-photo-migration/requirements.txt'
 
-      - name: Install system dependencies
+      - name: システム依存パッケージインストール
         run: |
-          sudo apt-get update
-          sudo apt-get install -y exiftool libimage-exiftool-perl
+          sudo apt-get update -qq
+          sudo apt-get install -y exiftool rclone
 
-      - name: Install Python dependencies
+      - name: Pythonパッケージインストール
         run: |
           python -m pip install --upgrade pip
           pip install -r onedrive-photo-migration/requirements.txt
 
-      - name: Verify ExifTool
-        run: exiftool -ver && which exiftool
+      - name: rclone設定ファイルを復元
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+          echo "rclone config restored"
+          rclone listremotes
 
-      - name: Extract ZIPs, Repair EXIF & Upload
+      - name: rclone接続テスト
+        run: |
+          rclone lsd ${{ github.event.inputs.rclone_remote || 'onedrive' }}: --max-depth 1 || {
+            echo "ERROR: OneDriveに接続できません。RCLONE_CONFIG secretを確認してください。"
+            exit 1
+          }
+
+      - name: ZIP解凍・EXIF修復・アップロード
         id: migration
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd onedrive-photo-migration
 
-          CMD="python onedrive_photo_fixer.py"
-          CMD="$CMD --src-folder '${{ github.event.inputs.zip_folder }}'"
-          CMD="$CMD --dst-folder '${{ github.event.inputs.dst_folder }}'"
-          CMD="$CMD --zip-folder '${{ github.event.inputs.zip_folder }}'"
-          CMD="$CMD --timezone ${{ github.event.inputs.timezone || '9' }}"
-          CMD="$CMD --extract-zips"
-          CMD="$CMD --create-xmp"  # Always create XMP for Immich external library
+          ARGS="--rclone-remote '${{ github.event.inputs.rclone_remote || 'onedrive' }}'"
+          ARGS="$ARGS --src-folder '${{ github.event.inputs.zip_folder }}'"
+          ARGS="$ARGS --dst-folder '${{ github.event.inputs.dst_folder }}'"
+          ARGS="$ARGS --zip-folder '${{ github.event.inputs.zip_folder }}'"
+          ARGS="$ARGS --timezone ${{ github.event.inputs.timezone || '9' }}"
+          ARGS="$ARGS --extract-zips"
+          ARGS="$ARGS --create-xmp"
 
           if [ "${{ github.event.inputs.skip_existing }}" != "false" ]; then
-            CMD="$CMD --skip-existing"
+            ARGS="$ARGS --skip-existing"
           fi
 
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-            CMD="$CMD --dry-run"
+            ARGS="$ARGS --dry-run"
           fi
 
           echo "=============================================="
-          echo "Google Takeout → Immich Pipeline v3.0"
-          echo "=============================================="
-          echo "ZIP Source: ${{ github.event.inputs.zip_folder }}"
+          echo "Google Takeout → Immich Pipeline v4.0 (rclone)"
+          echo "ZIP Source : ${{ github.event.inputs.zip_folder }}"
           echo "Destination: ${{ github.event.inputs.dst_folder }}"
-          echo "AI Tagging: ${{ github.event.inputs.enable_ai_tagging }}"
-          echo "Skip existing: ${{ github.event.inputs.skip_existing }}"
-          echo "Running: $CMD"
-          echo ""
-          eval $CMD
+          echo "AI Tagging : ${{ github.event.inputs.enable_ai_tagging }}"
+          echo "=============================================="
 
-          # Capture processed count for downstream jobs
-          echo "processed_count=$(grep -o 'processed_success.*[0-9]*' migration_report.json | grep -o '[0-9]*' | head -1 || echo 0)" >> $GITHUB_OUTPUT
+          eval python onedrive_photo_fixer.py $ARGS
 
-      - name: Upload migration report
+          # レポートからprocessed数を抽出
+          PROCESSED=$(python -c "
+          import json, sys
+          try:
+              with open('/tmp/migration_report.json') as f:
+                  d = json.load(f)
+              print(d.get('summary', {}).get('processed_success', 0))
+          except:
+              print(0)
+          " 2>/dev/null || echo 0)
+          echo "processed_count=$PROCESSED" >> $GITHUB_OUTPUT
+
+      - name: レポートをアーティファクトに保存
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: migration-report-${{ github.run_id }}
-          path: |
-            onedrive-photo-migration/*.log
-            onedrive-photo-migration/migration_report.json
+          path: onedrive-photo-migration/migration_report.json
           retention-days: 30
 
   # ─────────────────────────────────────────────────────────────────
-  # Job 2: AI tagging (Vision API + DeepL) – runs only if enabled
+  # Job 2: AI タグ付け (Vision API + DeepL) - 有効化した場合のみ
   # ─────────────────────────────────────────────────────────────────
   ai-tagging:
-    name: Vision AI + DeepL Japanese Tagging
+    name: Vision AI + DeepL 日本語タグ付け
     runs-on: ubuntu-latest
     needs: extract-and-repair
     timeout-minutes: 300
     if: ${{ github.event.inputs.enable_ai_tagging == 'true' }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Python セットアップ
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: 'onedrive-photo-migration/requirements.txt'
 
-      - name: Install system dependencies
+      - name: システム依存パッケージインストール
         run: |
-          sudo apt-get update
-          sudo apt-get install -y exiftool libimage-exiftool-perl
+          sudo apt-get update -qq
+          sudo apt-get install -y exiftool rclone
 
-      - name: Install Python dependencies
+      - name: Pythonパッケージインストール
         run: |
           python -m pip install --upgrade pip
           pip install -r onedrive-photo-migration/requirements.txt
 
-      - name: Restore DeepL translation cache
+      - name: rclone設定ファイルを復元
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+
+      - name: DeepL翻訳キャッシュを復元
         uses: actions/cache@v4
         with:
           path: /tmp/translation_cache.json
@@ -171,80 +205,67 @@ jobs:
           restore-keys: |
             deepl-cache-${{ github.repository }}-
 
-      - name: Run AI Tagging on uploaded files
+      - name: AI タグ付け実行
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           GOOGLE_VISION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_VISION_CREDENTIALS_JSON }}
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
         run: |
           cd onedrive-photo-migration
 
-          # Tag files already uploaded to dst_folder
-          CMD="python onedrive_photo_fixer.py"
-          CMD="$CMD --src-folder '${{ github.event.inputs.dst_folder }}'"
-          CMD="$CMD --dst-folder '${{ github.event.inputs.dst_folder }}'"
-          CMD="$CMD --timezone ${{ github.event.inputs.timezone || '9' }}"
-          CMD="$CMD --enable-ai-tagging"
-          CMD="$CMD --ai-confidence ${{ github.event.inputs.ai_confidence || '0.75' }}"
-          CMD="$CMD --ai-cache-path /tmp/translation_cache.json"
-          CMD="$CMD --create-xmp"
-          CMD="$CMD --skip-existing"
+          ARGS="--rclone-remote '${{ github.event.inputs.rclone_remote || 'onedrive' }}'"
+          ARGS="$ARGS --src-folder '${{ github.event.inputs.dst_folder }}'"
+          ARGS="$ARGS --dst-folder '${{ github.event.inputs.dst_folder }}'"
+          ARGS="$ARGS --timezone ${{ github.event.inputs.timezone || '9' }}"
+          ARGS="$ARGS --enable-ai-tagging"
+          ARGS="$ARGS --ai-confidence ${{ github.event.inputs.ai_confidence || '0.75' }}"
+          ARGS="$ARGS --ai-cache-path /tmp/translation_cache.json"
+          ARGS="$ARGS --create-xmp"
+          ARGS="$ARGS --skip-existing"
 
           if [ "${{ github.event.inputs.deepl_free_tier }}" == "true" ]; then
-            CMD="$CMD --deepl-free-tier"
+            ARGS="$ARGS --deepl-free-tier"
           fi
 
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
-            CMD="$CMD --dry-run"
+            ARGS="$ARGS --dry-run"
           fi
 
-          echo "Running AI tagging: $CMD"
-          eval $CMD
+          eval python onedrive_photo_fixer.py $ARGS
 
-      - name: Save DeepL translation cache
+      - name: DeepL翻訳キャッシュを保存
         uses: actions/cache/save@v4
         if: always()
         with:
           path: /tmp/translation_cache.json
           key: deepl-cache-${{ github.repository }}-${{ hashFiles('onedrive-photo-migration/adaptive_vision_analyzer.py') }}
 
-      - name: Upload AI tagging report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ai-tagging-report-${{ github.run_id }}
-          path: onedrive-photo-migration/*.log
-          retention-days: 30
-
   # ─────────────────────────────────────────────────────────────────
-  # Job 3: Notification
+  # Job 3: 完了通知
   # ─────────────────────────────────────────────────────────────────
   notify:
-    name: Send Notification
+    name: 完了通知
     runs-on: ubuntu-latest
     needs: [extract-and-repair, ai-tagging]
     if: always()
 
     steps:
-      - name: Pipeline succeeded
-        if: needs.extract-and-repair.result == 'success'
+      - name: 結果サマリー
         run: |
-          echo "✅ Takeout → Immich pipeline completed!"
-          echo "Destination: ${{ github.event.inputs.dst_folder }}"
-          echo "AI tagging: ${{ github.event.inputs.enable_ai_tagging }}"
-          # Uncomment to add Slack/Discord notification:
-          # curl -s -X POST -H 'Content-type: application/json' \
-          #   --data '{"text":"✅ Photo migration completed!"}' \
-          #   ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      - name: Pipeline failed
-        if: needs.extract-and-repair.result == 'failure'
-        run: |
-          echo "❌ Takeout → Immich pipeline FAILED"
-          echo "Check the migration-report artifact for details."
-          # Uncomment to add failure notification:
-          # curl -s -X POST -H 'Content-type: application/json' \
-          #   --data '{"text":"❌ Photo migration failed!"}' \
-          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+          echo "## パイプライン結果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.extract-and-repair.result }}" == "success" ]; then
+            echo "✅ **ZIP解凍・EXIF修復**: 成功" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **ZIP解凍・EXIF修復**: 失敗" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ github.event.inputs.enable_ai_tagging }}" == "true" ]; then
+            if [ "${{ needs.ai-tagging.result }}" == "success" ]; then
+              echo "✅ **AIタグ付け**: 成功" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **AIタグ付け**: 失敗" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⏭️ **AIタグ付け**: スキップ (無効)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**出力先**: \`${{ github.event.inputs.dst_folder }}\`" >> $GITHUB_STEP_SUMMARY

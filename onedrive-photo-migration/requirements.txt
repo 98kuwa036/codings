@@ -1,16 +1,14 @@
 # OneDrive Photo Migration - Python Dependencies
+# Azure AD / MSAL は不要。OneDrive アクセスは rclone 経由。
 
-# Microsoft Authentication Library for Azure AD
-msal>=1.24.0
-
-# HTTP requests library
+# HTTP requests (AI tagging module uses this)
 requests>=2.31.0
 
-# Optional: For image processing (not required for basic operation)
-Pillow>=10.0.0
-
-# Google Cloud Vision API authentication (no heavy SDK needed)
+# Google Cloud Vision API authentication
 google-auth>=2.23.0
 
 # DeepL official Python SDK for Japanese translation
 deepl>=1.16.0
+
+# Optional: Image processing
+Pillow>=10.0.0
