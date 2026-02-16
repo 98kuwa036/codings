@@ -1,0 +1,35 @@
+# rclone configuration template for OneDrive
+#
+# Setup instructions:
+#
+#   Option A – Interactive (recommended for first-time setup):
+#     1. Install rclone on your VPS: curl https://rclone.org/install.sh | bash
+#     2. Run: rclone config
+#     3. Choose: n (new remote), name it "onedrive"
+#     4. Choose: Microsoft OneDrive
+#     5. Follow the OAuth flow (use a browser on your local machine)
+#     6. Copy the generated ~/.config/rclone/rclone.conf to this directory
+#
+#   Option B – Service account / headless (for automation):
+#     Use client_id / client_secret from Azure AD app registration
+#     (same credentials as GitHub Actions AZURE_CLIENT_ID, AZURE_CLIENT_SECRET)
+#     See: https://rclone.org/onedrive/#getting-your-own-client-id-and-key
+#
+# After configuring, test with:
+#   rclone ls onedrive:Photos/Immich
+#
+
+[onedrive]
+type = onedrive
+# OAuth token will be populated by `rclone config`
+# token = {"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}
+
+# Optional: set your tenant for personal/org account
+# tenant = common          # Personal Microsoft account
+# tenant = YOUR_TENANT_ID  # Organization account
+
+# Drive type: personal or business
+drive_type = business
+
+# Drive ID (populated by `rclone config`)
+# drive_id = b!...

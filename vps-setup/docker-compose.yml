@@ -1,0 +1,166 @@
+version: "3.8"
+
+#
+# Immich + rclone OneDrive mount
+#
+# Usage:
+#   1. Copy .env.template to .env and fill in values
+#   2. Copy rclone.conf.template to rclone.conf and configure OneDrive
+#   3. docker compose up -d
+#   4. Open http://localhost:2283, create admin account
+#   5. Administration → External Libraries → Add library → path: /mnt/onedrive
+#   6. Note the library ID → set IMMICH_LIBRARY_ID in .env
+#   7. Start rescan service: docker compose up -d immich-rescan
+#
+
+services:
+  # ─────────────────────────────────────────────────────────────────
+  # Immich Server (API + Web UI)
+  # ─────────────────────────────────────────────────────────────────
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    container_name: immich_server
+    restart: unless-stopped
+    ports:
+      - "2283:3001"
+    volumes:
+      - ${UPLOAD_LOCATION}:/usr/src/app/upload
+      - /mnt/onedrive:/mnt/onedrive:ro,shared  # External library (read-only)
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - database
+    networks:
+      - immich-net
+
+  # ─────────────────────────────────────────────────────────────────
+  # Immich Microservices (thumbnails, video transcoding, etc.)
+  # ─────────────────────────────────────────────────────────────────
+  immich-microservices:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    container_name: immich_microservices
+    restart: unless-stopped
+    command: ["start.sh", "microservices"]
+    volumes:
+      - ${UPLOAD_LOCATION}:/usr/src/app/upload
+      - /mnt/onedrive:/mnt/onedrive:ro,shared
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - database
+    networks:
+      - immich-net
+
+  # ─────────────────────────────────────────────────────────────────
+  # Immich Machine Learning (face recognition, CLIP)
+  # ─────────────────────────────────────────────────────────────────
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    container_name: immich_machine_learning
+    restart: unless-stopped
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - .env
+    networks:
+      - immich-net
+
+  # ─────────────────────────────────────────────────────────────────
+  # PostgreSQL with pgvecto-rs (required by Immich)
+  # ─────────────────────────────────────────────────────────────────
+  database:
+    image: tensorchord/pgvecto-rs:pg14-v0.2.0
+    container_name: immich_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE_NAME}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - immich-net
+
+  # ─────────────────────────────────────────────────────────────────
+  # Redis (job queue)
+  # ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:6.2-alpine
+    container_name: immich_redis
+    restart: unless-stopped
+    networks:
+      - immich-net
+
+  # ─────────────────────────────────────────────────────────────────
+  # rclone – mount OneDrive as FUSE filesystem
+  # Photos appear at /mnt/onedrive on the host
+  # ─────────────────────────────────────────────────────────────────
+  rclone:
+    image: rclone/rclone:latest
+    container_name: immich_rclone
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/fuse
+    volumes:
+      - ./rclone.conf:/config/rclone/rclone.conf:ro
+      - /mnt/onedrive:/mnt/onedrive:shared
+    command: >
+      mount onedrive:${ONEDRIVE_IMMICH_PATH}
+      /mnt/onedrive
+      --config /config/rclone/rclone.conf
+      --vfs-cache-mode writes
+      --vfs-cache-max-size 10G
+      --vfs-cache-max-age 24h
+      --vfs-read-chunk-size 128M
+      --vfs-read-chunk-size-limit off
+      --allow-other
+      --dir-cache-time 5m
+      --poll-interval 2m
+      --log-level INFO
+      --transfers 4
+      --checkers 8
+    networks:
+      - immich-net
+
+  # ─────────────────────────────────────────────────────────────────
+  # Immich Auto-Rescan (inotifywait → Immich API)
+  # Start after setting IMMICH_LIBRARY_ID in .env
+  # ─────────────────────────────────────────────────────────────────
+  immich-rescan:
+    image: alpine:3.19
+    container_name: immich_rescan
+    restart: unless-stopped
+    profiles:
+      - rescan  # Start with: docker compose --profile rescan up -d
+    volumes:
+      - ./immich-rescan.sh:/immich-rescan.sh:ro
+      - /mnt/onedrive:/mnt/onedrive:ro,shared
+    env_file:
+      - .env
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "apk add --no-cache inotify-tools curl &&
+       chmod +x /immich-rescan.sh &&
+       /immich-rescan.sh"
+    depends_on:
+      - immich-server
+      - rclone
+    networks:
+      - immich-net
+
+volumes:
+  pgdata:
+  model-cache:
+
+networks:
+  immich-net:
+    driver: bridge

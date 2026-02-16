@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OneDrive Photo Metadata Fixer for GitHub Actions (v2.0 - Hardened)
+OneDrive Photo Metadata Fixer for GitHub Actions (v3.0 - Full Pipeline)
 Processes photos from OneDrive Folder A, fixes metadata using JSON files,
 and uploads to OneDrive Folder B.
 
@@ -11,6 +11,12 @@ v2.0 Improvements:
 - Rate limit handling with exponential backoff (429 errors)
 - Resume functionality (skip already processed files)
 - Robust retry logic for all API calls
+
+v3.0 Additions:
+- ZIP extraction support (Google Takeout ZIPs from OneDrive)
+- Adaptive Vision AI tagging (Google Cloud Vision + DeepL)
+- Local file fast-path (_local_path) skips download for extracted ZIPs
+- Immich-compatible XMP sidecar generation
 """
 
 import os
@@ -319,7 +325,7 @@ class OneDriveClient:
         return all_items
 
     def download_file(self, item_id: str, local_path: Path, user_id: Optional[str] = None) -> bool:
-        """Download a file from OneDrive"""
+        """Download a file from OneDrive by item ID to a local path"""
         drive_path = self._get_drive_path(user_id)
         url = f"{drive_path}/items/{item_id}/content"
 
@@ -337,6 +343,48 @@ class OneDriveClient:
         except Exception as e:
             logger.error(f"Failed to download file {item_id}: {e}")
             return False
+
+    def download_file_bytes(self, file_path: str, user_id: Optional[str] = None) -> Optional[bytes]:
+        """
+        Download a file from OneDrive by path, returning raw bytes.
+        Used by ZipExtractor for in-memory ZIP processing.
+        """
+        drive_path = self._get_drive_path(user_id)
+        file_path = file_path.strip('/')
+        url = f"{drive_path}/root:/{file_path}:/content"
+
+        try:
+            response = self._make_request("GET", url)
+            if response.status_code != 200:
+                logger.error(f"Download failed for {file_path}: {response.status_code}")
+                return None
+            return response.content
+        except Exception as e:
+            logger.error(f"Failed to download {file_path}: {e}")
+            return None
+
+    def list_files(self, folder_path: str, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List files (non-recursive) in a OneDrive folder. Used by ZipExtractor."""
+        drive_path = self._get_drive_path(user_id)
+        folder_path = folder_path.strip('/')
+        if folder_path:
+            url = f"{drive_path}/root:/{folder_path}:/children"
+        else:
+            url = f"{drive_path}/root/children"
+
+        all_items: List[Dict[str, Any]] = []
+        while url:
+            response = self._make_request("GET", url)
+            if response.status_code == 404:
+                logger.warning(f"Folder not found: {folder_path}")
+                return []
+            if response.status_code != 200:
+                logger.error(f"Failed to list folder: {response.status_code}")
+                return []
+            data = response.json()
+            all_items.extend(data.get("value", []))
+            url = data.get("@odata.nextLink")
+        return all_items
 
     def upload_file(self, local_path: Path, dest_folder: str, filename: str, user_id: Optional[str] = None) -> bool:
         """Upload a file to OneDrive (supports files up to 4MB directly, larger via upload session)"""
@@ -555,8 +603,38 @@ class OneDrivePhotoFixer:
         self.processed_temp_dir = self.temp_dir / 'processed'
         self.processed_temp_dir.mkdir()
 
+        # AI tagger (optional)
+        self.ai_tagger = self._init_ai_tagger()
+
         logger.info(f"Using temporary directory: {self.temp_dir}")
         logger.info(f"Skip existing files: {self.skip_existing}")
+
+    def _init_ai_tagger(self):
+        """Initialize AdaptiveVisionAnalyzer if AI tagging is enabled."""
+        if not getattr(self.args, 'enable_ai_tagging', False):
+            return None
+
+        vision_creds = getattr(self.args, 'vision_credentials', None) or os.environ.get('GOOGLE_VISION_CREDENTIALS_JSON')
+        deepl_key = getattr(self.args, 'deepl_api_key', None) or os.environ.get('DEEPL_API_KEY')
+
+        if not vision_creds or not deepl_key:
+            logger.warning("AI tagging requested but credentials missing; skipping")
+            return None
+
+        try:
+            from adaptive_vision_analyzer import AdaptiveVisionAnalyzer
+            tagger = AdaptiveVisionAnalyzer(
+                vision_credentials_json=vision_creds,
+                deepl_api_key=deepl_key,
+                deepl_free_tier=getattr(self.args, 'deepl_free_tier', False),
+                confidence_threshold=getattr(self.args, 'ai_confidence', 0.75),
+                cache_path=getattr(self.args, 'ai_cache_path', None),
+            )
+            logger.info("AdaptiveVisionAnalyzer initialized")
+            return tagger
+        except Exception as e:
+            logger.warning(f"Failed to initialize AI tagger: {e}")
+            return None
 
     def cleanup(self):
         """Clean up temporary files"""
@@ -628,8 +706,36 @@ class OneDrivePhotoFixer:
         except:
             return None
 
+    def _load_json_file(self, json_path: Path) -> Optional[Dict]:
+        """Load and return a JSON file's contents, or None on error."""
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.debug(f"JSON load error {json_path}: {e}")
+            return None
+
+    def _apply_json_metadata(self, json_data: Dict, meta_tags: Dict, source: str):
+        """Extract date and geo from Google Takeout JSON, updating meta_tags in-place."""
+        ts = int(json_data.get('photoTakenTime', {}).get('timestamp', 0))
+        if ts > 0:
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(self.tz).replace(tzinfo=None)
+            if 1980 < dt.year < 2030:
+                meta_tags['DateTimeOriginal'] = dt
+                meta_tags['CreateDate'] = dt
+                source = "JSON"
+
+        geo_data = json_data.get('geoData', {})
+        lat = geo_data.get('latitude', 0.0)
+        lon = geo_data.get('longitude', 0.0)
+        if lat and lon and abs(lat) > 0.001 and abs(lon) > 0.001:
+            meta_tags['GPSLatitude'] = lat
+            meta_tags['GPSLongitude'] = lon
+
+        return meta_tags, source
+
     def process_item(self, item: Dict, all_items: List[Dict]) -> bool:
-        """Process a single file from OneDrive"""
+        """Process a single file from OneDrive (or local extracted ZIP)"""
         file_name = item.get('name', '')
         item_id = item.get('id')
         folder_path = item.get('_folder_path', '')
@@ -642,12 +748,21 @@ class OneDrivePhotoFixer:
         logger.info(f"Processing: {folder_path}/{file_name}")
 
         try:
-            # Download file to temp directory
-            local_file = self.temp_dir / file_name
-            if not self.client.download_file(item_id, local_file):
-                self.stats.errors += 1
-                self.stats.issues.append(f"Download failed: {file_name}")
-                return False
+            # --- Fast-path: file already local (from ZIP extraction) ---
+            local_path_str = item.get('_local_path')
+            if local_path_str:
+                local_file = Path(local_path_str)
+                if not local_file.exists():
+                    self.stats.errors += 1
+                    self.stats.issues.append(f"Local file missing: {file_name}")
+                    return False
+            else:
+                # Download file to temp directory
+                local_file = self.temp_dir / file_name
+                if not self.client.download_file(item_id, local_file):
+                    self.stats.errors += 1
+                    self.stats.issues.append(f"Download failed: {file_name}")
+                    return False
 
             # Check for duplicate
             file_hash = self.calculate_hash(local_file)
@@ -683,31 +798,24 @@ class OneDrivePhotoFixer:
 
             # --- STEP 2: JSON metadata (Priority #2) ---
             if 'DateTimeOriginal' not in meta_tags:
-                json_item = self.find_json_in_items(file_name, all_items, folder_path)
-                if json_item:
-                    json_local = self.temp_dir / json_item['name']
-                    if self.client.download_file(json_item['id'], json_local):
-                        try:
-                            with open(json_local, 'r', encoding='utf-8') as f:
-                                json_data = json.load(f)
-
-                            ts = int(json_data.get('photoTakenTime', {}).get('timestamp', 0))
-                            if ts > 0:
-                                dt = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(self.tz).replace(tzinfo=None)
-                                if 1980 < dt.year < 2030:
-                                    meta_tags['DateTimeOriginal'] = dt
-                                    meta_tags['CreateDate'] = dt
-                                    source = "JSON"
-
-                            # Also try to get geo data
-                            geo_data = json_data.get('geoData', {})
-                            if geo_data.get('latitude') and geo_data.get('longitude'):
-                                meta_tags['GPSLatitude'] = geo_data['latitude']
-                                meta_tags['GPSLongitude'] = geo_data['longitude']
-                        except Exception as e:
-                            logger.debug(f"JSON parse error: {e}")
-                        finally:
-                            json_local.unlink(missing_ok=True)
+                # For ZIP-extracted items, sidecar path is pre-resolved
+                json_sidecar_path = item.get('_json_sidecar_path')
+                if json_sidecar_path:
+                    json_path = Path(json_sidecar_path)
+                    json_data = self._load_json_file(json_path)
+                    if json_data:
+                        meta_tags, source = self._apply_json_metadata(json_data, meta_tags, source)
+                else:
+                    json_item = self.find_json_in_items(file_name, all_items, folder_path)
+                    if json_item:
+                        json_local = self.temp_dir / json_item['name']
+                        if self.client.download_file(json_item['id'], json_local):
+                            try:
+                                json_data = self._load_json_file(json_local)
+                                if json_data:
+                                    meta_tags, source = self._apply_json_metadata(json_data, meta_tags, source)
+                            finally:
+                                json_local.unlink(missing_ok=True)
 
             # --- STEP 3: Filename (Priority #3) ---
             if 'DateTimeOriginal' not in meta_tags:
@@ -747,6 +855,32 @@ class OneDrivePhotoFixer:
             if meta_tags and self.exiftool.available:
                 self.exiftool.write_metadata(local_file, meta_tags, sidecar=self.args.create_xmp)
 
+            # --- AI Tagging (after EXIF repair, before upload) ---
+            ai_xmp_path = None
+            if self.ai_tagger is not None:
+                try:
+                    gps_lat = meta_tags.get('GPSLatitude')
+                    gps_lon = meta_tags.get('GPSLongitude')
+                    result = self.ai_tagger.analyze(
+                        image_path=local_file,
+                        exif_data={
+                            'gps_lat': gps_lat,
+                            'gps_lon': gps_lon,
+                            'folder_path': folder_path,
+                        },
+                        immich_has_faces=False,  # Immich not yet populated at migration time
+                        force_profile=None,
+                    )
+                    if result and result.xmp_path and Path(result.xmp_path).exists():
+                        ai_xmp_path = Path(result.xmp_path)
+                        logger.info(
+                            f"AI tagged: {len(result.tags_japanese)} tags, "
+                            f"profile={result.feature_profile}, "
+                            f"cost=${result.cost_usd:.4f}"
+                        )
+                except Exception as e:
+                    logger.warning(f"AI tagging failed for {file_name}: {e}")
+
             # Create folder and upload
             self.client.create_folder(dest_folder_path)
 
@@ -756,11 +890,15 @@ class OneDrivePhotoFixer:
                 self.stats.source_counts[source] += 1
                 self.stats.file_types[suffix] += 1
 
-                # Upload XMP sidecar if created
+                # Upload XMP sidecar (basic metadata)
                 if self.args.create_xmp:
                     xmp_file = local_file.with_suffix(suffix + '.xmp')
                     if xmp_file.exists():
                         self.client.upload_file(xmp_file, dest_folder_path, xmp_file.name)
+
+                # Upload AI-generated XMP sidecar (photo.jpg.xmp format)
+                if ai_xmp_path and ai_xmp_path.exists():
+                    self.client.upload_file(ai_xmp_path, dest_folder_path, ai_xmp_path.name)
             else:
                 self.stats.errors += 1
                 self.stats.issues.append(f"Upload failed: {file_name}")
@@ -776,19 +914,61 @@ class OneDrivePhotoFixer:
             self.stats.issues.append(f"Error {file_name}: {str(e)}")
             return False
 
+    def _extract_zips_and_build_items(self, zip_folder: str) -> List[Dict]:
+        """Find, download, and extract ZIP files; return synthetic item dicts."""
+        from zip_extractor import ZipExtractor
+
+        extractor = ZipExtractor(self.client)
+        zip_items = extractor.find_zips(zip_folder)
+
+        if not zip_items:
+            logger.warning(f"No ZIP files found in {zip_folder}")
+            return []
+
+        extract_base = self.temp_dir / 'extracted'
+        extract_base.mkdir(exist_ok=True)
+
+        all_synthetic: List[Dict] = []
+        for zip_item in zip_items:
+            logger.info(f"Processing ZIP: {zip_item['name']}")
+            extracted_files = extractor.download_and_extract(
+                zip_item=zip_item,
+                extract_to=extract_base,
+                zip_folder_path=zip_folder,
+            )
+            synthetic = extractor.build_synthetic_items(
+                files=extracted_files,
+                base_path=extract_base,
+                original_zip_name=zip_item['name'],
+            )
+            all_synthetic.extend(synthetic)
+            logger.info(f"  -> {len(synthetic)} items from {zip_item['name']}")
+
+        logger.info(f"Total items from ZIPs: {len(all_synthetic)}")
+        return all_synthetic
+
     def run(self):
         """Main execution method"""
         logger.info("=" * 60)
-        logger.info("OneDrive Photo Fixer v2.0 (Hardened)")
+        logger.info("OneDrive Photo Fixer v3.0 (Full Pipeline)")
         logger.info(f"Source: {self.src_folder}")
         logger.info(f"Destination: {self.dst_folder}")
         logger.info(f"Skip existing: {self.skip_existing}")
+        if self.ai_tagger:
+            logger.info("AI tagging: ENABLED")
         logger.info("=" * 60)
 
         try:
-            # List all files in source folder
-            logger.info("Listing files in source folder...")
-            all_items = self.client.list_folder(self.src_folder)
+            all_items: List[Dict] = []
+
+            # --- ZIP extraction mode ---
+            if getattr(self.args, 'extract_zips', False):
+                zip_folder = getattr(self.args, 'zip_folder', None) or self.src_folder
+                all_items = self._extract_zips_and_build_items(zip_folder)
+            else:
+                # Standard mode: list files in source folder
+                logger.info("Listing files in source folder...")
+                all_items = self.client.list_folder(self.src_folder)
 
             # Filter to target file types
             media_items = [
@@ -912,6 +1092,54 @@ def main():
         '--dry-run',
         action='store_true',
         help='List files without processing'
+    )
+
+    # ZIP extraction options
+    parser.add_argument(
+        '--extract-zips',
+        action='store_true',
+        default=os.environ.get('EXTRACT_ZIPS', '').lower() == 'true',
+        help='Find and extract Google Takeout ZIP files before processing'
+    )
+    parser.add_argument(
+        '--zip-folder',
+        default=os.environ.get('ONEDRIVE_ZIP_FOLDER', ''),
+        help='OneDrive folder containing ZIP files (defaults to --src-folder)'
+    )
+
+    # AI tagging options
+    parser.add_argument(
+        '--enable-ai-tagging',
+        action='store_true',
+        default=os.environ.get('ENABLE_AI_TAGGING', '').lower() == 'true',
+        help='Enable Google Cloud Vision + DeepL AI tagging'
+    )
+    parser.add_argument(
+        '--vision-credentials',
+        default=os.environ.get('GOOGLE_VISION_CREDENTIALS_JSON', ''),
+        help='Google Cloud service account JSON string for Vision API'
+    )
+    parser.add_argument(
+        '--deepl-api-key',
+        default=os.environ.get('DEEPL_API_KEY', ''),
+        help='DeepL API key for Japanese translation'
+    )
+    parser.add_argument(
+        '--deepl-free-tier',
+        action='store_true',
+        default=os.environ.get('DEEPL_FREE_TIER', '').lower() == 'true',
+        help='Use DeepL free API endpoint'
+    )
+    parser.add_argument(
+        '--ai-confidence',
+        type=float,
+        default=float(os.environ.get('AI_CONFIDENCE', '0.75')),
+        help='Minimum confidence threshold for Vision AI labels (default: 0.75)'
+    )
+    parser.add_argument(
+        '--ai-cache-path',
+        default=os.environ.get('AI_CACHE_PATH', '/tmp/translation_cache.json'),
+        help='Path for persistent translation cache'
     )
 
     args = parser.parse_args()

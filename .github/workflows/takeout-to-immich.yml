@@ -1,0 +1,250 @@
+name: Google Takeout → Immich Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_folder:
+        description: 'OneDrive folder containing Google Takeout ZIPs'
+        required: true
+        default: 'Photos/Google Takeout ZIPs'
+        type: string
+      dst_folder:
+        description: 'Destination folder in OneDrive (Immich external library root)'
+        required: true
+        default: 'Photos/Immich'
+        type: string
+      enable_ai_tagging:
+        description: 'Enable Vision AI + DeepL Japanese tagging'
+        required: false
+        default: false
+        type: boolean
+      ai_confidence:
+        description: 'Vision AI minimum confidence threshold (0.0–1.0)'
+        required: false
+        default: '0.75'
+        type: string
+      deepl_free_tier:
+        description: 'Use DeepL free API endpoint'
+        required: false
+        default: false
+        type: boolean
+      skip_existing:
+        description: 'Skip files already in destination (resume mode)'
+        required: false
+        default: true
+        type: boolean
+      timezone:
+        description: 'Timezone offset from UTC (9 = JST)'
+        required: false
+        default: '9'
+        type: string
+      dry_run:
+        description: 'Dry run – list ZIPs and files without processing'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Job 1: Extract ZIPs, repair EXIF, generate XMP, upload to OneDrive
+  # ─────────────────────────────────────────────────────────────────
+  extract-and-repair:
+    name: Extract ZIPs & Repair Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 330  # Leave 30 min margin within 6h limit
+
+    outputs:
+      processed_count: ${{ steps.migration.outputs.processed_count }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'onedrive-photo-migration/requirements.txt'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y exiftool libimage-exiftool-perl
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r onedrive-photo-migration/requirements.txt
+
+      - name: Verify ExifTool
+        run: exiftool -ver && which exiftool
+
+      - name: Extract ZIPs, Repair EXIF & Upload
+        id: migration
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          cd onedrive-photo-migration
+
+          CMD="python onedrive_photo_fixer.py"
+          CMD="$CMD --src-folder '${{ github.event.inputs.zip_folder }}'"
+          CMD="$CMD --dst-folder '${{ github.event.inputs.dst_folder }}'"
+          CMD="$CMD --zip-folder '${{ github.event.inputs.zip_folder }}'"
+          CMD="$CMD --timezone ${{ github.event.inputs.timezone || '9' }}"
+          CMD="$CMD --extract-zips"
+          CMD="$CMD --create-xmp"  # Always create XMP for Immich external library
+
+          if [ "${{ github.event.inputs.skip_existing }}" != "false" ]; then
+            CMD="$CMD --skip-existing"
+          fi
+
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "=============================================="
+          echo "Google Takeout → Immich Pipeline v3.0"
+          echo "=============================================="
+          echo "ZIP Source: ${{ github.event.inputs.zip_folder }}"
+          echo "Destination: ${{ github.event.inputs.dst_folder }}"
+          echo "AI Tagging: ${{ github.event.inputs.enable_ai_tagging }}"
+          echo "Skip existing: ${{ github.event.inputs.skip_existing }}"
+          echo "Running: $CMD"
+          echo ""
+          eval $CMD
+
+          # Capture processed count for downstream jobs
+          echo "processed_count=$(grep -o 'processed_success.*[0-9]*' migration_report.json | grep -o '[0-9]*' | head -1 || echo 0)" >> $GITHUB_OUTPUT
+
+      - name: Upload migration report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migration-report-${{ github.run_id }}
+          path: |
+            onedrive-photo-migration/*.log
+            onedrive-photo-migration/migration_report.json
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────
+  # Job 2: AI tagging (Vision API + DeepL) – runs only if enabled
+  # ─────────────────────────────────────────────────────────────────
+  ai-tagging:
+    name: Vision AI + DeepL Japanese Tagging
+    runs-on: ubuntu-latest
+    needs: extract-and-repair
+    timeout-minutes: 300
+    if: ${{ github.event.inputs.enable_ai_tagging == 'true' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'onedrive-photo-migration/requirements.txt'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y exiftool libimage-exiftool-perl
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r onedrive-photo-migration/requirements.txt
+
+      - name: Restore DeepL translation cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/translation_cache.json
+          key: deepl-cache-${{ github.repository }}-${{ hashFiles('onedrive-photo-migration/adaptive_vision_analyzer.py') }}
+          restore-keys: |
+            deepl-cache-${{ github.repository }}-
+
+      - name: Run AI Tagging on uploaded files
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          GOOGLE_VISION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_VISION_CREDENTIALS_JSON }}
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+        run: |
+          cd onedrive-photo-migration
+
+          # Tag files already uploaded to dst_folder
+          CMD="python onedrive_photo_fixer.py"
+          CMD="$CMD --src-folder '${{ github.event.inputs.dst_folder }}'"
+          CMD="$CMD --dst-folder '${{ github.event.inputs.dst_folder }}'"
+          CMD="$CMD --timezone ${{ github.event.inputs.timezone || '9' }}"
+          CMD="$CMD --enable-ai-tagging"
+          CMD="$CMD --ai-confidence ${{ github.event.inputs.ai_confidence || '0.75' }}"
+          CMD="$CMD --ai-cache-path /tmp/translation_cache.json"
+          CMD="$CMD --create-xmp"
+          CMD="$CMD --skip-existing"
+
+          if [ "${{ github.event.inputs.deepl_free_tier }}" == "true" ]; then
+            CMD="$CMD --deepl-free-tier"
+          fi
+
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "Running AI tagging: $CMD"
+          eval $CMD
+
+      - name: Save DeepL translation cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: /tmp/translation_cache.json
+          key: deepl-cache-${{ github.repository }}-${{ hashFiles('onedrive-photo-migration/adaptive_vision_analyzer.py') }}
+
+      - name: Upload AI tagging report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-tagging-report-${{ github.run_id }}
+          path: onedrive-photo-migration/*.log
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────
+  # Job 3: Notification
+  # ─────────────────────────────────────────────────────────────────
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [extract-and-repair, ai-tagging]
+    if: always()
+
+    steps:
+      - name: Pipeline succeeded
+        if: needs.extract-and-repair.result == 'success'
+        run: |
+          echo "✅ Takeout → Immich pipeline completed!"
+          echo "Destination: ${{ github.event.inputs.dst_folder }}"
+          echo "AI tagging: ${{ github.event.inputs.enable_ai_tagging }}"
+          # Uncomment to add Slack/Discord notification:
+          # curl -s -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"✅ Photo migration completed!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Pipeline failed
+        if: needs.extract-and-repair.result == 'failure'
+        run: |
+          echo "❌ Takeout → Immich pipeline FAILED"
+          echo "Check the migration-report artifact for details."
+          # Uncomment to add failure notification:
+          # curl -s -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"❌ Photo migration failed!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
