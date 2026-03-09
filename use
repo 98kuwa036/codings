@@ -1,12 +1,21 @@
-# /etc/portage/make.conf
+各LLMの特性とコストを極限まで最適化した配置です。
 
-# 基本設定（Qt6/KDE/Wayland優先）
-# 除外設定（GTK/GNOME/Systemd/Legacy排除）
-USE="amd64 qt6 plasma wayland vulkan vaapi \
-     alsa pipewire sound-server screencast \
-     dbus elogind policykit udev \
-     wifi \
-     -gtk -gtk2 -gtk3 -gnome -eds -telepathy \
-     -systemd -consolekit -pulseaudio \
-     -doc -test -debug -handbook \
-     -clang"
+    受付（ルーター）: Command R。高コスパで意図分類に優れ、各ノードへ的確にJSONチケットを発行します。
+
+    外事（外部ツール・RAG）: Command R+。気象APIの実行やNextcloud内のドキュメント検索などを専門に行います。
+
+    検校（視覚解析）: Gemini 3 Flash / Flash Vision。Mattermostに添付された画像の解釈を担当します。
+
+    将軍（メインワーカー）: Claude Sonnet 4.6。実務（コーディング、文章作成）の8割をこなす主軸です。
+
+    軍師（深層推論）: o3-mini。原因究明や仮説検証など、深い論理的思考が必要な難題に専念します。
+
+    参謀（中量級推論）: Mistral Large 3。将軍を補佐し、論理構成や特定ドメインの推論を担います。
+
+    右筆（日本語清書）: Llama 3-ELYZA。自然で美しい日本語への整形や要約を担当します。
+
+    斥候（高速フィルタ・雑談）: Llama 3.3 70B (Groq)。実質無料の超高速応答を活かし、大量のログの一次スクリーニングや雑談を吸収して将軍のコストを抑えます。
+
+    隠密（完全ローカル処理）: Nemotron-3-Nano-30B。Proxmoxの生ログなど、外部APIに出せない機密情報の解析を行います。
+
+    大元帥（最終エスカレーション）: Claude Opus 4.6。他のモデルで解決できない全体アーキテクチャの課題など、最終防衛線として機能します。
