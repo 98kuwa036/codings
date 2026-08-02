@@ -1,0 +1,26 @@
+osamu@penguin:~$ adb logcat -s UE
+--------- beginning of main
+08-02 16:25:35.348  4402  4421 V UE      : [NetworkChangedManager] Network Capabilities changed, has Internet: true
+08-02 16:25:35.348  4402  4421 V UE      : [NetworkChangedManager] No network state set yet, setting naive network state checking connection fully.
+08-02 16:25:35.349  4402  4421 V UE      : [NetworkChangedManager] Network connectivity changed. New connectivity state: CONNECTION_AVAILABLE
+08-02 16:25:35.349  4402  4421 V UE      : [NetworkChangedManager] Network Blocked Status changed, Blocked: false
+08-02 16:25:35.350  4402  4425 V UE      : [NetworkChangedManager] Verifying internet connection with host: https://example.com/
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] LIFECYCLE: GameActivity.onCreate() called!, this=com.epicgames.unreal.GameActivity@fe0c982
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] Found ProjectName = TrainSimUE5
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] Found AppType = 
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] UI hiding set to true
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] BuildConfiguration set to Shipping
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] UseExternalFilesDir set to true
+08-02 16:25:35.391  4402  4402 D UE      : [GameActivity] SupportsVulkan set to true
+08-02 16:25:35.416  4402  4438 D UE      : [GameActivity] Using APK commandline
+08-02 16:25:35.416  4402  4438 D UE      : [GameActivity] Parsing commandline: -project="../../../TrainSimUE5/TrainSimUE5.uproject"
+08-02 16:25:35.418  4402  4438 D UE      : [GameActivity] failed to get bytes from asset java.io.FileNotFoundException: configrules.bin.png
+08-02 16:25:35.420  4402  4438 D UE      : [GameActivity] $$$ configrules: run config rules
+08-02 16:25:35.420  4402  4438 D UE      : [GameActivity] failed to get bytes from asset java.io.FileNotFoundException: configrules.bin.png
+08-02 16:25:35.421  4402  4438 D UE      : [GameActivity] configrulesversion: no data
+08-02 16:25:35.421  4402  4438 D UE      : [GameActivity] configrulesversion: no data
+08-02 16:25:35.421  4402  4438 D UE      : [GameActivity] configrulesversion: no data
+08-02 16:25:35.421  4402  4438 D UE      : [GameActivity] $$$ configrules: start parsing
+08-02 16:25:35.422  4402  4438 D UE      : [GameActivity] $$$ configrules: run completed
+08-02 16:25:35.813  4402  4402 D UE      : [GameActivity] LIFECYCLE: GameActivity.onCreateBody(), activityContext = com.epicgames.unreal.GameActivity@fe0c982
+08-02 16:25:35.863  4402  4402 D UE      : [GameActivity] Target SDK is 34.  This may cause issues if permissions are denied by the user.
